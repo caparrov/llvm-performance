@@ -380,13 +380,13 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
     
     AccessWidths.push_back(AccessWidth);
     IssueCycleGranularities.push_back(IssueCycleGranularity);
-  
+    
     DEBUG(dbgs() << "IssueCycleGranularities["<<i<<"]=" << IssueCycleGranularities[i] << "\n");
   }
   
-
   
-
+  
+  
   DEBUG(dbgs() << "Number of resources " << nExecutionUnits + nPorts + nAGUs + nLoadAGUs + nStoreAGUs + nBuffers << "\n");
   
   ResourcesNames.push_back("FP_ADDER");
@@ -494,7 +494,7 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
   RemainingInstructionsFetch = InstructionFetchBandwidth;
   ReuseTree = NULL;
   PrefetchReuseTree = NULL;
-  
+  PrefetchReuseTreeSize = 0;
   
   
   
@@ -957,9 +957,9 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
   
   
   if (FullOccupancyCyclesTree[TreeChunk] != NULL) {
-
+    
     FullOccupancyCyclesTree[TreeChunk] = splay(NextAvailableCycle, FullOccupancyCyclesTree[TreeChunk]);
- 
+    
     DEBUG(dbgs() << "Full is not NULL &&  there is something scheduled in this cycle \n");
     
     while( FoundInFullOccupancyCyclesTree == true && EnoughBandwidth ==false){
@@ -986,12 +986,12 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
           DEBUG(dbgs() << "Making sure there is also enough bandwidth...\n");
           
           
-        //  AccessWidth = GetAccessWidth(ExecutionResource, NElementsVector);
-            AccessWidth = AccessWidths[ExecutionResource];
+          //  AccessWidth = GetAccessWidth(ExecutionResource, NElementsVector);
+          AccessWidth = AccessWidths[ExecutionResource];
           AvailableBandwidth= ExecutionUnitsThroughput[ExecutionResource];
           
-      //    IssueCycleGranularity = CalculateIssueCycleGranularity(ExecutionResource, NElementsVector);
-              IssueCycleGranularity = IssueCycleGranularities[ExecutionResource];
+          //    IssueCycleGranularity = CalculateIssueCycleGranularity(ExecutionResource, NElementsVector);
+          IssueCycleGranularity = IssueCycleGranularities[ExecutionResource];
           
           DEBUG(dbgs() << "AccessWidth "<< AccessWidth<<"\n");
           DEBUG(dbgs() << "AvailableBandwidth "<< AvailableBandwidth<<"\n");
@@ -1036,7 +1036,7 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
               if (TreeChunk >= FullOccupancyCyclesTree.size()) {
                 for (unsigned i = FullOccupancyCyclesTree.size(); i<= TreeChunk; i++) {
                   DEBUG(dbgs() << "Inserting element into FullOccupancyCyclesTree\n");
-
+                  
                   FullOccupancyCyclesTree.push_back(NULL);
                 }
               }
@@ -1065,7 +1065,7 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
               if (TreeChunk >= FullOccupancyCyclesTree.size()) {
                 for (unsigned i = FullOccupancyCyclesTree.size(); i<= TreeChunk; i++) {
                   DEBUG(dbgs() << "Inserting element into FullOccupancyCyclesTree\n");
-
+                  
                   FullOccupancyCyclesTree.push_back(NULL);
                 }
               }
@@ -1119,7 +1119,7 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
           if (TreeChunk >= FullOccupancyCyclesTree.size()) {
             for (unsigned i = FullOccupancyCyclesTree.size(); i<= TreeChunk; i++) {
               DEBUG(dbgs() << "Inserting element into FullOccupancyCyclesTree\n");
-
+              
               FullOccupancyCyclesTree.push_back(NULL);
             }
           }
@@ -1143,7 +1143,7 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
               if (TreeChunk >= FullOccupancyCyclesTree.size()) {
                 for (unsigned i = FullOccupancyCyclesTree.size(); i<= TreeChunk; i++) {
                   DEBUG(dbgs() << "Inserting element into FullOccupancyCyclesTree\n");
-
+                  
                   FullOccupancyCyclesTree.push_back(NULL);
                 }
               }
@@ -1223,7 +1223,7 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
   InstructionsLastIssueCycle[ExecutionResource] = max( InstructionsLastIssueCycle[ExecutionResource] ,NextAvailableCycle);
   
   DEBUG(dbgs() << "Updating InstructionsLastIssueCycle of execution resource " << ResourcesNames[ExecutionResource] << " to " <<InstructionsLastIssueCycle[ExecutionResource]  << "\n");
-
+  
   
   
   // Insert
@@ -1272,7 +1272,7 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
     DEBUG(dbgs() << " Node->OccupancyPrefetch " <<  Node->occupancyPrefetch << "\n");
     DEBUG(dbgs() << " Node->issueOccupancy " <<  Node->issueOccupancy << "\n");
     DEBUG(dbgs() << " Node->widthOccupancy " <<  Node->widthOccupancy << "\n");
-
+    
     
     
     /* Copy these values becasue later on the Node is not the same anymore */
@@ -1283,7 +1283,7 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
     
     MaxOccupancy[ExecutionResource] = max(MaxOccupancy[ExecutionResource], NodeIssueOccupancy + NodeOccupancyPrefetch);
     
-
+    
     
     DEBUG(dbgs() << "NodeIssueOccupancy " << NodeIssueOccupancy << "\n");
     DEBUG(dbgs() << "ExecutionUnitsParallelIssue[ExecutionResource] " << ExecutionUnitsParallelIssue[ExecutionResource] << "\n");
@@ -1297,8 +1297,8 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
       // Next cycle is not NexAvailableCycle+1, is NextAvailableCycle + 1/Throughput
       
       // Here is where the distinction betweeen execution resource and instruction type is important.
-    //  unsigned NextCycle = CalculateIssueCycleGranularity(ExecutionResource, NElementsVector);
-        unsigned NextCycle = IssueCycleGranularities[ExecutionResource];
+      //  unsigned NextCycle = CalculateIssueCycleGranularity(ExecutionResource, NElementsVector);
+      unsigned NextCycle = IssueCycleGranularities[ExecutionResource];
       
       
       DEBUG(dbgs() << "AccessWidth " << AccessWidth << "\n");
@@ -1316,7 +1316,7 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
       if (TreeChunk >= FullOccupancyCyclesTree.size()) {
         for (unsigned i = FullOccupancyCyclesTree.size(); i<= TreeChunk; i++) {
           DEBUG(dbgs() << "Inserting element into FullOccupancyCyclesTree\n");
-
+          
           FullOccupancyCyclesTree.push_back(NULL);
         }
       }
@@ -1333,21 +1333,21 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
       if (TreeChunk >= FullOccupancyCyclesTree.size()) {
         for (unsigned i = FullOccupancyCyclesTree.size(); i<= TreeChunk; i++) {
           DEBUG(dbgs() << "Inserting element into FullOccupancyCyclesTree\n");
-
+          
           FullOccupancyCyclesTree.push_back(NULL);
         }
       }
       DEBUG(dbgs() << "FullOccupancyCyclesTree.size() "<<FullOccupancyCyclesTree.size() <<"\n");
       DEBUG(dbgs() << "TreeChunk "<< TreeChunk <<"\n");
-
-
+      
+      
       FullOccupancyCyclesTree[TreeChunk] = splay(NextAvailableCycle+NextCycle/*1*/,  FullOccupancyCyclesTree[TreeChunk]);
       DEBUG(dbgs() << "Splay\n");
       if (FullOccupancyCyclesTree[TreeChunk] == NULL)
         DEBUG(dbgs() << "FullOccupancyCyclesTree[TreeChunk] == NULL\n");
-
+      
       if (FullOccupancyCyclesTree[TreeChunk]!=NULL && !(FullOccupancyCyclesTree[TreeChunk]->key == NextAvailableCycle+NextCycle &&
-             FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource] ==1) ) {
+                                                        FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource] ==1) ) {
         DEBUG(dbgs() << "The next node was not in full, so insert in available " << NextAvailableCycle+NextCycle << "\n");
         
         AvailableCyclesTree[ExecutionResource] = insert_node(NextAvailableCycle+NextCycle,  AvailableCyclesTree[ExecutionResource]);
@@ -1392,17 +1392,19 @@ DynamicAnalysis::ReuseDistance(uint64_t Last, uint64_t Current, uint64_t address
     bool IsInPrefetchReuseTree = false;
     // To know whether the data item was in PrefetchReuseTree or not, we check whether the
     // element has been removed from the tree (i.e., the size of the tree).
-    int PrefetchReuseTreeSizeBefore = tree_size(PrefetchReuseTree);
-    
+    //int PrefetchReuseTreeSizeBefore = tree_size(PrefetchReuseTree);
+    int PrefetchReuseTreeSizeBefore = PrefetchReuseTreeSize;
     PrefetchReuseTreeDistance = ReuseTreeSearchDelete(Last, address, true);
-    int PrefetchReuseTreeSizeAfter = tree_size(PrefetchReuseTree);
+    // int PrefetchReuseTreeSizeAfter = tree_size(PrefetchReuseTree);
+    int PrefetchReuseTreeSizeAfter = PrefetchReuseTreeSize;
+    
     
     if (PrefetchReuseTreeSizeAfter < PrefetchReuseTreeSizeBefore){
       DEBUG(dbgs() << "PREFETCHED DATA ITEM\n");
       IsInPrefetchReuseTree = true;
     }else{
       DEBUG(dbgs() << "This data item has not been prefetched\n");
-
+      
     }
     
     
@@ -1453,10 +1455,10 @@ DynamicAnalysis::ReuseDistance(uint64_t Last, uint64_t Current, uint64_t address
     ReuseTree = insert_node(Current, ReuseTree, address);
   }else{
     PrefetchReuseTree = insert_node(Current, PrefetchReuseTree, address);
-    
+    PrefetchReuseTreeSize++;
   }
   
-
+  
 #ifdef DEBUG_REUSE_DISTANCE
   DEBUG(dbgs() << "Memory op reuse distance " << Distance << "\n");
 #endif
@@ -1477,7 +1479,7 @@ DynamicAnalysis::ReuseTreeSearchDelete(uint64_t Original, uint64_t address, bool
     Node = PrefetchReuseTree;
   }
   
-
+  
   //Once we find it, calculate the distance without deleting the node.
   int Distance = -1;
   
@@ -1512,15 +1514,17 @@ DynamicAnalysis::ReuseTreeSearchDelete(uint64_t Original, uint64_t address, bool
           
           if (Node->address == address && FromPrefetchReuseTree == false)
             ReuseTree = delete_node(Original, ReuseTree);
-          else if (Node->address == address && FromPrefetchReuseTree == true)
+          else if (Node->address == address && FromPrefetchReuseTree == true){
             PrefetchReuseTree = delete_node(Original, PrefetchReuseTree);
+            PrefetchReuseTreeSize--;
+          }
           
           break;
           
         }
       }
     }
-
+    
   }
   
   return Distance;
@@ -1585,7 +1589,7 @@ unsigned
 DynamicAnalysis::GetMemoryInstructionType(int ReuseDistance, uint64_t MemoryAddress, bool isLoad){
   if (ReuseDistance < 0 )
     return MEM_LOAD_NODE;
-
+  
   if (ReuseDistance <= (int)L1CacheSize){
     if (isLoad ==true) {
       return L1_LOAD_NODE;
@@ -1744,15 +1748,9 @@ DynamicAnalysis::isStallCycle(int ResourceType, uint64_t Level){
 bool
 DynamicAnalysis::IsEmptyLevel(unsigned ExecutionResource, uint64_t Level, bool WithPrefetch){
   
-
-  //If WithPrefetch==false (by default), is empty if Occupancy == 0
-  //If WithPrefetch==true, is empty if Occupancy+OccupancyPrefetch=0
-  
   // dbgs() << "Checking if Level " << Level << " is empty for Resource " << ResourceType << "\n";
   bool IsInAvailableCyclesTree = false;
   bool IsInFullOccupancyCyclesTree = false;
-  
-  
   
   if (ExecutionResource <= nExecutionUnits) {
     
@@ -1775,7 +1773,7 @@ DynamicAnalysis::IsEmptyLevel(unsigned ExecutionResource, uint64_t Level, bool W
     if (Level == FullOccupancyCyclesTree[TreeChunk]->key &&
         FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource]==1 ){
       
-
+      
       IsInFullOccupancyCyclesTree = true;
       // }
     }
@@ -1792,6 +1790,444 @@ DynamicAnalysis::IsEmptyLevel(unsigned ExecutionResource, uint64_t Level, bool W
   
 }
 
+
+
+
+
+uint64_t
+DynamicAnalysis::FindNextNonEmptyLevel(unsigned ExecutionResource, uint64_t Level){
+  
+  dbgs() << "Find next non empty level to" << Level << "\n";
+  bool IsInAvailableCyclesTree = true;
+  bool IsInFullOccupancyCyclesTree = true;
+  uint64_t Original = 0;
+  uint64_t Closest = 0;
+  uint64_t NextNonEmptyLevelAvailableCyclesTree = Level;
+  uint64_t NextNonEmptyLevelFullOccupancyCyclesTree = Level;
+
+  /*
+  //----------------------------------
+  if (ExecutionResource <= nExecutionUnits) {
+    
+    
+    while (IsInAvailableCyclesTree == true) {
+      dbgs() << "while (IsInAvailableCyclesTree == true)" << "\n";
+      dbgs() << "Searching for " << Current<< "\n";
+      NodeAvailable = AvailableCyclesTree[ExecutionResource];
+      dbgs() << "NodeAvailable->key " << NodeAvailable->key<< "\n";
+      
+      // In the moment there are instructions of one type of resource,
+      // AvailableCyclesTree is not NULL, and we only call this function when
+      // we know that there are instructions of this type.
+      while (true) {
+        // This is the mechanism used in the original algorithm to delete the host
+        // node,  decrementing the last_record attribute of the host node, and
+        // the size attribute of all parents nodes.
+        // Node->size = Node->size-1;
+        if (Current < NodeAvailable->key) {
+          
+          if (NodeAvailable->left == NULL)
+            break;
+          if (NodeAvailable->left->key < Current) {
+            break;
+          }
+          NodeAvailable = NodeAvailable->left;
+        }else{
+          if (Current > NodeAvailable-> key) {
+            if (NodeAvailable->right == NULL)
+              break;
+            NodeAvailable = NodeAvailable->right;
+          }else{ // Last = Node->key, i.e., Node is the host node
+            break;
+          }
+        }
+      }
+      if (LastEmpty == NodeAvailable->key) {
+        // If I reach this point, for two iterations we have not found
+        // a non empty level
+        break;
+      }
+      
+      dbgs() << "NodeAvailable->key " << NodeAvailable->key<<"\n";
+      Current = NodeAvailable->key;
+      
+      
+      // At this point Node->key is the next node in AvailableCyclesTree. But we
+      // have to make sure that this level is really non empty
+      
+      if( NodeAvailable->issueOccupancy != 0 ||  NodeAvailable->occupancyPrefetch != 0){
+        // Keep searching starting for the Level
+        dbgs() << "Level full\n";
+        //Actually, we can break;
+        IsInAvailableCyclesTree = false;
+        break;
+      }else{
+        dbgs() << "Level not full\n";
+        //The level is empty, so keep searching the next nonempty level
+        LastEmpty = Current;
+        Current++;
+        IsInAvailableCyclesTree = true;
+        
+      }
+    }
+  }
+  
+  uint64_t NextNonEmptyLevelAvailableCyclesTree = 0;
+  if (IsInAvailableCyclesTree == false) { // i.e., there are no non-empty level
+    NextNonEmptyLevelAvailableCyclesTree = NodeAvailable->key;
+    
+  }else{
+    NextNonEmptyLevelAvailableCyclesTree = Level;
+    
+  }
+  
+  dbgs() << "NextNonEmptyLevelAvailableCyclesTree " << NextNonEmptyLevelAvailableCyclesTree << "\n";
+  
+  //----------------------------
+   */
+  
+  if (ExecutionResource <= nExecutionUnits) {
+    
+    Tree<uint64_t> * Node = NULL;
+    Tree<uint64_t> * LastNodeVisited = NULL;
+    
+    Node = AvailableCyclesTree[ExecutionResource];
+    Original = Level+1;
+    Closest = Original;
+    
+    while (IsInAvailableCyclesTree == true) {
+      dbgs() << "Starting the search for level " << Original << "\n";
+      dbgs() << "Available Tree size " << node_size(AvailableCyclesTree[ExecutionResource]) << "\n";
+      
+      while( true ) {
+        dbgs() << "Node->key " << Node->key << "\n";
+        dbgs() << "Closest " << Closest << "\n";
+        dbgs() << "Original " << Original << "\n";
+        
+        if( Node->key > Closest){
+          dbgs() << " Node->key > Closest\n";
+          
+          if (Closest == Original){ // i.e., it is the first iteration
+            Closest = Node-> key;
+            LastNodeVisited = Node;
+          }
+          // Search for a smaller one
+          //Node = Node-> left;
+          if (Node->left==NULL) {
+            dbgs() << "Node->left is NULL\n";
+            //If, moreover, Node->right ==NULL, then break
+            if (Node->right==NULL) {
+            dbgs() << "Node->right is NULL\n";
+              Closest = Node->key;
+              LastNodeVisited = Node;
+              
+              IsInAvailableCyclesTree = false;
+              break;
+            }
+            
+            // The while loop is going to finish.
+            // Again, we have to make sure
+            if( !(Node->issueOccupancy != 0 ||  Node->occupancyPrefetch != 0)){
+             // We don't want the loop to finish.
+              // Splay on key and search for the next one.
+              AvailableCyclesTree[ExecutionResource]= splay(Node->key,AvailableCyclesTree[ExecutionResource]);
+              Node =  AvailableCyclesTree[ExecutionResource];
+              //Keep searching starting from the next one
+              Original = Node->key+1;
+              Closest = Original;
+            }
+          }else{
+            Node = Node-> left;
+          }
+        }else if( Node->key < Closest){
+          dbgs() << " Node->key < Closest\n";
+          if (Node->key == Original) {
+            dbgs() << " Node->key == Original\n";
+            // MODIFICATION with respect to the normal search in the tree.
+            if( Node->issueOccupancy != 0 ||  Node->occupancyPrefetch != 0){
+              dbgs() << "Is in available cycles for this resource and has nodes scheduled\n";
+              Closest = Node->key;
+              LastNodeVisited = Node;
+              IsInAvailableCyclesTree = false;
+              break;
+              
+            }else{
+              dbgs() << "Is in available, but not for this resource, so keep searching\n";
+              dbgs() << "Splay tree to "<< Node->key<<"\n";
+              AvailableCyclesTree[ExecutionResource]= splay(Node->key,AvailableCyclesTree[ExecutionResource]);
+              Node =  AvailableCyclesTree[ExecutionResource];
+              dbgs() << "Root of the tree "<< Node->key<<"\n";
+              //Keep searching starting from the next one
+              Original = Node->key+1;
+              Closest = Original;
+              
+            }
+          }else if (Node->key > Original) {
+            dbgs() << "Node->key > Original\n";
+            Closest =Node-> key;
+            LastNodeVisited = Node;
+            //Search for a even smaller one
+            
+           // Node = Node-> left;
+            if (Node->left==NULL) {
+              dbgs() << "Node->left is NULL\n";
+              //If, moreover, Node->right ==NULL, then break
+              if (Node->right==NULL) {
+                dbgs() << "Node->right is NULL\n";
+                Closest = Node->key;
+                LastNodeVisited = Node;
+                
+                IsInAvailableCyclesTree = false;
+                break;
+              }
+              
+              // The while loop is going to finish.
+              // Again, we have to make sure
+              if( !(Node->issueOccupancy != 0 ||  Node->occupancyPrefetch != 0)){
+                // We don't want the loop to finish.
+                // Splay on key and search for the next one.
+                AvailableCyclesTree[ExecutionResource]= splay(Node->key,AvailableCyclesTree[ExecutionResource]);
+                Node =  AvailableCyclesTree[ExecutionResource];
+                //Keep searching starting from the next one
+                Original = Node->key+1;
+                Closest = Original;
+              }
+            }else{
+              Node = Node-> left;
+            }
+            
+          }else{ //Node->key < Original
+            dbgs() << "Node->key < Original\n";
+            
+            // Search for a larger one
+            
+            Node = Node->right;
+            if (Node->right==NULL) {
+              IsInAvailableCyclesTree = false;
+            }
+            
+          }
+        }else{ //Node->key = Closest
+          dbgs() << "Node->key = Closest\n";
+          // MODIFICATION with respect to the normal search in the tree.
+          if( Node->issueOccupancy != 0 ||  Node->occupancyPrefetch != 0){
+            dbgs() << "Is in full for this resource\n";
+            Closest = Node->key;
+            LastNodeVisited = Node;
+            IsInAvailableCyclesTree = false;
+            
+            break;
+            
+          }else{
+            // TODO: Should we update Closest??
+            dbgs() << "Is in full, but not for this resource, so keep searching\n";
+            AvailableCyclesTree[ExecutionResource] = splay(Node->key,AvailableCyclesTree[ExecutionResource]);
+            Node =  AvailableCyclesTree[ExecutionResource];
+            dbgs() << "Root of the tree "<< Node->key<<"\n";
+
+            Original = Node->key+1;
+            Closest = Original;
+            
+          }
+          
+        }
+      }
+      
+      
+      
+      dbgs() << "NodeFull->key " << LastNodeVisited->key<<"\n";
+     // Current = LastNodeVisited->key;
+    }
+    
+    if (IsInAvailableCyclesTree == false) { // i.e., there is no non-empty level
+      NextNonEmptyLevelAvailableCyclesTree = Level;
+    }
+    
+  }
+  
+  
+  dbgs() << "NextNonEmptyLevelAvailableCyclesTree " << NextNonEmptyLevelAvailableCyclesTree<<"\n";
+
+  
+  
+  TreeBitVector<uint64_t> * Node = NULL;
+  TreeBitVector<uint64_t> * LastNodeVisited = NULL;
+  
+  // Repeat a similar process with FullOccupancyTree
+  
+  int TreeChunk = Level/SplitTreeRange;
+
+
+   Original = Level+1;
+   Closest = Original;
+  TreeChunk = Original/SplitTreeRange;
+  Node = FullOccupancyCyclesTree[TreeChunk];
+  
+  while (IsInFullOccupancyCyclesTree == true) {
+    dbgs() << "Starting the search for level " << Original << "\n";
+    
+    
+    while( true ) {
+      dbgs() << "Node->key " << Node->key << "\n";
+      dbgs() << "Closest " << Closest << "\n";
+      dbgs() << "Original " << Original << "\n";
+      
+      if( Node->key > Closest){
+        dbgs() << " Node->key > Closest\n";
+        
+        if (Closest == Original){ // i.e., it is the first iteration
+          Closest = Node-> key;
+          LastNodeVisited = Node;
+        }
+        // Search for a smaller one
+       // Node = Node-> left;
+        if (Node->left==NULL) {
+          dbgs() << "Node->left is NULL\n";
+          //If, moreover, Node->right ==NULL, then break
+          if (Node->right==NULL) {
+            dbgs() << "Node->right is NULL\n";
+            Closest = Node->key;
+            LastNodeVisited = Node;
+            
+            IsInFullOccupancyCyclesTree = false;
+            break;
+          }
+          
+          // The while loop is going to finish.
+          // Again, we have to make sure
+          if( !(Node->BitVector[ExecutionResource]==1)){
+            // We don't want the loop to finish.
+            // Splay on key and search for the next one.
+            FullOccupancyCyclesTree[TreeChunk] = splay(Node->key,FullOccupancyCyclesTree[TreeChunk]);
+            Node =  FullOccupancyCyclesTree[TreeChunk];
+            //Keep searching starting from the next one
+            Original = Node->key+1;
+            Closest = Original;
+          }
+        }else{
+          Node = Node-> left;
+        }
+        
+      }else if( Node->key < Closest){
+        dbgs() << " Node->key < Closest\n";
+        if (Node->key == Original) {
+          dbgs() << " Node->key == Original\n";
+          // MODIFICATION with respect to the normal search in the tree.
+          if( Node->BitVector[ExecutionResource]==1){
+            dbgs() << "Is in full for this resource\n";
+            Closest = Node->key;
+            LastNodeVisited = Node;
+            IsInFullOccupancyCyclesTree = false;
+            break;
+            
+          }else{
+            // TODO: Should we update Closest??
+            dbgs() << "Is in full, but not for this resource, so keep searching\n";
+            dbgs() << "Splay tree to "<< Node->key<<"\n";
+            FullOccupancyCyclesTree[TreeChunk] = splay(Node->key,FullOccupancyCyclesTree[TreeChunk]);
+            Node =  FullOccupancyCyclesTree[TreeChunk];
+            //   printtree(Node, 200);
+            dbgs() << "Root of the tree "<< Node->key<<"\n";
+            Original = Node->key+1;
+            Closest = Original;
+            
+          }
+        }else if (Node->key > Original) {
+          dbgs() << "Node->key > Original\n";
+          Closest =Node-> key;
+          LastNodeVisited = Node;
+          //Search for a even smaller one
+          
+         // Node = Node-> left;
+          if (Node->left==NULL) {
+            dbgs() << "Node->left is NULL\n";
+            //If, moreover, Node->right ==NULL, then break
+            if (Node->right==NULL) {
+              dbgs() << "Node->right is NULL\n";
+              Closest = Node->key;
+              LastNodeVisited = Node;
+              
+              IsInFullOccupancyCyclesTree = false;
+              break;
+            }
+            
+            // The while loop is going to finish.
+            // Again, we have to make sure
+            if( !(Node->BitVector[ExecutionResource]==1)){
+              // We don't want the loop to finish.
+              // Splay on key and search for the next one.
+              FullOccupancyCyclesTree[TreeChunk] = splay(Node->key,FullOccupancyCyclesTree[TreeChunk]);
+              Node =  FullOccupancyCyclesTree[TreeChunk];
+              //Keep searching starting from the next one
+              Original = Node->key+1;
+              Closest = Original;
+            }
+          }else{
+            Node = Node-> left;
+          }
+          
+        }else{ //Node->key < Original
+          dbgs() << "Node->key < Original\n";
+          
+          // Search for a larger one
+          
+          Node = Node->right;
+          if (Node == NULL) {
+            IsInFullOccupancyCyclesTree = false;
+          }
+        }
+      }else{ //Node->key = Closest
+        dbgs() << "Node->key = Closest\n";
+        // MODIFICATION with respect to the normal search in the tree.
+        if( Node->BitVector[ExecutionResource]==1){
+          dbgs() << "Is in full for this resource\n";
+          Closest = Node->key;
+          LastNodeVisited = Node;
+          IsInFullOccupancyCyclesTree = false;
+          
+          break;
+          
+        }else{
+          // TODO: Should we update Closest??
+          dbgs() << "Is in full, but not for this resource, so keep searching\n";
+          FullOccupancyCyclesTree[TreeChunk] = splay(Node->key,FullOccupancyCyclesTree[TreeChunk]);
+          Node =  FullOccupancyCyclesTree[TreeChunk];
+          Original = Node->key+1;
+          Closest = Original;
+          
+        }
+        
+      }
+    }
+    
+    
+
+    dbgs() << "NodeFull->key " << LastNodeVisited->key<<"\n";
+   // Current = LastNodeVisited->key;
+
+    
+  }
+  
+  if (IsInFullOccupancyCyclesTree == false) { // i.e., there are no non-empty level
+    NextNonEmptyLevelFullOccupancyCyclesTree = LastNodeVisited->key;
+  }
+  
+  
+  dbgs() << "Next non empty level " << min(NextNonEmptyLevelAvailableCyclesTree, NextNonEmptyLevelFullOccupancyCyclesTree) << "\n";
+  if (NextNonEmptyLevelAvailableCyclesTree == Level) {
+    return NextNonEmptyLevelFullOccupancyCyclesTree;
+  }else{
+    if (NextNonEmptyLevelFullOccupancyCyclesTree == Level) {
+      return NextNonEmptyLevelAvailableCyclesTree;
+    }else{
+      //None of them are euqal to Level
+      return min(NextNonEmptyLevelAvailableCyclesTree, NextNonEmptyLevelFullOccupancyCyclesTree);
+      
+    }
+  }
+  
+  
+}
 
 
 
@@ -1864,8 +2300,8 @@ DynamicAnalysis::CalculateIssueCycleGranularity(unsigned ExecutionResource, unsi
   
   if (ExecutionUnitsThroughput[ExecutionResource]>0) {
     
-   // unsigned AccessWidth = GetAccessWidth(ExecutionResource, NElementsVector);
-     unsigned AccessWidth = AccessWidths[ExecutionResource];
+    // unsigned AccessWidth = GetAccessWidth(ExecutionResource, NElementsVector);
+    unsigned AccessWidth = AccessWidths[ExecutionResource];
     //TODO: Fix this for Vector
     /*
      IssueCycleGranularity = (AccessWidth > ExecutionUnitsThroughput[ExecutionResource]) ?
@@ -1903,7 +2339,7 @@ DynamicAnalysis::GetLastIssueCycle(unsigned ExecutionResource, bool WithPrefetch
   uint64_t LastCycle = 0;
   bool isPrefetchType = false;
   //unsigned  IssueCycleGranularity = CalculateIssueCycleGranularity(ExecutionResource);
-   unsigned  IssueCycleGranularity = IssueCycleGranularities[ExecutionResource];
+  unsigned  IssueCycleGranularity = IssueCycleGranularities[ExecutionResource];
   LastCycle = InstructionsLastIssueCycle[ExecutionResource];
   DEBUG(dbgs() << "Last cycle in InstructionLastIssueCycle " << LastCycle << "\n");
   
@@ -1942,7 +2378,7 @@ DynamicAnalysis::GetLastIssueCycle(unsigned ExecutionResource, bool WithPrefetch
       }
     }
   }
- 
+  
   return LastCycle;
 }
 
@@ -1962,26 +2398,30 @@ DynamicAnalysis::CalculateGroupSpan(vector<int> & ResourcesVector, bool WithPref
   unsigned MaxLatencyLevel = 0;
   unsigned ResourceType = 0;
   unsigned AccessWidth = 0;
+  
+ // vector<uint64_t> NextNonEmptyLevelVector;
+ // uint64_t NextNonEmptyLevel;
+  
 #ifdef DEBUG_SPAN_CALCULATION
   DEBUG(dbgs() << "Resources that contribute to Span:\n");
   for (int j= 0; j< NResources; j++) {
     DEBUG(dbgs() << ResourcesVector[j] << "\n");
   }
 #endif
-
-
+  
+  
   //Determine first non-empty level and LastCycle
   for (int j= 0; j< NResources; j++) {
     
     ResourceType = ResourcesVector[j];
-
+    
     if (InstructionsCountExtended[ResourceType]>0) {
       DEBUG(dbgs() << "There are instructions of type "<< ResourceType<<"\n");
-
-     // AccessWidth = GetAccessWidth(ResourceType,1);
-       AccessWidth = AccessWidths[ResourceType];
+      
+      // AccessWidth = GetAccessWidth(ResourceType,1);
+      AccessWidth = AccessWidths[ResourceType];
       //DEBUG(dbgs() << "AccessWidth "<< ResourceType<<"\n");
-
+      
       if (EmptyLevel == true) { // This will be only executed the first time of a non-empty level
         EmptyLevel = false;
         First = FirstNonEmptyLevel[ResourceType];
@@ -2002,9 +2442,11 @@ DynamicAnalysis::CalculateGroupSpan(vector<int> & ResourcesVector, bool WithPref
       }
       
       
-    //  ResourceLastCycle = GetLastIssueCycle(ResourceType, WithPrefetch);
+      //  ResourceLastCycle = GetLastIssueCycle(ResourceType, WithPrefetch);
       //LastCycleVector[j] = ResourceLastCycle;
-   ResourceLastCycle = LastIssueCycleVector[ResourceType];
+      ResourceLastCycle = LastIssueCycleVector[ResourceType];
+     // NextNonEmptyLevelVector.push_back(FirstNonEmptyLevel[ResourceType]);
+      
 #ifdef DEBUG_SPAN_CALCULATION
       DEBUG(dbgs() << "Calling GetLastIssueCycle with args "<< ResourceType << "  " << WithPrefetch<<"\n");
       DEBUG(dbgs() << "Last cycle returned from ResourceLastCycle "<< ResourceLastCycle<<"\n");
@@ -2012,7 +2454,13 @@ DynamicAnalysis::CalculateGroupSpan(vector<int> & ResourcesVector, bool WithPref
       LastCycle = max(LastCycle, ResourceLastCycle);
     }
   }
-
+ /*
+  for (int j= 0; j< NResources; j++) {
+    if (NextNonEmptyLevelVector[j]==First) {
+      NextNonEmptyLevelVector[j] = FindNextNonEmptyLevel(j,  First);
+    }
+  }
+  */
 #ifdef DEBUG_SPAN_CALCULATION
   DEBUG(dbgs() << "First non-empty level  " << First << "\n");
   DEBUG(dbgs() << "MaxLatency  " << MaxLatency << "\n");
@@ -2024,8 +2472,15 @@ DynamicAnalysis::CalculateGroupSpan(vector<int> & ResourcesVector, bool WithPref
     Span+= MaxLatency;
     
     //Start from next level to first non-emtpy level
+   /* for(int j=0; j< NResources; j++){
+      if (j==0) {
+        NextNonEmptyLevel = NextNonEmptyLevelVector[j];
+      }
+      NextNonEmptyLevel = min (NextNonEmptyLevel, NextNonEmptyLevelVector[j]);
+    }*/
+    // for(unsigned i=First+1; i<= LastCycle; i++){
     for(unsigned i=First+1; i<= LastCycle; i++){
-      
+      // For sure there is at least resource for which this level is not empty.
 #ifdef DEBUG_SPAN_CALCULATION
       DEBUG(dbgs() << "i =   " << i << "\n");
 #endif
@@ -2034,28 +2489,31 @@ DynamicAnalysis::CalculateGroupSpan(vector<int> & ResourcesVector, bool WithPref
       for(int j=0; j< NResources; j++){
         ResourceType = ResourcesVector[j];
         //if (i <= GetLastIssueCycle(GetExecutionResource(ResourceType), ResourceType, WithPrefetch)) {
-   
+        
         if (i <= LastIssueCycleVector[ResourceType]/*GetLastIssueCycle(ResourceType, WithPrefetch)*/ ) {
-          if (IsEmptyLevel(ResourceType, i, WithPrefetch) == false) {
-           // dbgs() << "Level non empty\n";
+       //   if (i == NextNonEmptyLevel) {
+               if (IsEmptyLevel(ResourceType, i, WithPrefetch) == false) {
+            // dbgs() << "Level non empty\n";
             IsGap = false;
             // MaxLatencyLevel = max(MaxLatencyLevel, GetInstructionLatency(ResourcesVector[j]));
             if (ForceUnitLatency ==true) {
               MaxLatencyLevel = 1;
             }else{
-           //   AccessWidth = GetAccessWidth(ResourceType,1);
+              //   AccessWidth = GetAccessWidth(ResourceType,1);
               AccessWidth =AccessWidths[ResourceType];
-             // dbgs() << "AccessWidth "<< AccessWidths[ResourceType]<<"\n";
-            //  dbgs() << "ExecutionUnitsThroughput "<<ExecutionUnitsThroughput[ResourceType]<<"\n";
-
+              // dbgs() << "AccessWidth "<< AccessWidths[ResourceType]<<"\n";
+              //  dbgs() << "ExecutionUnitsThroughput "<<ExecutionUnitsThroughput[ResourceType]<<"\n";
+              
               MaxLatencyLevel = max(MaxLatencyLevel, max(ExecutionUnitsLatency[ResourceType],(unsigned)ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType])));
             }
-          }else{
             
+           // NextNonEmptyLevelVector[j] = FindNextNonEmptyLevel(j, i);
           }
         }
         
       }
+      
+      
       
 #ifdef DEBUG_SPAN_CALCULATION
       DEBUG(dbgs() << "MaxLatencyLevel  " << MaxLatencyLevel << "\n");
@@ -2093,11 +2551,22 @@ DynamicAnalysis::CalculateGroupSpan(vector<int> & ResourcesVector, bool WithPref
           }
         }
       }
+      
+      //Find the next NonEmptyLevelVector
+    /*  for(int j=0; j< NResources; j++){
+        if (j==0) {
+          NextNonEmptyLevel = NextNonEmptyLevelVector[j];
+        }
+        NextNonEmptyLevel = min (NextNonEmptyLevel, NextNonEmptyLevelVector[j]);
+      }*/
+      
+      // Skip all i's that aer empty and jump directly no the next non emtpy
+      //i = NextNonEmptyLevel-1; // Because later will be increased in the loop//
     }
   }
   
   DEBUG(dbgs() << "CalculateGroupSpan returns Span =  " << Span<< "\n");
-
+  
   return Span;
 }
 
@@ -2118,7 +2587,7 @@ DynamicAnalysis::CalculateIssueSpan(vector<int> & ResourcesVector){
   unsigned ResourceType = 0;
   
   unsigned AccessWidth = 0;
-
+  
   
   
 #ifdef DEBUG_SPAN_CALCULATION
@@ -2128,7 +2597,7 @@ DynamicAnalysis::CalculateIssueSpan(vector<int> & ResourcesVector){
   }
 #endif
   
-
+  
   //Determine first non-empty level and LastCycle
   for (int j= 0; j< NResources; j++) {
     
@@ -2137,17 +2606,17 @@ DynamicAnalysis::CalculateIssueSpan(vector<int> & ResourcesVector){
     if (InstructionsCountExtended[ResourceType]>0) {
       
       //TODO:
-     // AccessWidth = GetAccessWidth(ResourceType, 1);
+      // AccessWidth = GetAccessWidth(ResourceType, 1);
       AccessWidth = AccessWidths[ResourceType];
       DEBUG(dbgs() << "AccessWidth "<< AccessWidth<<"\n");
-
+      
       
       DEBUG(dbgs() << "There are instructions of type "<< ResourceType<<"\n");
       if (EmptyLevel == true) { // This will be only executed the first time of a non-empty level
         EmptyLevel = false;
         First = FirstNonEmptyLevel[ResourceType];
         DEBUG(dbgs() << "ExecutionUnitsThroughput[ResourceType] "<< ExecutionUnitsThroughput[ResourceType]<<"\n");
-
+        
         MaxLatency = ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType]);
       }else{
         if (First == FirstNonEmptyLevel[ResourceType])
@@ -2160,13 +2629,13 @@ DynamicAnalysis::CalculateIssueSpan(vector<int> & ResourcesVector){
         }
       }
       
-  //    ResourceLastCycle = GetLastIssueCycle(ResourceType, 0);
-   //   LastCycleVector[j] =ResourceLastCycle;
+      //    ResourceLastCycle = GetLastIssueCycle(ResourceType, 0);
+      //   LastCycleVector[j] =ResourceLastCycle;
       DEBUG(dbgs() << "ResourceType "<< ResourceType<<"\n");
       DEBUG(dbgs() << "LastIssueCycleVector size "<< LastIssueCycleVector.size()<<"\n");
       DEBUG(dbgs() << "LastIssueCycleVector[ResourceType] "<< LastIssueCycleVector[ResourceType]<<"\n");
-
-       ResourceLastCycle = LastIssueCycleVector[ResourceType];
+      
+      ResourceLastCycle = LastIssueCycleVector[ResourceType];
       
 #ifdef DEBUG_SPAN_CALCULATION
       DEBUG(dbgs() << "Last cycle returned from ResourceLastCycle "<< ResourceLastCycle<<"\n");
@@ -2175,7 +2644,7 @@ DynamicAnalysis::CalculateIssueSpan(vector<int> & ResourcesVector){
     }
   }
   
-
+  
 #ifdef DEBUG_SPAN_CALCULATION
   DEBUG(dbgs() << "First non-empty level  " << First << "\n");
   DEBUG(dbgs() << "MaxLatency  " << MaxLatency << "\n");
@@ -2200,10 +2669,10 @@ DynamicAnalysis::CalculateIssueSpan(vector<int> & ResourcesVector){
             
             //AccessWidth = GetAccessWidth(ResourceType,1);
             AccessWidth = AccessWidths[ResourceType];
-        //    dbgs() << "AccessWidth "<< AccessWidths[ResourceType]<<"\n";
-      //      dbgs() << "ExecutionUnitsThroughput "<<ExecutionUnitsThroughput[ResourceType]<<"\n";
+            //    dbgs() << "AccessWidth "<< AccessWidths[ResourceType]<<"\n";
+            //      dbgs() << "ExecutionUnitsThroughput "<<ExecutionUnitsThroughput[ResourceType]<<"\n";
             
-
+            
             MaxLatencyLevel = max(MaxLatencyLevel, (unsigned)ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType]));
             
           }
@@ -2658,7 +3127,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
       switch (I.getOpcode()) {
         case Instruction::Load:{
           DEBUG(dbgs()<<  I<< "\n");
-
+          
           //Transform visitResult to uint64_t
           
           SmallString <128> StrVal;
@@ -2677,12 +3146,12 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
           //   updateReuseDistanceDistribution(Distance, InstructionIssueCycle);
           
           ExtendedInstructionType = GetExtendedInstructionType(Instruction::Load, Distance);
-
+          
         }
           break;
         case Instruction::Store:{
           DEBUG(dbgs()<<  I<< "\n");
-
+          
           SmallString <128> StrVal;
           raw_svector_ostream OS(StrVal);
           
@@ -2699,7 +3168,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
           //  updateReuseDistanceDistribution(Distance, InstructionIssueCycle);
           
           ExtendedInstructionType = GetExtendedInstructionType(Instruction::Store, Distance);
-
+          
         }
           break;
           
@@ -2809,7 +3278,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
         
 #ifdef MOO_BUFFERS
 #ifdef DEBUG_OOO_BUFFERS
-
+        
         PrintReservationStation();
         PrintReorderBuffer();
         PrintStoreBuffer();
@@ -2847,7 +3316,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
         
 #ifdef MOO_BUFFERS
 #ifdef DEBUG_OOO_BUFFERS
-
+        
         PrintReservationStation();
         PrintReorderBuffer();
         PrintStoreBuffer();
@@ -3929,7 +4398,7 @@ DynamicAnalysis::finishAnalysis(){
   }
   
   
- // We have this loop in case we want to print out stats with all computation nodes
+  // We have this loop in case we want to print out stats with all computation nodes
   // merged, needed to generate the original roofline plots. But if we don't need
   // them, we just print the data without merging FP ops.
   for (int i = 0; i < 1 /*2*/; i++) {
@@ -3945,7 +4414,7 @@ DynamicAnalysis::finishAnalysis(){
       TmpResourcesVector.push_back(FP_ADDER);
       TmpResourcesVector.push_back(FP_MULTIPLIER);
       TmpResourcesVector.push_back(FP_DIVIDER);
-
+      
       IssueSpan[FP_ADDER] = CalculateIssueSpan(TmpResourcesVector);
     }
     
@@ -4011,7 +4480,7 @@ DynamicAnalysis::finishAnalysis(){
         uint64_t CalculateSpanResult = CalculateSpan(j);
         uint64_t CalculateGroupSpanResult = CalculateGroupSpan(TmpResourcesVector);
         DEBUG(dbgs() << "CalculateGroupSpanResult  " <<  CalculateGroupSpanResult << "\n");
-
+        
         if (!( CalculateSpanResult== Span  &&  Span == CalculateGroupSpanResult))
           report_fatal_error("Spans differ: Span (" + Twine(Span)+"), CalculateSpan ("+Twine(CalculateSpanResult)+
                              "), CalculateGroupSpan ("+Twine(CalculateGroupSpanResult)+")");
@@ -4096,9 +4565,9 @@ DynamicAnalysis::finishAnalysis(){
             TmpResourcesVector.push_back(j);
             // If there are instructions of this type
             if (InstructionsCountExtended[j]>0) {
-           
-           //   IssueCycleGranularity = CalculateIssueCycleGranularity(j);
-                IssueCycleGranularity = IssueCycleGranularities[j];
+              
+              //   IssueCycleGranularity = CalculateIssueCycleGranularity(j);
+              IssueCycleGranularity = IssueCycleGranularities[j];
               InstructionLatency  =ExecutionUnitsLatency[j];
               LastCycle = LastIssueCycleVector[j];
               
@@ -4114,8 +4583,8 @@ DynamicAnalysis::finishAnalysis(){
         // If there are instructions of this type
         if (InstructionsCountExtended[j]>0) {
           
-         // IssueCycleGranularity = CalculateIssueCycleGranularity(j);
-           IssueCycleGranularity = IssueCycleGranularities[j];
+          // IssueCycleGranularity = CalculateIssueCycleGranularity(j);
+          IssueCycleGranularity = IssueCycleGranularities[j];
           
           InstructionLatency  =ExecutionUnitsLatency[j];
           
@@ -4473,9 +4942,9 @@ DynamicAnalysis::finishAnalysis(){
               Total = (ResourcesResourcesNoStallSpanVector.at(j)).at(i);
               T1 = ResourcesSpan.at(j);
               T2 = ResourcesSpan.at(i);
-             /* dbgs() << "T1 " << T1 << "\n";
-              dbgs() << "T2 " << T2 << "\n";
-              dbgs() << "Total " << Total << "\n";*/
+              /* dbgs() << "T1 " << T1 << "\n";
+               dbgs() << "T2 " << T2 << "\n";
+               dbgs() << "Total " << Total << "\n";*/
               assert(Total <= T1+T2);
               OverlapCycles =  T1+T2-Total;
               OverlapPercetage = (float)OverlapCycles/(float(min(T1, T2)));
@@ -4573,10 +5042,10 @@ DynamicAnalysis::finishAnalysis(){
               Total = (ResourcesResourcesSpanVector.at(j)).at(i);
               T1 = ResourcesTotalStallSpanVector.at(j);
               T2 = ResourcesTotalStallSpanVector.at(i);
-             /* dbgs() << "T1 " << T1 << "\n";
-              dbgs() << "T2 " << T2 << "\n";
-              dbgs() << "Ttotal " << Total << "\n";*/
-
+              /* dbgs() << "T1 " << T1 << "\n";
+               dbgs() << "T2 " << T2 << "\n";
+               dbgs() << "Ttotal " << Total << "\n";*/
+              
               assert(Total <= T1+T2);
               OverlapCycles =  T1+T2-Total;
               OverlapPercetage = (float)OverlapCycles/(float(min(T1, T2)));
@@ -4683,7 +5152,7 @@ DynamicAnalysis::finishAnalysis(){
     
     
     for(unsigned i=0; i< nExecutionUnits; i++){
-
+      
       // Work is always the total number of floating point operations... Otherwise it makes
       // no sense to compare with the performance for memory nodes which is calcualted
       // with total work
@@ -4724,7 +5193,7 @@ DynamicAnalysis::finishAnalysis(){
     Performance = (float)InstructionsCount[0]/((float)TotalSpan);
     fprintf(stderr, "PERFORMANCE %1.3f\n", Performance);
     
-   
+    
 #ifdef ILP_DISTRIBUTION
     if(TotalSpan != SpanDistribution)
       dbgs() << "WARNING: Total Span differs! \n";

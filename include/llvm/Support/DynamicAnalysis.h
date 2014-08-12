@@ -573,6 +573,7 @@ public:
    map <uint64_t , uint64_t> MemoryAddressIssueCycleMap;
   Tree<uint64_t> * ReuseTree;
   Tree<uint64_t> * PrefetchReuseTree;
+  uint64_t PrefetchReuseTreeSize;
   double ErrorApproximationReuse;
   
   vector< vector<unsigned> > ParallelismDistribution;
@@ -660,6 +661,7 @@ public:
   void CalculateResourceStallOverlapCycles(Tree<uint64_t> * n, int resource, uint64_t & OverlapCycles);
 
   bool IsEmptyLevel(unsigned ExecutionResource, uint64_t Level, bool WithPrefetch = false);
+  uint64_t FindNextNonEmptyLevel(unsigned ExecutionResource, uint64_t Level);
   bool isStallCycle(int ResourceType, uint64_t Level);
   
   
