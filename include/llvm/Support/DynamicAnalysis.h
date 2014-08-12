@@ -10,7 +10,7 @@
 #define LLVM_SUPPORT_DYNAMIC_ANALYSIS_H
 
 
-#include "../../../llvm/lib/ExecutionEngine/Interpreter/Interpreter.h"
+#include "../../../lib/ExecutionEngine/Interpreter/Interpreter.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/DebugInfo.h"
