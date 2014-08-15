@@ -500,7 +500,7 @@ public:
   unsigned PrefetchLevel;
   bool ConstraintThroughput;
   bool InOrderExecution;
-  
+  bool ReportOnlyPerformance;
   
   unsigned ReservationStationSize;
   int AddressGenerationUnits;
@@ -606,7 +606,8 @@ public:
                   bool SpatialPrefetcher,
                   bool ConstraintThroughput,
                   int rep,
-                  bool InOrderExecution);
+                  bool InOrderExecution,
+                  bool ReportOnlyPerformance);
   
 
 

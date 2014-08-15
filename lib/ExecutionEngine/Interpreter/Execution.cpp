@@ -71,35 +71,8 @@ static cl::list <unsigned> ExecutionUnitsLatency("execution-units-latency",  cl:
 static cl::list <float> ExecutionUnitsThroughput("execution-units-throughput",  cl::CommaSeparated, cl::desc("Specify the execution bandwidth of the nodes(ops executed/cycles). Default value is -1 cycle"));
 
 static cl::list <unsigned> ExecutionUnitsParallelIssue("execution-units-parallel-issue",  cl::CommaSeparated, cl::desc("Specify the number of nodes that can be executed in parallel based on ports execution. Default value is -1 cycle"));
-/*
-
-static cl::list <float> PortsWidth("ports-width",  cl::CommaSeparated, cl::desc("Specify the execution bandwidth of the nodes(ops executed/cycles). Default value is -1 cycle"));
-*/
-
-
-
 
 static cl::list<unsigned>  MemAccessGranularity("mem-access-granularity", cl::CommaSeparated, cl::desc("Specify the memory access granularity for the different levels of the memory hierarchy (bytes). Default value is memory word size"));
-
-
-/*
-
-static cl::list <unsigned> FLatency("flop-latency",  cl::CommaSeparated, cl::desc("Specify the execution latency of floating point instructions (cycles). Default value is 1 cycle"));
-
-static cl::list <vector <unsigned> > Test("test-vector",  cl::CommaSeparated, cl::desc(""));
-
-
-static cl::list<unsigned> MLatency("mem-latency", cl::CommaSeparated, cl::desc("Specify the execution latency of memory instructions (cycles). Default value is 1 cycle"));
-
-static cl::list <float> FlopIssueThroughput("flop-issue-throughput", cl::CommaSeparated, cl::desc("Specify the maximum throughput for floating point instructions (flops/cycle). Default value is infinity"));
-
-static cl::list <float> FlopIssueWidth("flop-issue-width", cl::CommaSeparated, cl::desc("Specify the maximum throughput for floating point instructions (flops/cycle). Default value is infinity"));
-
-
-static cl::list<float>  MemIssueThroughput("mem-issue-throughput", cl::CommaSeparated, cl::desc("Specify how many loads/stores can be issued per cycle. If unspecified, then one can issue as many loads and stores as the bandwidth allows, depending on the corresponding access granularity. Default value is undefined"));
-
-static cl::list<float>  MemIssueWidth("mem-issue-width", cl::CommaSeparated, cl::desc("Specify the memory bandwidth (bytes memory transfers/cycle). Default value is infinity"));
-*/
 
 static cl::opt <unsigned> AddressGenerationUnits("address-generation-units", cl::desc("Specify thenumber of address generation units. Default value is infinity"),cl::init(-1));
 
@@ -125,6 +98,8 @@ static cl::opt < bool > ConstraintThroughput("constraint-throughput", cl::Hidden
 static cl::opt < bool > SpatialPrefetcher("spatial-prefetcher", cl::Hidden, cl::desc("Implement spatial Prefetching"),cl::init(false));
 
 static cl::opt < bool > InOrderExecution("in-order-execution", cl::Hidden, cl::desc("In order execution"),cl::init(false));
+
+static cl::opt < bool > ReportOnlyPerformance("report-only-performance", cl::Hidden, cl::desc("Reports only performance (op count and span)"),cl::init(false));
 
 
 
@@ -2365,7 +2340,7 @@ void Interpreter::run() {
   Analyzer = new DynamicAnalysis(TargetFunction, MemoryWordSize, CacheLineSize, L1CacheSize, L2CacheSize, LLCCacheSize, FLatency, MLatency, FlopIssueThroughput, FlopIssueWidth, MemAccessGranularity, MemIssueThroughput, MemIssueWidth, AddressGenerationUnits, IFB, ReservationStation, ReorderBuffer, LoadBuffer, StoreBuffer, LineFillBuffer, WarmCache, x86MemoryModel, SpatialPrefetcher, ConstraintThroughput, 0, InOrderExecution);
   */
   
-  Analyzer = new DynamicAnalysis(TargetFunction, Microarchitecture, MemoryWordSize, CacheLineSize, L1CacheSize, L2CacheSize, LLCCacheSize, ExecutionUnitsLatency, ExecutionUnitsThroughput, ExecutionUnitsParallelIssue, MemAccessGranularity, AddressGenerationUnits, IFB, ReservationStation, ReorderBuffer, LoadBuffer, StoreBuffer, LineFillBuffer, WarmCache, x86MemoryModel, SpatialPrefetcher, ConstraintThroughput, 0, InOrderExecution);
+  Analyzer = new DynamicAnalysis(TargetFunction, Microarchitecture, MemoryWordSize, CacheLineSize, L1CacheSize, L2CacheSize, LLCCacheSize, ExecutionUnitsLatency, ExecutionUnitsThroughput, ExecutionUnitsParallelIssue, MemAccessGranularity, AddressGenerationUnits, IFB, ReservationStation, ReorderBuffer, LoadBuffer, StoreBuffer, LineFillBuffer, WarmCache, x86MemoryModel, SpatialPrefetcher, ConstraintThroughput, 0, InOrderExecution,ReportOnlyPerformance);
   
    tStart = clock();
   bool startAnalysis = false;
