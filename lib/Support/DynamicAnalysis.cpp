@@ -1136,12 +1136,13 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
             FullOccupancyCyclesTree[TreeChunk] = splay(NextAvailableCycle, FullOccupancyCyclesTree[TreeChunk]);
             //Check if it is in full
             if ( FullOccupancyCyclesTree[TreeChunk]->key == NextAvailableCycle && FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource]==1) {
-              DEBUG(dbgs() << "Found in Full OccupancyCyclesTree\n");
-              DEBUG(dbgs() << "Cycle " << NextAvailableCycle << " not found for instruction type " <<
+              DEBUG(dbgs() << "Cycle " << NextAvailableCycle << " found in Full OccupancyCyclesTree\n");
                     NodesNames[ExtendedInstructionType] << "\n");
               // Try next cycle
               NextAvailableCycle++;
               TreeChunk = NextAvailableCycle/SplitTreeRange;
+              DEBUG(dbgs() << "TreeChunk "<< TreeChunk<<"\n");
+              DEBUG(dbgs() << "FullOccupancyCyclesTree.size() "<< FullOccupancyCyclesTree.size()<<"\n");
               if (TreeChunk >= FullOccupancyCyclesTree.size()) {
                 for (unsigned i = FullOccupancyCyclesTree.size(); i<= TreeChunk; i++) {
                   DEBUG(dbgs() << "Inserting element into FullOccupancyCyclesTree\n");
@@ -1206,7 +1207,6 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
   
 #ifdef DEBUG_ISSUE_CYCLE
   DEBUG(dbgs() << "AccessGranularities[ExtendedInstructionType] " <<  AccessGranularities[ExecutionResource] << "\n");
-  DEBUG(dbgs() << "MemoryWordSize " << MemoryWordSize << "\n");
   DEBUG(dbgs() << "NElementsVector " << NElementsVector << "\n");
   DEBUG(dbgs() << "Bytes accessed " << AccessWidth << "\n");
   DEBUG(dbgs() << "AccessWidth " << AccessWidth << "\n");
@@ -1220,7 +1220,7 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
   }else{
     FirstNonEmptyLevel[ExecutionResource] = min(FirstNonEmptyLevel[ExecutionResource], NextAvailableCycle);
   }
-  DEBUG(dbgs() << "First non empty level of resource " << ResourcesNames[ExecutionResource] << ": " << FirstNonEmptyLevel[ExecutionResource]  << "\n");
+
   
   InstructionsLastIssueCycle[ExecutionResource] = max( InstructionsLastIssueCycle[ExecutionResource] ,NextAvailableCycle);
   
@@ -3921,15 +3921,15 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
           }
           
 #ifdef DEBUG_ISSUE_CYCLE
-          DEBUG(dbgs() << "======== Instruction Issue Cycle (fetch cycle)"<< InstructionIssueFetchCycle	 << " ========\n");
-          DEBUG(dbgs() << "======== Instruction Issue Cycle (SB availability)"<< InstructionIssueStoreBufferAvailable	 << " ========\n");
-          DEBUG(dbgs() << "======== Instruction Issue Cycle (AGU Availability)"<< InstructionIssueAGUAvailable	 << " ========\n");
-          DEBUG(dbgs() << "======== Instruction Issue Cycle (cache line available)"<< InstructionIssueCacheLineAvailable	 << " ========\n");
+          DEBUG(dbgs() << "======== Instruction Issue Cycle (fetch cycle) "<< InstructionIssueFetchCycle	 << " ========\n");
+          DEBUG(dbgs() << "======== Instruction Issue Cycle (SB availability) "<< InstructionIssueStoreBufferAvailable	 << " ========\n");
+          DEBUG(dbgs() << "======== Instruction Issue Cycle (AGU Availability) "<< InstructionIssueAGUAvailable	 << " ========\n");
+          DEBUG(dbgs() << "======== Instruction Issue Cycle (cache line available) "<< InstructionIssueCacheLineAvailable	 << " ========\n");
           DEBUG(dbgs() << "======== Instruction Issue Cycle (data deps)"<< 	InstructionIssueDataDeps << " ========\n");
           DEBUG(dbgs() << "======== Instruction Issue Cycle (memory model Principles 2 and 3) "<< InstructionIssueMemoryModel	 << " ========\n");
-          DEBUG(dbgs() << "======== Instruction Issue Cycle (AGU Availability)"<< InstructionIssueAGUAvailable	 << "========\n");
-          DEBUG(dbgs() << "======== Instruction Issue Cycle (Port Availability)"<< InstructionIssuePortAvailable	 << "========\n");
-          DEBUG(dbgs() << "======== Instruction Issue Cycle (Throughput Availability)"<< InstructionIssueThroughputAvailable	 << "========\n");
+          DEBUG(dbgs() << "======== Instruction Issue Cycle (AGU Availability) "<< InstructionIssueAGUAvailable	 << "========\n");
+          DEBUG(dbgs() << "======== Instruction Issue Cycle (Port Availability) "<< InstructionIssuePortAvailable	 << "========\n");
+          DEBUG(dbgs() << "======== Instruction Issue Cycle (Throughput Availability) "<< InstructionIssueThroughputAvailable	 << "========\n");
           DEBUG(dbgs() << "__________________Instruction Issue Cycle "<< InstructionIssueCycle << "__________________\n");
 #endif
           
