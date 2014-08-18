@@ -2890,7 +2890,6 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
       
       switch (I.getOpcode()) {
         case Instruction::Load:{
-          DEBUG(dbgs()<<  I<< "\n");
           //Transform visitResult to uint64_t
           SmallString <128> StrVal;
           raw_svector_ostream OS(StrVal);
@@ -2910,7 +2909,6 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
         }
           break;
         case Instruction::Store:{
-          DEBUG(dbgs()<<  I<< "\n");
           SmallString <128> StrVal;
           raw_svector_ostream OS(StrVal);
           OS << visitResult;
