@@ -2366,7 +2366,8 @@ void Interpreter::run() {
     // Track the number of dynamic instructions executed.
     ++NumDynamicInsts;
       
-
+ //   DEBUG(dbgs()<<  I<< "\n");
+//	dbgs() << "Parent name " << I.getParent()->getParent()->getName() << "\n";
     
     //VCA
     // Check for conditions of execution. It is doing before visiting the instruction
@@ -2429,47 +2430,40 @@ void Interpreter::run() {
       Analyzer->TotalInstructions++;
     //  DEBUG(dbgs() << "Instruction count: " << Analyzer->TotalInstructions << "\n");
       Analyzer->analyzeInstruction(I, SF, visitResult);
+
+   if (isTargetFunction==true && TargetFunctionCalled==false) {
+      TargetFunctionCalled = true;
+    }
+    
       if(isReturnInstruction){
         if (isTargetFunction && Analyzer->FunctionCallStack == 0) {
           tEnd = clock();
           Cycles = ((float)tEnd - (float)tStart);
           ExecutionTime = Cycles / CLOCKS_PER_SEC;
-          dbgs() << "Finish Execution Target Function\n";
-          dbgs() << "Execution time " << ExecutionTime << " s\n";
           if (!(WarmCache && Analyzer->rep == 0)) {
 
             Analyzer->finishAnalysis();
           }else{
+
+      TargetFunctionExecuted= true;
+	 Analyzer->rep = 1;
+      //Reset all variaables ot initial values
+      TargetFunctionCalled = false;
+      TargetFunctionExecuted = false;
           }
           
         }else{
           Analyzer->FunctionCallStack--;
+#ifdef DEBUG_FUNCTION_CALL_STACK
           DEBUG(dbgs() << "Decreasing FunctionCallStack\n");
+#endif
           
         }
       }
     }
     
     
-    if (isTargetFunction==true && TargetFunctionCalled==false) {
-      TargetFunctionCalled = true;
-    }
-    
-    if(isReturnInstruction && TargetFunctionCalled == true && Analyzer->FunctionCallStack==0){
-      TargetFunctionExecuted= true;
-      Analyzer->rep = 1;
-      //Reset all variaables ot initial values
-      TargetFunctionCalled = false;
-      TargetFunctionExecuted = false;
-    }
-    /*
-    if(isTargetFunction==true && TargetFunctionExecuted==true){
-      Analyzer->rep = 1;
-      if (!WarmCache) {
-        report_fatal_error("The target function was called twice in a cold cache scenario\n");
-      }
-    }
-    */
+
     
 // END VCA
     
