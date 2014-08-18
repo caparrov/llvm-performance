@@ -966,15 +966,12 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
         
         if (FoundInFullOccupancyCyclesTree == true || EnoughBandwidth == false) {
           OriginalCycle = NextAvailableCycle;
-          DEBUG(dbgs() << " OriginalCycle = NextAvailableCycle\n");
 
           // If we loop over the first while because there is not enough bandwidth,
           // Node might be NULL because this loop has already been executed.
           Node = AvailableCyclesTree[ExecutionResource];
-          DEBUG(dbgs() << " Starting the while...\n");
           while( Node ) {
-            DEBUG(dbgs() << " Node->key "<<Node->key<<"\n");
-            DEBUG(dbgs() << "NextAvailableCycle "<<NextAvailableCycle<<"\n");
+            
 
             if( Node->key > NextAvailableCycle){
               if (NextAvailableCycle == OriginalCycle){ // i.e., it is the first iteration
@@ -1007,12 +1004,10 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
               break;
             }
           }
-          DEBUG(dbgs() << "Finished the while\n");
 
           //LastNodeVisited contains the next available cycle. But we still need to check
           //that it is available for lower and upper levels.
           NextAvailableCycle = LastNodeVisited->key;
-          DEBUG(dbgs() << "NextAvailableCycle = "<<NextAvailableCycle<< "\n");
 
           TreeChunk = NextAvailableCycle/SplitTreeRange;
           DEBUG(dbgs() << "TreeChunk = "<<TreeChunk<< "\n");
