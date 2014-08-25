@@ -869,7 +869,7 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
         DEBUG(dbgs() << "Cycle " << NextAvailableCycle << " found in FullOccupancyCyclesTree\n");
         FoundInFullOccupancyCyclesTree = true;
       }else{
-        DEBUG(dbgs() << "Not Found in Full OccupancyCyclesTree\n");
+        DEBUG(dbgs() << "Cycle " << NextAvailableCycle << " not found in FullOccupancyCyclesTree\n");
         FoundInFullOccupancyCyclesTree = false;
       }
       
@@ -878,6 +878,8 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
       // the latency cycles, so we have to make sure we don't issue in in latency cycles)
       if (ExecutionResource <= nExecutionUnits) {
         DEBUG(dbgs() << "ExecutionResource <= nExecutionUnits\n");
+        DEBUG(dbgs() << "ExecutionResource "<< ExecutionResource<<"\n");
+        DEBUG(dbgs() << "nExecutionUnits "<< nExecutionUnits<<"\n");
 
         if (TargetLevel==true && FoundInFullOccupancyCyclesTree == false) {
           
@@ -1044,7 +1046,7 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
               }
               FoundInFullOccupancyCyclesTree = true;
             }else{
-              DEBUG(dbgs() << "Not Found in Full OccupancyCyclesTree\n");
+              DEBUG(dbgs() << "Cycle " << NextAvailableCycle << " not found in Full OccupancyCyclesTree\n");
               FoundInFullOccupancyCyclesTree = false;
             }
           }
@@ -1079,7 +1081,7 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
     InstructionsCountExtended[ExecutionResource]++;
   }
   
-  DEBUG(dbgs() << "Inserting next available issue cycle "<< NextAvailableCycle <<" in execution unit "<< ResourcesNames[ExecutionResource] <<" for Instruction type "<< NodesNames[ExtendedInstructionType]<<"\n");
+ 
   
   //unsigned AccessWidth = GetAccessWidth(ExecutionResource, NElementsVector);
   unsigned AccessWidth = AccessWidths[ExecutionResource];
@@ -1110,6 +1112,9 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
   // from AvailableCyclesTree.
   
   if (ExecutionResource <= nExecutionUnits) {
+    
+     DEBUG(dbgs() << "Inserting next available issue cycle "<< NextAvailableCycle <<" in execution unit "<< ResourcesNames[ExecutionResource] <<" for Instruction type "<< NodesNames[ExtendedInstructionType]<<"\n");
+    
     
     AvailableCyclesTree[ExecutionResource] = insert_node(NextAvailableCycle,  AvailableCyclesTree[ExecutionResource]);
     Node = AvailableCyclesTree[ExecutionResource];
@@ -1353,17 +1358,27 @@ DynamicAnalysis::ReuseTreeSearchDelete(uint64_t Original, uint64_t address, bool
           // for a cache size multiple of powers of two.
           Distance = Distance+1;
           
-          if (Node->address == address && FromPrefetchReuseTree == false)
-            ReuseTree = delete_node(Original, ReuseTree);
-          else if (Node->address == address && FromPrefetchReuseTree == true){
-            PrefetchReuseTree = delete_node(Original, PrefetchReuseTree);
+          if (Node->address == address && FromPrefetchReuseTree == false){
+           // ReuseTree = delete_node(Original, ReuseTree);
+             Node = delete_node(Original, Node);
+          }else{ if (Node->address == address && FromPrefetchReuseTree == true){
+           // PrefetchReuseTree = delete_node(Original, PrefetchReuseTree);
             PrefetchReuseTreeSize--;
+            Node = delete_node(Original, Node);
+
+          }
           }
           break;
         }
       }
     }
   }
+  
+  if (FromPrefetchReuseTree==false) {
+    ReuseTree = Node;
+  }else
+    PrefetchReuseTree = Node;
+  
   return Distance;
 }
 
@@ -3344,7 +3359,13 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
           }
           
           //Store specific AGU
-          InstructionIssueCycle = max(InstructionIssueCycle, min(InstructionIssueAGUAvailable, InstructionIssueLoadAGUAvailable));
+          if (nLoadAGUs > 0) {
+            InstructionIssueCycle = max(InstructionIssueCycle, min(InstructionIssueAGUAvailable, InstructionIssueLoadAGUAvailable));
+          }else{
+            InstructionIssueCycle = max(InstructionIssueCycle, InstructionIssueAGUAvailable);
+          }
+          
+          
           DEBUG(dbgs() << "*********** Checking availability in Ports *******************\n");
           
           unsigned Port = 0;

@@ -51,11 +51,12 @@
 */
 
 #include <iostream>
-#include <bitset>
+#include <boost/dynamic_bitset.hpp>
 
 
 // Needed to use report_fatal_error
 using namespace llvm;
+using namespace boost;
 
 
 
@@ -356,10 +357,8 @@ namespace SplayTreeBoolean{
   
   template <typename T>
   struct TreeBitVector{
-    TreeBitVector(){
+     TreeBitVector():BitVector(20){
       left = NULL; right = NULL; prev = NULL;size=1; /*capacity=1;last_record=1;*/
-      for(int i =0; i< 20;i++)
-        BitVector .push_back(0);
       
     }
     
@@ -367,7 +366,7 @@ namespace SplayTreeBoolean{
     T key;
     size_t size;   /* maintained to be the number of nodes rooted here */
 
-    std::vector<bool> BitVector;
+    dynamic_bitset<> BitVector; // all 0's by default
   };
   
   
