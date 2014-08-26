@@ -81,13 +81,13 @@ namespace SplayTree{
 
   template <typename T> 
   struct Tree{
-    Tree(){left = NULL; right = NULL; prev = NULL;size=1; /*capacity=1;last_record=1;*/ issueOccupancy = 0; widthOccupancy = 0;occupancyPrefetch = 0;}
+    Tree(){left = NULL; right = NULL; prev = NULL;size=1; /*capacity=1;last_record=1*/; issueOccupancy = 0; widthOccupancy = 0;occupancyPrefetch = 0;}
 
     Tree * left, * right, *prev;
     T key;
     size_t size;   /* maintained to be the number of nodes rooted here */
   //  int capacity;
-    //int last_record;
+  //  int last_record;
     int32_t issueOccupancy;
     int32_t widthOccupancy;
     int32_t occupancyPrefetch;
@@ -208,7 +208,6 @@ namespace SplayTree{
     
     
     if (t == NULL) {
-      new_node->address = a;
       
       new_node->left = new_node->right = NULL;
 
@@ -224,6 +223,8 @@ namespace SplayTree{
       t->right = NULL;
       t->size = 1+node_size(t->left);
     }
+    new_node->address = a;
+
     new_node->key = i;
     new_node->size = 1 + node_size(new_node->left) + node_size(new_node->right);
     //New code
@@ -245,6 +246,7 @@ namespace SplayTree{
     if (t==NULL) return NULL;
     tsize = t->size;
     t = splay(i,t);
+
     //if (compare(i, t->key) == 0) {               /* found it */
     if (i == t->key) {               /* found it */
       if (t->left == NULL) {
