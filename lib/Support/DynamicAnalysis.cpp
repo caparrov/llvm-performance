@@ -1365,7 +1365,7 @@ DynamicAnalysis::ReuseTreeSearchDelete(uint64_t Original, uint64_t address, bool
   
   //Once we find it, calculate the distance without deleting the node.
   
-  if (Original ==  0) { // Did not find any node smaller
+  if (Original ==  0 || Node ==NULL) { // Did not find any node smaller
     Distance = -1;
   }else{
     while (true) {
