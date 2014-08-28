@@ -607,7 +607,8 @@ public:
                   bool ConstraintThroughput,
                   int rep,
                   bool InOrderExecution,
-                  bool ReportOnlyPerformance);
+                  bool ReportOnlyPerformance,
+                  unsigned PrefetchLevel);
   
 
 

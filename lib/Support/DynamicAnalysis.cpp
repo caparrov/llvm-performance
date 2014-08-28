@@ -36,7 +36,8 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
                                  bool ConstraintThroughput,
                                  int rep,
                                  bool InOrderExecution,
-                                 bool ReportOnlyPerformance){
+                                 bool ReportOnlyPerformance,
+                                 unsigned PrefetchLevel){
   
   // Initialize local variables with command-line arguemtns
   this->TargetFunction = TargetFunction;
@@ -61,7 +62,22 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
   this->rep = rep;
   
   BitsPerCacheLine = log2(this->CacheLineSize * (this->MemoryWordSize));
-  PrefetchLevel = this->L2CacheSize;
+  // In reality is if L2, but need to specify the size for the reuse disrance
+  switch (PrefetchLevel) {
+    case 1:
+      this->PrefetchLevel =0;
+      break;
+    case 2:
+      this->PrefetchLevel =this->L1CacheSize;
+      break;
+    case 3:
+      this->PrefetchLevel =this->L2CacheSize;
+      break;
+    default:
+      this->PrefetchLevel =this->L2CacheSize;
+      break;
+  }
+//  this->PrefetchLevel = L2CacheSize;
   VectorWidth = 1;
   int PrefetchType = -1;
   vector< unsigned > emptyVector;
@@ -861,7 +877,7 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
     
     FullOccupancyCyclesTree[TreeChunk] = splay(NextAvailableCycle, FullOccupancyCyclesTree[TreeChunk]);
     
-    DEBUG(dbgs() << "Full is not NULL &&  there is something scheduled in this cycle \n");
+    DEBUG(dbgs() << "Full is not NULL \n");
     
     while( FoundInFullOccupancyCyclesTree == true && EnoughBandwidth ==false){
       //Check if it is in full
@@ -921,10 +937,9 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
               FoundInFullOccupancyCyclesTree = true;
               EnoughBandwidth  = false;
               //Every time NextAvailableCycle changes, we need to update TreeChunk
-              NextAvailableCycle++;
               TreeChunk = NextAvailableCycle/SplitTreeRange;
               if (TreeChunk >= FullOccupancyCyclesTree.size()) {
-                for (unsigned i = FullOccupancyCyclesTree.size(); i<= TreeChunk; i++) {
+                for (unsigned j = FullOccupancyCyclesTree.size(); j<= TreeChunk; j++) {
                   DEBUG(dbgs() << "Inserting element into FullOccupancyCyclesTree\n");
                   FullOccupancyCyclesTree.push_back(NULL);
                 }
@@ -947,11 +962,10 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
               DEBUG(dbgs() << "Cycle " << i << " is in full\n");
               FoundInFullOccupancyCyclesTree = true;
               EnoughBandwidth = false;
-              NextAvailableCycle++;
               TreeChunk = NextAvailableCycle/SplitTreeRange;
               
               if (TreeChunk >= FullOccupancyCyclesTree.size()) {
-                for (unsigned i = FullOccupancyCyclesTree.size(); i<= TreeChunk; i++) {
+                for (unsigned j = FullOccupancyCyclesTree.size(); j<= TreeChunk; j++) {
                   DEBUG(dbgs() << "Inserting element into FullOccupancyCyclesTree\n");
                   FullOccupancyCyclesTree.push_back(NULL);
                 }
@@ -965,39 +979,53 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
         }
         
         if (FoundInFullOccupancyCyclesTree == true || EnoughBandwidth == false) {
+        //VCA-Aug next line
+          NextAvailableCycle++;
+          DEBUG(dbgs() << "Searching NextAvailableCycle for " << NextAvailableCycle << "\n");
+
           OriginalCycle = NextAvailableCycle;
 
           // If we loop over the first while because there is not enough bandwidth,
           // Node might be NULL because this loop has already been executed.
           Node = AvailableCyclesTree[ExecutionResource];
+          
           while( Node ) {
-            
 
             if( Node->key > NextAvailableCycle){
               if (NextAvailableCycle == OriginalCycle){ // i.e., it is the first iteration
                 NextAvailableCycle = Node-> key;
                 LastNodeVisited = Node;
+                
               }
               // Search for a smaller one
               Node = Node-> left;
             }else if( Node->key < NextAvailableCycle){
-              if (NextAvailableCycle == OriginalCycle){ // i.e., it is the first iteration
-                NextAvailableCycle = Node-> key;
+              // We comment this out because this will never happen in NextAvailable because
+              // for every full node we always insert the next available. The general
+              // algorithm that finds the larger, if it exist, should have this code
+              // uncommented.
+              
+              /* if (NextAvailableCycle == OriginalCycle){
+                NextAvailableCycle = Node->key;
                 LastNodeVisited = Node;
-              }
+              }*/
               if (Node->key == OriginalCycle) {
                 NextAvailableCycle = OriginalCycle;
                 LastNodeVisited = Node;
+  
+
                 break;
               }else if (Node->key > OriginalCycle) {
                 //Search for a even smaller one
                 NextAvailableCycle =Node-> key;
                 LastNodeVisited = Node;
+              
                 // Search for a smaller one
                 Node = Node-> left;
-              }else //Node->key < OriginalCycle
-                // Search for a larger one
-                Node = Node-> right;
+              }else{ //Node->key < OriginalCycle
+                // Search for a larger one, but do not store last node visited...
+                            Node = Node-> right;
+              }
             }else{ //Node->key = NextAvailableCycle
               NextAvailableCycle = Node->key;
               LastNodeVisited = Node;
@@ -1250,6 +1278,8 @@ DynamicAnalysis::ReuseDistance(uint64_t Last, uint64_t Current, uint64_t address
     //int PrefetchReuseTreeSizeBefore = tree_size(PrefetchReuseTree);
     int PrefetchReuseTreeSizeBefore = PrefetchReuseTreeSize;
     PrefetchReuseTreeDistance = ReuseTreeSearchDelete(Last, address, true);
+    DEBUG(dbgs() << "PrefetchReuseTreeDistance  "<<PrefetchReuseTreeDistance<<"\n");
+
     // int PrefetchReuseTreeSizeAfter = tree_size(PrefetchReuseTree);
     int PrefetchReuseTreeSizeAfter = PrefetchReuseTreeSize;
     
@@ -1260,7 +1290,7 @@ DynamicAnalysis::ReuseDistance(uint64_t Last, uint64_t Current, uint64_t address
       DEBUG(dbgs() << "This data item has not been prefetched\n");
     
     if (IsInPrefetchReuseTree == false ) {
-      if (ReuseTreeDistance > 0 && (uint64_t)ReuseTreeDistance >= L2CacheSize) {
+      if (ReuseTreeDistance > 0 && (uint64_t)ReuseTreeDistance >= PrefetchLevel) {
         if (PrefetchReuseTreeDistance >= 0) {
           Distance = ReuseTreeDistance + PrefetchReuseTreeDistance;
         }else
@@ -1271,16 +1301,22 @@ DynamicAnalysis::ReuseDistance(uint64_t Last, uint64_t Current, uint64_t address
         Distance = ReuseTreeDistance;
       }
     }else{
+      DEBUG(dbgs() << "The element is in prefetch tree\n");
+
       // If the data item is a prefetched data item (found in PrefetchReuseTree)
-      Distance = L2CacheSize;
+      Distance = PrefetchLevel;
+      DEBUG(dbgs() << "Distance "<<Distance<<"\n");
       if (ReuseTreeDistance >=0) {
         Distance += ReuseTreeDistance;
+      DEBUG(dbgs() << "Increasing distance to  "<<Distance<<"\n");
       }else{
         // The data item has only been prefetched. In that case, the distance is
         // the size of L2 plus the data items prefetched since the last access
       }
       if (PrefetchReuseTreeDistance >=0) {
         Distance += PrefetchReuseTreeDistance;
+        DEBUG(dbgs() << "Increasing distance to  "<<Distance<<"\n");
+
       }else{
         report_fatal_error("The data item is prefetched, PrefetchReuseTreeDistance >=0, but data item does not seem to be in PrefetchReuseTree");
       }
@@ -1294,7 +1330,8 @@ DynamicAnalysis::ReuseDistance(uint64_t Last, uint64_t Current, uint64_t address
   if(Distance >= 0)
     Distance = roundNextPowerOfTwo(Distance);
 #endif
-  
+  DEBUG(dbgs() << "Rounded distance to  "<<Distance<<"\n");
+
   // Get a pointer to the resulting tree
   if (FromPrefetchReuseTree == false) {
     ReuseTree = insert_node(Current, ReuseTree, address);
@@ -1479,6 +1516,7 @@ DynamicAnalysis::GetExtendedInstructionType(int OpCode, int ReuseDistance){
       return  VECTOR_SHUFFLE_NODE;
       
     case Instruction::Load:
+
       if (ReuseDistance < 0 )
         return MEM_LOAD_NODE;
       if (ReuseDistance <= (int)L1CacheSize)
@@ -1504,6 +1542,7 @@ DynamicAnalysis::GetExtendedInstructionType(int OpCode, int ReuseDistance){
     default:
       report_fatal_error("Instruction type not associated with a node");
   }
+  
   return InstructionType;
 }
 
@@ -2862,6 +2901,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
   InstructionIssueMemoryModel = 0, InstructionIssueStoreAGUAvailable = 0, InstructionIssueLoadAGUAvailable = 0,
   InstructionIssuePortAvailable = 0, InstructionIssueThroughputAvailable = 0, InstructionIssueCycleFirstTimeAvailable = 0;
   uint Latency = 0;
+  uint LatencyPrefetch = 0;
   //Aux vars for handling arguments of a call instruction
   CallSite CS;
   Function *F;
@@ -2961,8 +3001,8 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
       
       // ============================ SPATIAL PREFETCHER ==============================
       
-      if (SpatialPrefetcher && (I.getOpcode() ==Instruction::Load || I.getOpcode() ==Instruction::Store)&& ExtendedInstructionType > L1_STORE_NODE /*&& (CacheLine %2) == 0*/
-          /*(ExtendedInstructionType == MEM_LOAD_NODE || ExtendedInstructionType == MEM_STORE_NODE )*/) {
+      if (SpatialPrefetcher && (I.getOpcode() ==Instruction::Load || I.getOpcode() ==Instruction::Store)/*&& ExtendedInstructionType > L1_STORE_NODE */&& (CacheLine %2) == 0
+          &&(ExtendedInstructionType == MEM_LOAD_NODE || ExtendedInstructionType == MEM_STORE_NODE )) {
         
         NextCacheLine = CacheLine+1;
         
@@ -3438,7 +3478,6 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
           isLoad = false;
           SmallString <128> StrVal;
           raw_svector_ostream OS(StrVal);
-          CacheLine = 0;
           OS << visitResult;
           MemoryAddress = strtol(OS.str().str().c_str(),NULL,16);
           CacheLine = MemoryAddress >> BitsPerCacheLine;
@@ -3522,7 +3561,13 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
           }
           
           //Store specific AGU
-          InstructionIssueCycle = max(InstructionIssueCycle, min(InstructionIssueAGUAvailable, InstructionIssueStoreAGUAvailable));
+          
+          if (nStoreAGUs > 0) {
+            InstructionIssueCycle = max(InstructionIssueCycle, min(InstructionIssueAGUAvailable, InstructionIssueStoreAGUAvailable));
+          }else{
+            InstructionIssueCycle = max(InstructionIssueCycle, InstructionIssueAGUAvailable);
+          }
+          
           
           // When a cache line is writen does not impact when in can be loaded again.
           updateReuseDistanceDistribution(Distance, InstructionIssueCycle);
@@ -3662,47 +3707,51 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
       // the values that are being loaded. If the same value is loaded again, without
       // having been used in between (Read After Read dependence), then the next load
       // can only be issued after the first one has finished.
+      // This only applies to memory accesses > L1. If we access a cache line at cycle
+      // X which is in L3, e.g., it has a latency of 30. The next  time this cache line
+      // is accesses it is in L1, but it is inconsistent to assume that it can be
+      // loaded also at cycle X and have a latency of 4 cycles.
+      
       if (I.getOpcode() ==Instruction::Load && RARDependences && ExtendedInstructionType > L1_LOAD_NODE){
-        //TODO: I Think this condition on WarmCache must disappear since now we execute twice the
-        // code for warm cache
-        if (Distance < 0 && !WarmCache) {
-       
+        //if (Distance < 0) {
           Info = getCacheLineInfo(LoadCacheLine);
           Info.IssueCycle = NewInstructionIssueCycle+Latency;
           insertCacheLineInfo(LoadCacheLine, Info);
-        }else
+       // }else
           insertMemoryAddressIssueCycle(MemoryAddress, NewInstructionIssueCycle+Latency);
       }
       
-      // TODO: Why L1_LOAD_NODE???
-      if (I.getOpcode() == Instruction::Store && ExtendedInstructionType > L1_LOAD_NODE ) {
-        if (Distance < 0 && !WarmCache) {
+      if (I.getOpcode() == Instruction::Store && ExtendedInstructionType > L1_STORE_NODE ) {
           DEBUG(dbgs() << "Inserting issue cycle " << NewInstructionIssueCycle+Latency << " for cache line " << StoreCacheLine << "\n");
           Info = getCacheLineInfo(StoreCacheLine);
           Info.IssueCycle = NewInstructionIssueCycle+Latency;
           insertCacheLineInfo(StoreCacheLine, Info);
-        }else
           insertMemoryAddressIssueCycle(MemoryAddress, NewInstructionIssueCycle+Latency);
       }
       
       // =========================== SPATIAL PREFETCHER ======================================
       
-      if (SpatialPrefetcher && (I.getOpcode() ==Instruction::Load || I.getOpcode() ==Instruction::Store)&& ExtendedInstructionType > L1_STORE_NODE /*&& (CacheLine %2) == 0*/
-          /*(ExtendedInstructionType == MEM_LOAD_NODE || ExtendedInstructionType == MEM_STORE_NODE )*/) {
+      if (SpatialPrefetcher && (I.getOpcode() ==Instruction::Load || I.getOpcode() ==Instruction::Store)&& /*ExtendedInstructionType > L1_STORE_NODE */ (CacheLine %2) == 0
+          && (ExtendedInstructionType == MEM_LOAD_NODE || ExtendedInstructionType == MEM_STORE_NODE )) {
         NextCacheLine = CacheLine+1;
         
         //Get reuse distance of NextCacheLine
         Info = getCacheLineInfo(NextCacheLine);
         Distance =  ReuseDistance(Info.LastAccess, TotalInstructions, NextCacheLine, true);
         NextCacheLineExtendedInstructionType = GetMemoryInstructionType(Distance, MemoryAddress);
-        NextCacheLinePrefetchInstructionType = GetPrefetchTypeFromInstructionType(NextCacheLineExtendedInstructionType);
+                NextCacheLinePrefetchInstructionType = GetPrefetchTypeFromInstructionType(NextCacheLineExtendedInstructionType);
+
         ExecutionResource = ExecutionUnit[NextCacheLineExtendedInstructionType];
-        
+        LatencyPrefetch =  ExecutionUnitsLatency[ExecutionResource]-ExecutionUnitsLatency[ExecutionResource-1];
+
+    
 #ifdef DEBUG_PREFETCHER
         DEBUG(dbgs() << "CacheLine " << CacheLine << "\n");
         DEBUG(dbgs() << "NextCacheLine " << NextCacheLine << "\n");
         DEBUG(dbgs() << "NextCacheLine type " << NextCacheLinePrefetchInstructionType << "\n");
-        DEBUG(dbgs() << "Execution Resource  " << ResourcesNames[ExecutionResource] << "\n");
+        DEBUG(dbgs() << "Execution Resource (for bandwidth consumption) " << ResourcesNames[ExecutionResource] << "\n");
+        DEBUG(dbgs() << "Latency (for bandwidth consumption) " << LatencyPrefetch << "\n");
+
 #endif
         
         if (ExecutionResource == MEM_LOAD_CHANNEL || ExecutionResource == MEM_STORE_CHANNEL) {
@@ -3714,7 +3763,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
 #endif
           
           InsertNextAvailableIssueCycle(NextCacheLineIssueCycle, ExecutionResource, NextCacheLineExtendedInstructionType, 1, true);
-          Info.IssueCycle = NextCacheLineIssueCycle+Latency;
+          Info.IssueCycle = NextCacheLineIssueCycle+LatencyPrefetch;
           Info.LastAccess = TotalInstructions;
           insertCacheLineInfo(NextCacheLine, Info);
           DEBUG(dbgs() << "Inserting issue cycle " <<  NextCacheLineIssueCycle+Latency << " for cache line " << NextCacheLine << "\n");

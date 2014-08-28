@@ -97,6 +97,9 @@ static cl::opt < bool > ConstraintThroughput("constraint-throughput", cl::Hidden
 
 static cl::opt < bool > SpatialPrefetcher("spatial-prefetcher", cl::Hidden, cl::desc("Implement spatial Prefetching"),cl::init(false));
 
+static cl::opt < unsigned > PrefetchLevel("prefetch-level", cl::Hidden, cl::desc("Level of the memory hierarchy where prefetched cache lines are loaded. 1= L1, 2 = L2, 3=LLC. Default is 3"),cl::init(3));
+
+
 static cl::opt < bool > InOrderExecution("in-order-execution", cl::Hidden, cl::desc("In order execution"),cl::init(false));
 
 static cl::opt < bool > ReportOnlyPerformance("report-only-performance", cl::Hidden, cl::desc("Reports only performance (op count and span)"),cl::init(false));
@@ -2340,7 +2343,7 @@ void Interpreter::run() {
   Analyzer = new DynamicAnalysis(TargetFunction, MemoryWordSize, CacheLineSize, L1CacheSize, L2CacheSize, LLCCacheSize, FLatency, MLatency, FlopIssueThroughput, FlopIssueWidth, MemAccessGranularity, MemIssueThroughput, MemIssueWidth, AddressGenerationUnits, IFB, ReservationStation, ReorderBuffer, LoadBuffer, StoreBuffer, LineFillBuffer, WarmCache, x86MemoryModel, SpatialPrefetcher, ConstraintThroughput, 0, InOrderExecution);
   */
   
-  Analyzer = new DynamicAnalysis(TargetFunction, Microarchitecture, MemoryWordSize, CacheLineSize, L1CacheSize, L2CacheSize, LLCCacheSize, ExecutionUnitsLatency, ExecutionUnitsThroughput, ExecutionUnitsParallelIssue, MemAccessGranularity, AddressGenerationUnits, IFB, ReservationStation, ReorderBuffer, LoadBuffer, StoreBuffer, LineFillBuffer, WarmCache, x86MemoryModel, SpatialPrefetcher, ConstraintThroughput, 0, InOrderExecution,ReportOnlyPerformance);
+  Analyzer = new DynamicAnalysis(TargetFunction, Microarchitecture, MemoryWordSize, CacheLineSize, L1CacheSize, L2CacheSize, LLCCacheSize, ExecutionUnitsLatency, ExecutionUnitsThroughput, ExecutionUnitsParallelIssue, MemAccessGranularity, AddressGenerationUnits, IFB, ReservationStation, ReorderBuffer, LoadBuffer, StoreBuffer, LineFillBuffer, WarmCache, x86MemoryModel, SpatialPrefetcher, ConstraintThroughput, 0, InOrderExecution,ReportOnlyPerformance,PrefetchLevel);
   
    tStart = clock();
   bool startAnalysis = false;
