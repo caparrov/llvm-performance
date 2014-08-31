@@ -1004,8 +1004,8 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
               // for every full node we always insert the next available. The general
               // algorithm that finds the larger, if it exist, should have this code
               // uncommented.
-              
-              /* if (NextAvailableCycle == OriginalCycle){
+              //UNCOMMENT THIS!!
+            /*  if (NextAvailableCycle == OriginalCycle){
                 NextAvailableCycle = Node->key;
                 LastNodeVisited = Node;
               }*/
@@ -1199,7 +1199,6 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
       AvailableCyclesTree[ExecutionResource]= delete_node(NextAvailableCycle,  AvailableCyclesTree[ExecutionResource]);
       
       // Insert node in FullOccupancy
-      //TODO: Check these occupacies!!!!!!!
       //    FullOccupancyCyclesTree = insert_node(NextAvailableCycle,)
       DEBUG(dbgs() << "Inserting in FullOccupancyCyclesTree of type " << ResourcesNames[ExecutionResource] << " node with key "<< NextAvailableCycle<<"\n");
       unsigned TreeChunk = NextAvailableCycle/SplitTreeRange;
@@ -1227,13 +1226,14 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
       DEBUG(dbgs() << "FullOccupancyCyclesTree.size() "<<FullOccupancyCyclesTree.size() <<"\n");
       DEBUG(dbgs() << "TreeChunk "<< TreeChunk <<"\n");
       
+      // Instead of splay, we need insert_node
       FullOccupancyCyclesTree[TreeChunk] = splay(NextAvailableCycle+NextCycle/*1*/,  FullOccupancyCyclesTree[TreeChunk]);
       
       if (FullOccupancyCyclesTree[TreeChunk] == NULL)
         DEBUG(dbgs() << "FullOccupancyCyclesTree[TreeChunk] == NULL\n");
       
-      if (FullOccupancyCyclesTree[TreeChunk]!=NULL && !(FullOccupancyCyclesTree[TreeChunk]->key == NextAvailableCycle+NextCycle &&
-                                                        FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource] ==1) ) {
+      if (FullOccupancyCyclesTree[TreeChunk] == NULL || (FullOccupancyCyclesTree[TreeChunk]!=NULL && !(FullOccupancyCyclesTree[TreeChunk]->key == NextAvailableCycle+NextCycle &&
+                                                        FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource] ==1) )) {
         DEBUG(dbgs() << "The next node was not in full, so insert in available " << NextAvailableCycle+NextCycle << "\n");
         
         AvailableCyclesTree[ExecutionResource] = insert_node(NextAvailableCycle+NextCycle,  AvailableCyclesTree[ExecutionResource]);
