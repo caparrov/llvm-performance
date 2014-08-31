@@ -64,20 +64,16 @@
 
 // Memory hierarchy parameters (number of floating point elements)
 /*
-// Memory word granularity in bytes
-#define MEMORY_WORD_GRANULARITY 8
+
 
 // Cache line size in number of words according to granularity
 #define CACHE_LINE_SIZE 8
 
 #define REGISTER_FILE_SIZE 16
 
-// Cache sizes are in number of cache lines
-#define L1_CACHE_SIZE (32*1024)/(CACHE_LINE_SIZE*MEMORY_WORD_GRANULARITY)
-#define L2_CACHE_SIZE (256*1024)/(CACHE_LINE_SIZE*MEMORY_WORD_GRANULARITY)
-#define L3_CACHE_SIZE (6*1024*1024)/(CACHE_LINE_SIZE*MEMORY_WORD_GRANULARITY)
-#define BITS_PER_CACHE_LINE log2(CACHE_LINE_SIZE*MEMORY_WORD_GRANULARITY)
 */
+
+
 // Can be further broken down into FPMults, FPAdds, etc..
 #ifdef REDUCED_INST_TYPES
 #define N_INST_TYPES 2
@@ -410,7 +406,6 @@ class DynamicAnalysis {
   
 public:
   
-  
   unsigned TotalResources;
   unsigned nExecutionUnits;
   unsigned nCompExecutionUnits;
@@ -581,8 +576,6 @@ public:
   map<int,map<uint64_t,uint> > ReuseDistanceDistributionExtended;
   
   //Constructor
-
-  
   DynamicAnalysis(string TargetFunction,
                   string Microarchitecture,
                   unsigned MemoryWordSize,
@@ -609,11 +602,7 @@ public:
                   bool InOrderExecution,
                   bool ReportOnlyPerformance,
                   unsigned PrefetchLevel);
-  
 
-
-  
-  
   
   void analyze();
   void analyzeInstruction(Instruction &I, ExecutionContext &SF, GenericValue * visitResult);

@@ -3001,8 +3001,8 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
       
       // ============================ SPATIAL PREFETCHER ==============================
       
-      if (SpatialPrefetcher && (I.getOpcode() ==Instruction::Load || I.getOpcode() ==Instruction::Store)/*&& ExtendedInstructionType > L1_STORE_NODE */&& (CacheLine %2) == 0
-          &&(ExtendedInstructionType == MEM_LOAD_NODE || ExtendedInstructionType == MEM_STORE_NODE )) {
+      if (SpatialPrefetcher && (I.getOpcode() ==Instruction::Load || I.getOpcode() ==Instruction::Store)&& ExtendedInstructionType > L1_STORE_NODE /*&& (CacheLine %2) == 0*/
+        /*  &&(ExtendedInstructionType == MEM_LOAD_NODE || ExtendedInstructionType == MEM_STORE_NODE )*/) {
         
         NextCacheLine = CacheLine+1;
         
@@ -3713,7 +3713,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
       // loaded also at cycle X and have a latency of 4 cycles.
       
       if (I.getOpcode() ==Instruction::Load && RARDependences && ExtendedInstructionType > L1_LOAD_NODE){
-        //if (Distance < 0) {
+       // if (Distance < 0) {
           Info = getCacheLineInfo(LoadCacheLine);
           Info.IssueCycle = NewInstructionIssueCycle+Latency;
           insertCacheLineInfo(LoadCacheLine, Info);
@@ -3722,17 +3722,19 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
       }
       
       if (I.getOpcode() == Instruction::Store && ExtendedInstructionType > L1_STORE_NODE ) {
-          DEBUG(dbgs() << "Inserting issue cycle " << NewInstructionIssueCycle+Latency << " for cache line " << StoreCacheLine << "\n");
+     //   if (Distance < 0 ){
+        DEBUG(dbgs() << "Inserting issue cycle " << NewInstructionIssueCycle+Latency << " for cache line " << StoreCacheLine << "\n");
           Info = getCacheLineInfo(StoreCacheLine);
           Info.IssueCycle = NewInstructionIssueCycle+Latency;
           insertCacheLineInfo(StoreCacheLine, Info);
+      //  }else
           insertMemoryAddressIssueCycle(MemoryAddress, NewInstructionIssueCycle+Latency);
       }
       
       // =========================== SPATIAL PREFETCHER ======================================
       
-      if (SpatialPrefetcher && (I.getOpcode() ==Instruction::Load || I.getOpcode() ==Instruction::Store)&& /*ExtendedInstructionType > L1_STORE_NODE */ (CacheLine %2) == 0
-          && (ExtendedInstructionType == MEM_LOAD_NODE || ExtendedInstructionType == MEM_STORE_NODE )) {
+      if (SpatialPrefetcher && (I.getOpcode() ==Instruction::Load || I.getOpcode() ==Instruction::Store)&& ExtendedInstructionType > L1_STORE_NODE /*&& (CacheLine %2) == 0*/
+        /*  && (ExtendedInstructionType == MEM_LOAD_NODE || ExtendedInstructionType == MEM_STORE_NODE )*/) {
         NextCacheLine = CacheLine+1;
         
         //Get reuse distance of NextCacheLine
@@ -3744,7 +3746,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
         ExecutionResource = ExecutionUnit[NextCacheLineExtendedInstructionType];
         LatencyPrefetch =  ExecutionUnitsLatency[ExecutionResource]-ExecutionUnitsLatency[ExecutionResource-1];
 
-    
+        
 #ifdef DEBUG_PREFETCHER
         DEBUG(dbgs() << "CacheLine " << CacheLine << "\n");
         DEBUG(dbgs() << "NextCacheLine " << NextCacheLine << "\n");
@@ -3754,6 +3756,8 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
 
 #endif
         
+        // Prefetch every time there is a miss (not necesarly an access to memory), but only if the prefetched
+        //data is in memoty.
         if (ExecutionResource == MEM_LOAD_CHANNEL || ExecutionResource == MEM_STORE_CHANNEL) {
           InstructionsCountExtended[NextCacheLinePrefetchInstructionType]++;
           NextCacheLineIssueCycle = FindNextAvailableIssueCycle(NewInstructionIssueCycle, ExecutionResource, NextCacheLineExtendedInstructionType);
@@ -3763,6 +3767,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
 #endif
           
           InsertNextAvailableIssueCycle(NextCacheLineIssueCycle, ExecutionResource, NextCacheLineExtendedInstructionType, 1, true);
+         
           Info.IssueCycle = NextCacheLineIssueCycle+LatencyPrefetch;
           Info.LastAccess = TotalInstructions;
           insertCacheLineInfo(NextCacheLine, Info);
