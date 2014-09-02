@@ -1524,7 +1524,7 @@ DynamicAnalysis::GetExtendedInstructionType(int OpCode, int ReuseDistance){
       
     case Instruction::Load:
 
-      if (ReuseDistance < 0 )
+      if (ReuseDistance < 0 || ReuseDistance > (int)LLCCacheSize)
         return MEM_LOAD_NODE;
       if (ReuseDistance <= (int)L1CacheSize)
         return L1_LOAD_NODE;
@@ -1535,7 +1535,7 @@ DynamicAnalysis::GetExtendedInstructionType(int OpCode, int ReuseDistance){
       break;
       
     case Instruction::Store:
-      if (ReuseDistance < 0 )
+      if (ReuseDistance < 0 || ReuseDistance > (int)LLCCacheSize)
         return MEM_STORE_NODE;
       if (ReuseDistance <= (int)L1CacheSize)
         return L1_STORE_NODE;
