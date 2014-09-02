@@ -880,14 +880,21 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
     DEBUG(dbgs() << "Full is not NULL \n");
     
     while( FoundInFullOccupancyCyclesTree == true && EnoughBandwidth ==false){
-      //Check if it is in full
-      if ( FullOccupancyCyclesTree[TreeChunk]->key == NextAvailableCycle && FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource]==1) {
-        DEBUG(dbgs() << "Cycle " << NextAvailableCycle << " found in FullOccupancyCyclesTree\n");
-        FoundInFullOccupancyCyclesTree = true;
+      // Check if it is in full, but firs make sure full is not NULL (it could happen it is NULL after
+      // changing the NextAvailableCycle).
+      if (FullOccupancyCyclesTree[TreeChunk] !=NULL) {
+        if ( FullOccupancyCyclesTree[TreeChunk]->key == NextAvailableCycle && FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource]==1) {
+          DEBUG(dbgs() << "Cycle " << NextAvailableCycle << " found in FullOccupancyCyclesTree\n");
+          FoundInFullOccupancyCyclesTree = true;
+        }else{
+          DEBUG(dbgs() << "Cycle " << NextAvailableCycle << " not found in FullOccupancyCyclesTree\n");
+          FoundInFullOccupancyCyclesTree = false;
+        }
       }else{
-        DEBUG(dbgs() << "Cycle " << NextAvailableCycle << " not found in FullOccupancyCyclesTree\n");
-        FoundInFullOccupancyCyclesTree = false;
+        // It is not in Full for sure
+          FoundInFullOccupancyCyclesTree = false;
       }
+      
       
       // If it is not in full, it is available. But we have to make sure that
       // there is enough bandwidth (to avoid having large trees, we don't include
