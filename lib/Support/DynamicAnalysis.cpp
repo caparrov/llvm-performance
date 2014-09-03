@@ -2888,27 +2888,6 @@ DynamicAnalysis::PrintDispatchToLineFillBuffer(){
 }
 
 
-
-void
-DynamicAnalysis::UpdateInstructionCount(unsigned InstructionType, unsigned ExtendedInstructionType, unsigned nElementsVector, bool IsVectorInstruction){
-  
-  
-  // Update Instruction count
-  unsigned ExecutionResource = ExecutionUnit[ExtendedInstructionType];
-  if (InstructionsCountExtended[ExecutionResource]==0)
-    FirstIssue[ExecutionResource] = true;
-  
-  if (IsVectorInstruction && ExecutionResource!= FP_SHUFFLE){
-    InstructionsCountExtended[ExecutionResource]=InstructionsCountExtended[ExecutionResource]+nElementsVector;
-    InstructionsCount[InstructionType]=InstructionsCount[InstructionType]+nElementsVector;
-  }else{
-    InstructionsCountExtended[ExecutionResource]++;
-    InstructionsCount[InstructionType]++;
-  }
-}
-
-
-
 //===----------------------------------------------------------------------===//
 //          Main method for analysis of the instruction properties
 //                    (dependences, reuse, etc.)

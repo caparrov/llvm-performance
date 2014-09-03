@@ -663,9 +663,7 @@ public:
   bool IsEmptyLevel(unsigned ExecutionResource, uint64_t Level, bool WithPrefetch = false);
   uint64_t FindNextNonEmptyLevel(unsigned ExecutionResource, uint64_t Level);
   bool isStallCycle(int ResourceType, uint64_t Level);
-  
-  
-  void UpdateInstructionCount(unsigned InstructionType, unsigned ExtendedInstructionType, unsigned NElementsVector, bool IsVectorInstruction);
+
 
   unsigned GetMemoryInstructionType(int ReuseDistance, uint64_t MemoryAddress,bool isLoad=true);
     unsigned GetExtendedInstructionType(int OpCode, int ReuseDistance=0);
