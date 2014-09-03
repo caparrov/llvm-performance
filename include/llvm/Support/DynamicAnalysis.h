@@ -30,13 +30,15 @@
 #define ROUND_REUSE_DISTANCE
 #define REDUCED_INST_TYPES
 #define NORMAL_REUSE_DISTRIBUTION
-//VCA: new comment
+
+
+
 #define DEBUG_MEMORY_TRACES
 #define DEBUG_REUSE_DISTANCE
 
 //#define DEBUG_DEPS_FUNCTION_CALL
 #define DEBUG_SPAN_CALCULATION
-#define DEBUG_AGU
+//#define DEBUG_AGU
 //#define DEBUG_OOO_BUFFERS
 #define DEBUG_ISSUE_CYCLE
 //#define DEBUG_PHI_NODE
@@ -493,6 +495,10 @@ public:
   bool x86MemoryModel;
   bool SpatialPrefetcher;
   unsigned PrefetchLevel;
+  unsigned PrefetchDispatch;
+  unsigned PrefetchTarget;
+  unsigned PrefetchDestination;
+
   bool ConstraintThroughput;
   bool InOrderExecution;
   bool ReportOnlyPerformance;
@@ -601,7 +607,9 @@ public:
                   int rep,
                   bool InOrderExecution,
                   bool ReportOnlyPerformance,
-                  unsigned PrefetchLevel);
+                  unsigned PrefetchLevel,
+                  unsigned PrefetchDispatch,
+                  unsigned PrefetchTarget);
 
   
   void analyze();
@@ -623,6 +631,7 @@ public:
 
   unsigned  GetInstructionTypeFromPrefetchType(unsigned PrefetchType);
   int       GetPrefetchTypeFromInstructionType(unsigned InstructionType);
+
   
   uint64_t GetLastIssueCycle(unsigned ExecutionResource, bool WithPrefetch = false);
     

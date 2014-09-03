@@ -99,6 +99,10 @@ static cl::opt < bool > SpatialPrefetcher("spatial-prefetcher", cl::Hidden, cl::
 
 static cl::opt < unsigned > PrefetchLevel("prefetch-level", cl::Hidden, cl::desc("Level of the memory hierarchy where prefetched cache lines are loaded. 1= L1, 2 = L2, 3=LLC. Default is 3"),cl::init(3));
 
+static cl::opt < unsigned > PrefetchDispatch("prefetch-dispatch", cl::Hidden, cl::desc("Level of the memory hierarchy in which a miss causes a prefetch from the next line. 0= always try to prefetch, 1 = prefetch when there is a L1 miss, 2 = prefetch when there is a L2 miss, 3 = prefetch when there is a LLC miss,. Default is 1"),cl::init(1));
+
+static cl::opt < unsigned > PrefetchTarget("prefetch-target", cl::Hidden, cl::desc("Prefetch only if the target block is in the specified level of the memory or a lower level. 2 = prefetch if the target line is in L2 or lower, 3 = prefetch if the target line is in LLC or lower, 4 = prefetch if the target line is in MEM. Default is 4"),cl::init(4));
+
 
 static cl::opt < bool > InOrderExecution("in-order-execution", cl::Hidden, cl::desc("In order execution"),cl::init(false));
 
@@ -2343,7 +2347,7 @@ void Interpreter::run() {
   Analyzer = new DynamicAnalysis(TargetFunction, MemoryWordSize, CacheLineSize, L1CacheSize, L2CacheSize, LLCCacheSize, FLatency, MLatency, FlopIssueThroughput, FlopIssueWidth, MemAccessGranularity, MemIssueThroughput, MemIssueWidth, AddressGenerationUnits, IFB, ReservationStation, ReorderBuffer, LoadBuffer, StoreBuffer, LineFillBuffer, WarmCache, x86MemoryModel, SpatialPrefetcher, ConstraintThroughput, 0, InOrderExecution);
   */
   
-  Analyzer = new DynamicAnalysis(TargetFunction, Microarchitecture, MemoryWordSize, CacheLineSize, L1CacheSize, L2CacheSize, LLCCacheSize, ExecutionUnitsLatency, ExecutionUnitsThroughput, ExecutionUnitsParallelIssue, MemAccessGranularity, AddressGenerationUnits, IFB, ReservationStation, ReorderBuffer, LoadBuffer, StoreBuffer, LineFillBuffer, WarmCache, x86MemoryModel, SpatialPrefetcher, ConstraintThroughput, 0, InOrderExecution,ReportOnlyPerformance,PrefetchLevel);
+  Analyzer = new DynamicAnalysis(TargetFunction, Microarchitecture, MemoryWordSize, CacheLineSize, L1CacheSize, L2CacheSize, LLCCacheSize, ExecutionUnitsLatency, ExecutionUnitsThroughput, ExecutionUnitsParallelIssue, MemAccessGranularity, AddressGenerationUnits, IFB, ReservationStation, ReorderBuffer, LoadBuffer, StoreBuffer, LineFillBuffer, WarmCache, x86MemoryModel, SpatialPrefetcher, ConstraintThroughput, 0, InOrderExecution,ReportOnlyPerformance,PrefetchLevel, PrefetchDispatch, PrefetchTarget);
   
    tStart = clock();
   bool startAnalysis = false;
