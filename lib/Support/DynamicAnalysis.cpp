@@ -1148,7 +1148,6 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
   if (NElementsVector > 1 && ExecutionResource!= FP_SHUFFLE){
     InstructionsCountExtended[ExecutionResource]=InstructionsCountExtended[ExecutionResource]+NElementsVector;
   }else{
-    dbgs() << "Increasing instruction count for resource " << ResourcesNames[ExecutionResource] << "\n";
     InstructionsCountExtended[ExecutionResource]++;
   }
   
@@ -3057,7 +3056,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
     }
   }else{
     
-    dbgs()<<  I<< "\n";
+    DEBUG(dbgs()<<  I<< "\n");
     
     //================= Update Fetch Cycle, remove insts from buffers =========//
     // EVERY INSTRUCTION IN THE RESERVATION STATION IS ALSO IN THE REORDER BUFFER
