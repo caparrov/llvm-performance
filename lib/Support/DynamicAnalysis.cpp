@@ -3786,8 +3786,15 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
         //data is in memoty.
         if (ExecutionResource > PrefetchTarget && ExecutionResource >= PrefetchLevel) {
           InstructionsCountExtended[NextCacheLinePrefetchInstructionType]++;
+          if (IsVectorInstruction && ExecutionResource!= FP_SHUFFLE){
+            InstructionsCount[InstructionType]=InstructionsCount[InstructionType]+NElementsVector;
+          }else
+            InstructionsCount[InstructionType]++;
+          // UpdateReuseDistribution
           NextCacheLineIssueCycle = FindNextAvailableIssueCycle(NewInstructionIssueCycle, ExecutionResource, NextCacheLineExtendedInstructionType);
           
+          updateReuseDistanceDistribution(Distance, NextCacheLineIssueCycle);
+
 #ifdef DEBUG_PREFETCHER
           DEBUG(dbgs() << "Prefetching next cache line at cycle " << NextCacheLineIssueCycle << "\n");
 #endif
