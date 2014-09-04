@@ -41,6 +41,7 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
                                  unsigned PrefetchDispatch,
                                  unsigned PrefetchTarget){
   
+  //Test comment	
   // Initialize local variables with command-line arguemtns
   this->TargetFunction = TargetFunction;
   this->MemoryWordSize = MemoryWordSize;
