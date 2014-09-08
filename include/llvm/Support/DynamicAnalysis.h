@@ -630,7 +630,6 @@ public:
   unsigned  GetAccessWidth(unsigned ExecutionResource, unsigned NElementsVector);
 
   unsigned  GetInstructionTypeFromPrefetchType(unsigned PrefetchType);
-  int       GetPrefetchTypeFromInstructionType(unsigned InstructionType);
 
   
   uint64_t GetLastIssueCycle(unsigned ExecutionResource, bool WithPrefetch = false);

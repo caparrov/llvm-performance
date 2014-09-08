@@ -119,7 +119,6 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
   }
   
   VectorWidth = 1;
-  int PrefetchType = -1;
   vector< unsigned > emptyVector;
   
   // =================== Sandy Bridge config ================================//
@@ -336,28 +335,7 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
     AccessGranularities.push_back(1);
   }
   
-  if (SpatialPrefetcher == true) {
-    for (unsigned i = 0; i < nPrefetchNodes; i++) {
-      this->ExecutionUnitsLatency.push_back(1);
-      this->ExecutionUnitsThroughput.push_back(1);
-      AccessGranularities.push_back(1);
-    }
-    for (unsigned i= 0 ; i < nExecutionUnits; i++){
-      PrefetchType = GetPrefetchTypeFromInstructionType(i);
-      if (PrefetchType > 0) {
-        if (!ExecutionUnitsLatency.empty()) {
-          this->ExecutionUnitsLatency[PrefetchType]=ExecutionUnitsLatency[i];
-        }
-        if (!ExecutionUnitsThroughput.empty()) {
-          this->ExecutionUnitsThroughput[PrefetchType]=ExecutionUnitsThroughput[i];
-        }
-        if (!MemAccessGranularity.empty()) {
-          AccessGranularities[PrefetchType] = MemAccessGranularity[i-nCompExecutionUnits];
-        }
-      }
-    }
-  }
-  
+
   // We need AccessWidth and Throughput for every resource for which we calculte
   // span, including ports
   for (unsigned i = 0; i < nExecutionUnits + nAGUs +nPorts + nBuffers; i++) {
@@ -1310,10 +1288,13 @@ DynamicAnalysis::ReuseDistance(uint64_t Last, uint64_t Current, uint64_t address
   
   int Distance = -1;
   int PrefetchReuseTreeDistance = 0;
+ // if (!(WarmCache && rep == 0))
+
   DEBUG(dbgs() << "Size of reuse tree " << node_size(ReuseTree) << "\n");
   
   int ReuseTreeDistance = ReuseTreeSearchDelete(Last, address, false);
   
+  //if (!(WarmCache && rep == 0))
   DEBUG(dbgs() << "Memory op reuse distance in ReuseTree " << ReuseTreeDistance << "\n");
   
   if (SpatialPrefetcher == true) {
@@ -1323,17 +1304,21 @@ DynamicAnalysis::ReuseDistance(uint64_t Last, uint64_t Current, uint64_t address
     //int PrefetchReuseTreeSizeBefore = tree_size(PrefetchReuseTree);
     int PrefetchReuseTreeSizeBefore = PrefetchReuseTreeSize;
     PrefetchReuseTreeDistance = ReuseTreeSearchDelete(Last, address, true);
+  //  if (!(WarmCache && rep == 0))
+
     DEBUG(dbgs() << "PrefetchReuseTreeDistance  "<<PrefetchReuseTreeDistance<<"\n");
     
     // int PrefetchReuseTreeSizeAfter = tree_size(PrefetchReuseTree);
     int PrefetchReuseTreeSizeAfter = PrefetchReuseTreeSize;
     
     if (PrefetchReuseTreeSizeAfter < PrefetchReuseTreeSizeBefore){
+   //   if (!(WarmCache && rep == 0))
       DEBUG(dbgs() << "PREFETCHED DATA ITEM\n");
       IsInPrefetchReuseTree = true;
-    }else
+    }else{
+     // if (!(WarmCache && rep == 0))
       DEBUG(dbgs() << "This data item has not been prefetched\n");
-    
+    }
     if (IsInPrefetchReuseTree == false ) {
       if (ReuseTreeDistance > 0 && (uint64_t)ReuseTreeDistance >= PrefetchLevel) {
         if (PrefetchReuseTreeDistance >= 0) {
@@ -1346,13 +1331,16 @@ DynamicAnalysis::ReuseDistance(uint64_t Last, uint64_t Current, uint64_t address
         Distance = ReuseTreeDistance;
       }
     }else{
+     // if (!(WarmCache && rep == 0))
       DEBUG(dbgs() << "The element is in prefetch tree\n");
       
       // If the data item is a prefetched data item (found in PrefetchReuseTree)
       Distance = PrefetchLevel;
+   //   if (!(WarmCache && rep == 0))
       DEBUG(dbgs() << "Distance "<<Distance<<"\n");
       if (ReuseTreeDistance >=0) {
         Distance += ReuseTreeDistance;
+      //  if (!(WarmCache && rep == 0))
         DEBUG(dbgs() << "Increasing distance to  "<<Distance<<"\n");
       }else{
         // The data item has only been prefetched. In that case, the distance is
@@ -1360,6 +1348,7 @@ DynamicAnalysis::ReuseDistance(uint64_t Last, uint64_t Current, uint64_t address
       }
       if (PrefetchReuseTreeDistance >=0) {
         Distance += PrefetchReuseTreeDistance;
+      //  if (!(WarmCache && rep == 0))
         DEBUG(dbgs() << "Increasing distance to  "<<Distance<<"\n");
         
       }else{
@@ -1375,7 +1364,6 @@ DynamicAnalysis::ReuseDistance(uint64_t Last, uint64_t Current, uint64_t address
   if(Distance >= 0)
     Distance = roundNextPowerOfTwo(Distance);
 #endif
-  DEBUG(dbgs() << "Rounded distance to  "<<Distance<<"\n");
   
   // Get a pointer to the resulting tree
   if (FromPrefetchReuseTree == false) {
@@ -1387,6 +1375,7 @@ DynamicAnalysis::ReuseDistance(uint64_t Last, uint64_t Current, uint64_t address
   }
   
 #ifdef DEBUG_REUSE_DISTANCE
+ // if (!(WarmCache && rep == 0))
   DEBUG(dbgs() << "Memory op reuse distance " << Distance << "\n");
 #endif
   return Distance;
@@ -2222,16 +2211,6 @@ DynamicAnalysis::CalculateIssueCycleGranularity(unsigned ExecutionResource, unsi
 
 
 
-int
-DynamicAnalysis::GetPrefetchTypeFromInstructionType(unsigned InstructionType){
-  if (InstructionType < FIRST_PREFETCH_LEVEL) {
-    return -1;
-  }else{
-    return N_PREFETCH_RESOURCES_START+(InstructionType - FIRST_PREFETCH_LEVEL);
-  }
-}
-
-
 
 uint64_t
 DynamicAnalysis::GetLastIssueCycle(unsigned ExecutionResource, bool WithPrefetch){
@@ -2906,7 +2885,6 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
   
   int k = 0;
   int Distance;
-  int NextCacheLinePrefetchInstructionType;
   int NextCacheLineExtendedInstructionType;
   int InstructionType = getInstructionType(I);
   bool OOOBufferFull = false;
@@ -2974,7 +2952,8 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
   if (WarmCache && rep == 0) {
     
     if (InstructionType >= 0) {
-      
+      DEBUG(dbgs()<<  I<< "\n");
+
       switch (I.getOpcode()) {
         case Instruction::Load:{
           //Transform visitResult to uint64_t
@@ -2984,10 +2963,12 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
           MemoryAddress = strtol(OS.str().str().c_str(),NULL,16);
           CacheLine = MemoryAddress >> BitsPerCacheLine;
           Info = getCacheLineInfo(CacheLine);
-#ifdef DEBUG_MEMORY_TRACES
+
+ #ifdef DEBUG_MEMORY_TRACES
           DEBUG(dbgs() << "MemoryAddress " << MemoryAddress << "\n");
           DEBUG(dbgs() << "CacheLine " << CacheLine << "\n");
 #endif
+
           //Code for reuse calculation
           Distance =  ReuseDistance(Info.LastAccess, TotalInstructions, CacheLine);
           
@@ -3005,10 +2986,12 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
           MemoryAddress = strtol(OS.str().str().c_str(),NULL,16);
           CacheLine = MemoryAddress >> BitsPerCacheLine;
           Info = getCacheLineInfo(CacheLine);
+
 #ifdef DEBUG_MEMORY_TRACES
           DEBUG(dbgs() << "MemoryAddress " << MemoryAddress << "\n");
           DEBUG(dbgs() << "CacheLine " << CacheLine << "\n");
 #endif
+
           Distance = ReuseDistance(Info.LastAccess, TotalInstructions, CacheLine);
           
           Info.LastAccess = TotalInstructions;
@@ -3026,7 +3009,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
       // ============================ SPATIAL PREFETCHER ==============================
       
       if (SpatialPrefetcher && (I.getOpcode() ==Instruction::Load || I.getOpcode() ==Instruction::Store)&&
-          (ExtendedInstructionType > PrefetchDispatch)/*ExtendedInstructionType > L1_STORE_NODE*/ /*&& (CacheLine %2) == 0*/
+          (ExtendedInstructionType > PrefetchDispatch && !(ExecutionUnit[ExtendedInstructionType] == PrefetchLevel))/*ExtendedInstructionType > L1_STORE_NODE*/ /*&& (CacheLine %2) == 0*/
           /*  &&(ExtendedInstructionType == MEM_LOAD_NODE || ExtendedInstructionType == MEM_STORE_NODE )*/) {
         
         NextCacheLine = CacheLine+1;
@@ -3035,21 +3018,27 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
         Info = getCacheLineInfo(NextCacheLine);
         Distance =  ReuseDistance(Info.LastAccess, TotalInstructions, NextCacheLine, true);
         NextCacheLineExtendedInstructionType = GetMemoryInstructionType(Distance, MemoryAddress);
-        NextCacheLinePrefetchInstructionType = GetPrefetchTypeFromInstructionType(NextCacheLineExtendedInstructionType);
+        
         ExecutionResource = ExecutionUnit[NextCacheLineExtendedInstructionType];
         
+     //   if (!(WarmCache && rep == 0)){
 #ifdef DEBUG_PREFETCHER
         DEBUG(dbgs() << "CacheLine " << CacheLine << "\n");
         DEBUG(dbgs() << "NextCacheLine " << NextCacheLine << "\n");
-        DEBUG(dbgs() << "NextCacheLine type " << NextCacheLinePrefetchInstructionType << "\n");
         DEBUG(dbgs() << "Execution Resource  " << ResourcesNames[ExecutionResource] << "\n");
+        DEBUG(dbgs() << "PrefetchTarget  " << PrefetchTarget << "\n");
+        DEBUG(dbgs() << "PrefetchLevel  " << PrefetchLevel << "\n");
+
 #endif
+        //}
         // Only bring data from memory to the die, not for example, from LLC to L2
        // if (ExecutionResource == MEM_LOAD_CHANNEL || ExecutionResource == MEM_STORE_CHANNEL) {
-         if (ExecutionResource > PrefetchTarget && ExecutionResource >= PrefetchLevel) {
+         if (ExecutionResource > PrefetchTarget && ExecutionResource >= PrefetchDestination) {
+          // if (!(WarmCache && rep == 0)){
 #ifdef DEBUG_PREFETCHER
           DEBUG(dbgs() << "Prefetching next cache line which is in "<<ResourcesNames[ExecutionResource]<<"\n");
 #endif
+           //}
           Info.LastAccess = TotalInstructions;
           insertCacheLineLastAccess(NextCacheLine, Info.LastAccess );
         }
@@ -3759,7 +3748,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
       
       // =========================== SPATIAL PREFETCHER ======================================
       
-      if (SpatialPrefetcher && (I.getOpcode() ==Instruction::Load || I.getOpcode() ==Instruction::Store)&& ExtendedInstructionType > PrefetchDispatch /*&& (CacheLine %2) == 0*/
+      if (SpatialPrefetcher && (I.getOpcode() ==Instruction::Load || I.getOpcode() ==Instruction::Store)&& ExtendedInstructionType > PrefetchDispatch && !(ExecutionUnit[ExtendedInstructionType] == PrefetchLevel)/*&& (CacheLine %2) == 0*/
           /*  && (ExtendedInstructionType == MEM_LOAD_NODE || ExtendedInstructionType == MEM_STORE_NODE )*/) {
         NextCacheLine = CacheLine+1;
         
@@ -3767,7 +3756,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
         Info = getCacheLineInfo(NextCacheLine);
         Distance =  ReuseDistance(Info.LastAccess, TotalInstructions, NextCacheLine, true);
         NextCacheLineExtendedInstructionType = GetMemoryInstructionType(Distance, MemoryAddress);
-        NextCacheLinePrefetchInstructionType = GetPrefetchTypeFromInstructionType(NextCacheLineExtendedInstructionType);
+
         
         ExecutionResource = ExecutionUnit[NextCacheLineExtendedInstructionType];
         LatencyPrefetch =  ExecutionUnitsLatency[ExecutionResource]-ExecutionUnitsLatency[PrefetchDestination];
@@ -3776,7 +3765,6 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
 #ifdef DEBUG_PREFETCHER
         DEBUG(dbgs() << "CacheLine " << CacheLine << "\n");
         DEBUG(dbgs() << "NextCacheLine " << NextCacheLine << "\n");
-        DEBUG(dbgs() << "NextCacheLine type " << NextCacheLinePrefetchInstructionType << "\n");
         DEBUG(dbgs() << "Execution Resource (for bandwidth consumption) " << ResourcesNames[ExecutionResource] << "\n");
         DEBUG(dbgs() << "Latency (for bandwidth consumption) " << LatencyPrefetch << "\n");
         
@@ -3784,8 +3772,8 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
         
         // Prefetch every time there is a miss (not necesarly an access to memory), but only if the prefetched
         //data is in memoty.
-        if (ExecutionResource > PrefetchTarget && ExecutionResource >= PrefetchLevel) {
-          InstructionsCountExtended[NextCacheLinePrefetchInstructionType]++;
+        if (ExecutionResource > PrefetchTarget && ExecutionResource >= PrefetchDestination) {
+          InstructionsCountExtended[NextCacheLineExtendedInstructionType]++;
           if (IsVectorInstruction && ExecutionResource!= FP_SHUFFLE){
             InstructionsCount[InstructionType]=InstructionsCount[InstructionType]+NElementsVector;
           }else
