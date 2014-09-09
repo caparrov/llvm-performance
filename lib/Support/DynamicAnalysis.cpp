@@ -1551,25 +1551,25 @@ DynamicAnalysis::GetExtendedInstructionType(int OpCode, int ReuseDistance){
       
     case Instruction::Load:
       
-      if (ReuseDistance < 0 || ReuseDistance > (int)LLCCacheSize)
+      if (ReuseDistance < 0 || (ReuseDistance > (int)LLCCacheSize && LLCCacheSize != 0))
         return MEM_LOAD_NODE;
       if (ReuseDistance <= (int)L1CacheSize)
         return L1_LOAD_NODE;
-      if ((int)L1CacheSize < ReuseDistance && ReuseDistance <= (int)L2CacheSize)
+      if ((int)L1CacheSize < ReuseDistance && (ReuseDistance <= (int)L2CacheSize && L2CacheSize != 0))
         return L2_LOAD_NODE;
-      if ((int)L2CacheSize < ReuseDistance && ReuseDistance <= (int)LLCCacheSize)
+      if ((int)L2CacheSize < ReuseDistance && (ReuseDistance <= (int)LLCCacheSize && LLCCacheSize != 0))
         return L3_LOAD_NODE;
       break;
       
     case Instruction::Store:
-      if (ReuseDistance < 0 || ReuseDistance > (int)LLCCacheSize)
+      if (ReuseDistance < 0 || (ReuseDistance > (int)LLCCacheSize && LLCCacheSize != 0))
         return MEM_STORE_NODE;
       if (ReuseDistance <= (int)L1CacheSize)
         return L1_STORE_NODE;
-      if ((int)L1CacheSize < ReuseDistance && ReuseDistance <= (int)L2CacheSize)
+      if ((int)L1CacheSize < ReuseDistance && (ReuseDistance <= (int)L2CacheSize && L2CacheSize != 0 ))
         return L2_STORE_NODE;
       
-      if ((int)L2CacheSize < ReuseDistance && ReuseDistance <= (int)LLCCacheSize)
+      if ((int)L2CacheSize < ReuseDistance && (ReuseDistance <= (int)LLCCacheSize && LLCCacheSize != 0))
         return L3_STORE_NODE;
       break;
       
