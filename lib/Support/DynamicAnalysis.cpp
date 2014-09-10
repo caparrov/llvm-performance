@@ -669,9 +669,6 @@ DynamicAnalysis::getCacheLineInfo(uint64_t v){
   if (IssueCycleMapIt != CacheLineIssueCycleMap.end()) {
     CacheLineIssueCycle = IssueCycleMapIt->second.IssueCycle;
     CacheLineLastAccess = IssueCycleMapIt->second.LastAccess;
-    //TODO: SHould we remove this?
-    //  CacheLineIssueCycleMap.erase(IssueCycleMapIt);
-    //  IssueCycleMapIt->second.IssueCycle = 0; //????
   }else{
     CacheLineIssueCycle = 0; // First usage
     CacheLineLastAccess = 0;
@@ -2223,17 +2220,6 @@ DynamicAnalysis::GetLastIssueCycle(unsigned ExecutionResource, bool WithPrefetch
   
   DEBUG(dbgs() << "Last cycle in InstructionLastIssueCycle " << LastCycle << "\n");
   
-  //TODO: Uncomment this when we include prefetch again!!!!
-  /*
-   if (ExtendedInstructionType >= N_PREFETCH_RESOURCES_START && ExtendedInstructionType <= N_PREFETCH_RESOURCES_END) {
-   // InstructionType = GetInstructionTypeFromPrefetchType(InstructionType);
-   isPrefetchType = true;
-   }
-   */
-  //TODO: Should be the same for other nodes.
-  // if (InstructionType <  N_MEM_NODES+nCompNodes) {
-  // If the cycle is in available but nothing has been issued....
-  
   if(ExecutionResource <= nExecutionUnits){
     
     AvailableCyclesTree[ExecutionResource] = splay(LastCycle,AvailableCyclesTree[ExecutionResource]);
@@ -2677,7 +2663,7 @@ DynamicAnalysis::DispatchToLineFillBuffer(uint64_t Cycle){
 
 uint64_t
 DynamicAnalysis::FindIssueCycleWhenLineFillBufferIsFull(){
-  
+
   size_t BufferSize = DispatchToLineFillBufferQueue.size();
   
   if ( BufferSize== 0) {
@@ -2952,7 +2938,6 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
   if (WarmCache && rep == 0) {
     
     if (InstructionType >= 0) {
-      DEBUG(dbgs()<<  I<< "\n");
 
       switch (I.getOpcode()) {
         case Instruction::Load:{
@@ -3350,8 +3335,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
             if (LoadBufferCompletionCycles.size() == LoadBufferSize) { // If the load buffer is full
               InstructionIssueLoadBufferAvailable = FindIssueCycleWhenLoadBufferIsFull();
               
-              // If, moreover, the instruction has to go to the LineFillBuffer, repeat
-              //process with DispathtoLineFillBuffer ... COMPLETE!
+              // If, moreover, the instruction has to go to the LineFillBuffer...
               if (ExtendedInstructionType >= L2_LOAD_NODE && LineFillBufferSize > 0) {
                 if (LineFillBufferCompletionCycles.size() == (unsigned)LineFillBufferSize) {
                   InstructionIssueLineFillBufferAvailable = FindIssueCycleWhenLineFillBufferIsFull();
@@ -3464,8 +3448,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
             InstructionIssueThroughputAvailable = FindNextAvailableIssueCycle(InstructionIssueCycle, ExecutionResource, ExtendedInstructionType);
             InsertNextAvailableIssueCycle(InstructionIssueThroughputAvailable, ExecutionResource,ExtendedInstructionType);
           }else{
-            //TODO:
-            //If there is no store buffer, there must be available cycle in both, the dispatch port
+            //If there is no load buffer, there must be available cycle in both, the dispatch port
             // and the resource
             InstructionIssueThroughputAvailable = FindNextAvailableIssueCyclePortAndThroughtput(InstructionIssueCycle,ExtendedInstructionType, NElementsVector);
           }
@@ -3533,8 +3516,26 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
           if (StoreBufferSize > 0) {
             if (StoreBufferCompletionCycles.size() == StoreBufferSize) { // If the store buffer is full
               InstructionIssueStoreBufferAvailable = FindIssueCycleWhenStoreBufferIsFull();
-              // If, moreover, the instruction has to go to the LineFillBuffer, repeat
-              //process with DispathtoLineFillBuffer ... TODO: COMPLETE!
+              // If, moreover, the instruction has to go to the LineFillBuffer...
+              if (ExtendedInstructionType >= L2_LOAD_NODE && LineFillBufferSize > 0) {
+                if (LineFillBufferCompletionCycles.size() == (unsigned)LineFillBufferSize) {
+                  InstructionIssueLineFillBufferAvailable = FindIssueCycleWhenLineFillBufferIsFull();
+                }
+              }
+
+            }else{ // If the Store Buffer is not fulll...
+              if (ExtendedInstructionType >= L2_LOAD_NODE && LineFillBufferSize > 0) { // If it has to go to the LFS...
+                
+                if (LineFillBufferCompletionCycles.size() == LineFillBufferSize || !DispatchToLineFillBufferQueue.empty() ) {
+                  InstructionIssueLineFillBufferAvailable = FindIssueCycleWhenLineFillBufferIsFull();
+                }else{ // There is space on both
+                  // Do nothing -> Instruction Issue Cycle is not affected by LB or LFB Occupancy
+                  //Later, insert in both
+                }
+              }else{ // It does not have to go to LFB...
+                //Do nothing (insert into LoadBuffer later, afte knowing IssueCycle
+                // depending on BW availability. Right not IssueCycle is not affected)
+              }
             }
           }
 #endif
@@ -3921,19 +3922,22 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
             DEBUG(dbgs() << "Inserting  "<< NewInstructionIssueCycle << " to DispatchToLoadBufferQueue\n");
 #endif
             
-            // If, moreover, the instruction has to go to the LineFillBuffer, repeat
-            //process with DispathtoLineFillBuffer ... COMPLETE!
+            // If, moreover, the instruction has to go to the LineFillBuffer...
             if (ExtendedInstructionType >= L2_LOAD_NODE && LineFillBufferSize > 0) {
-              // Always need to indert into DispacthToLineFillBuffer, regardless it is full or not.
-              //   if (LineFillBufferCompletionCycles.size() == LineFillBufferSize) {
-              
-              InstructionDispatchInfo DispathInfo;
-              DispathInfo.IssueCycle = FindIssueCycleWhenLineFillBufferIsFull();
-              DispathInfo.CompletionCycle = NewInstructionIssueCycle+Latency;
-              DispatchToLineFillBufferQueue.push_back(DispathInfo);
+              if (LineFillBufferCompletionCycles.size() == LineFillBufferSize || !DispatchToLineFillBufferQueue.empty()) {
+                InstructionDispatchInfo DispathInfo;
+                DispathInfo.IssueCycle = FindIssueCycleWhenLineFillBufferIsFull();
+                DispathInfo.CompletionCycle = NewInstructionIssueCycle+Latency;
+                DispatchToLineFillBufferQueue.push_back(DispathInfo);
 #ifdef DEBUG_OOO_BUFFERS
-              DEBUG(dbgs() << "Inserting  "<<  DispathInfo.IssueCycle<< " to DispatchToLineFillBufferQueue\n");
+                DEBUG(dbgs() << "Inserting  "<< DispathInfo.IssueCycle  << " to DispatchToLineFillBufferQueue\n");
 #endif
+              }else{ // There is space on both
+#ifdef DEBUG_OOO_BUFFERS
+                DEBUG(dbgs() << "Inserting  "<< NewInstructionIssueCycle+Latency << " to Line Fill Buffer\n");
+#endif
+                LineFillBufferCompletionCycles.push_back(NewInstructionIssueCycle+Latency);
+              }
             }
           }else{
             //If LB is not full
