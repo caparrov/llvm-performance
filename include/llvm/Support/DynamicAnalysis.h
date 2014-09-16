@@ -94,14 +94,14 @@
 #define INT_LD_8_BITS   -1
 #define INT_LD_16_BITS  -1
 #define INT_LD_32_BITS  -1
-#define INT_LD_64_BITS  -1
+#define INT_LD_64_BITS   -1
 #define INT_LD_80_BITS  -1
 #define INT_LD_128_BITS -1
 #define INT_ST_4_BITS   -1
 #define INT_ST_8_BITS   -1
 #define INT_ST_16_BITS  -1
 #define INT_ST_32_BITS  -1
-#define INT_ST_64_BITS  -1
+#define INT_ST_64_BITS  1
 #define INT_ST_80_BITS  -1
 #define INT_ST_128_BITS -1
 #define FP_ADD           0

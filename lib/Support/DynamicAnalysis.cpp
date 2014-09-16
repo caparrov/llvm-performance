@@ -368,9 +368,9 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
   DEBUG(dbgs() << "Number of resources " << nExecutionUnits + nPorts + nAGUs + nLoadAGUs + nStoreAGUs + nBuffers << "\n");
   
   ResourcesNames.push_back("FP_ADDER");
-  ResourcesNames.push_back("FP_MULTIPLIER");
-  ResourcesNames.push_back("FP_DIVIDER");
-  ResourcesNames.push_back("FP_SHUFFLE");
+  ResourcesNames.push_back("FP_MULT");
+  ResourcesNames.push_back("FP_DIV");
+  ResourcesNames.push_back("FP_SHUF");
   ResourcesNames.push_back("L1_LD");
   ResourcesNames.push_back("L1_ST");
   ResourcesNames.push_back("L2");
@@ -4799,6 +4799,40 @@ DynamicAnalysis::finishAnalysis(){
       }
     }
     
+    printHeaderStat("Execution Times Breakdowns");
+    float MinExecutionTime;
+    float IssueEffects;
+    float LatencyEffects;
+    float StallEffects;
+    dbgs() << "RESOURCE\tMIN-EXEC-TIME\tISSUE-EFFECTS\tLATENCY-EFFECTS\tSTALL-EFFECTS\tTOTAL\n";
+
+    for(unsigned i=0; i< nExecutionUnits; i++){
+        if (!(MergeArithmeticOps &&  i==FP_MULTIPLIER) && !(MergeArithmeticOps && i==FP_DIVIDER)){
+
+          if (i < nCompExecutionUnits) {
+            MinExecutionTime = InstructionsCountExtended[i]/ExecutionUnitsThroughput[i]*ExecutionUnitsParallelIssue[i];
+          }else
+            MinExecutionTime = InstructionsCountExtended[i]*AccessGranularities[i]/(ExecutionUnitsThroughput[i]*ExecutionUnitsParallelIssue[i]);
+          
+          IssueEffects = IssueSpan[i] - MinExecutionTime;
+          LatencyEffects = ResourcesSpan[i] - IssueEffects;
+          StallEffects = ResourcesTotalStallSpanVector[i] - ResourcesSpan[i];
+        dbgs() << ResourcesNames[i]<< "\t\t";
+          fprintf(stderr, " %1.3f ", MinExecutionTime);
+          dbgs() << "\t";
+          fprintf(stderr, " %1.3f ", IssueEffects);
+          dbgs() << "\t";
+          fprintf(stderr, " %1.3f ", LatencyEffects);
+          dbgs() << "\t";
+          fprintf(stderr, " %1.3f ", StallEffects);
+          dbgs() << "\t"<< ResourcesTotalStallSpanVector[i]<<"\n";
+
+      }
+    }
+  
+  
+  
+  
     printHeaderStat("TOTAL");
     dbgs() << "TOTAL FLOPS"<< "\t"<<InstructionsCount[0] <<"\t\t"<<CalculateGroupSpan(compResources)<<" \n";
     dbgs() << "TOTAL MOPS"<< "\t"<<InstructionsCount[1]<<"\t\t"<<CalculateGroupSpan(memResources)<<" \n";
