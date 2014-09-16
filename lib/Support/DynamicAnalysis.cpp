@@ -4815,7 +4815,7 @@ DynamicAnalysis::finishAnalysis(){
             MinExecutionTime = InstructionsCountExtended[i]*AccessGranularities[i]/(ExecutionUnitsThroughput[i]*ExecutionUnitsParallelIssue[i]);
           
           IssueEffects = IssueSpan[i] - MinExecutionTime;
-          LatencyEffects = ResourcesSpan[i] - IssueEffects;
+          LatencyEffects = ResourcesSpan[i] - IssueSpan[i];
           StallEffects = ResourcesTotalStallSpanVector[i] - ResourcesSpan[i];
         dbgs() << ResourcesNames[i]<< "\t\t";
           fprintf(stderr, " %1.3f ", MinExecutionTime);
