@@ -4809,14 +4809,23 @@ DynamicAnalysis::finishAnalysis(){
     for(unsigned i=0; i< nExecutionUnits; i++){
         if (!(MergeArithmeticOps &&  i==FP_MULTIPLIER) && !(MergeArithmeticOps && i==FP_DIVIDER)){
 
+          if (InstructionsCountExtended[i]==0) {
+            MinExecutionTime = 0;
+            LatencyEffects = 0;
+            IssueEffects = 0;
+            StallEffects = 0;
+          }else{
           if (i < nCompExecutionUnits) {
             MinExecutionTime = InstructionsCountExtended[i]/ExecutionUnitsThroughput[i]*ExecutionUnitsParallelIssue[i];
           }else
             MinExecutionTime = InstructionsCountExtended[i]*AccessGranularities[i]/(ExecutionUnitsThroughput[i]*ExecutionUnitsParallelIssue[i]);
           
-          IssueEffects = IssueSpan[i] - MinExecutionTime;
-          LatencyEffects = ResourcesSpan[i] - IssueSpan[i];
-          StallEffects = ResourcesTotalStallSpanVector[i] - ResourcesSpan[i];
+            IssueEffects = IssueSpan[i] - MinExecutionTime;
+            LatencyEffects = ResourcesSpan[i] - IssueSpan[i];
+            StallEffects = ResourcesTotalStallSpanVector[i] - ResourcesSpan[i];
+            
+          }
+ 
         dbgs() << ResourcesNames[i]<< "\t\t";
           fprintf(stderr, " %1.3f ", MinExecutionTime);
           dbgs() << "\t";
