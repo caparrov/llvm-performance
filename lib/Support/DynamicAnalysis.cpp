@@ -4079,19 +4079,14 @@ void
 DynamicAnalysis::finishAnalysis(){
   
   
-  
-  
-  
+  /*
   for (int j = 0; j< instructionPool.size(); j++) {
     dbgs() << *instructionPool[j] << "\n";
     for(Value::use_iterator i = (*instructionPool[j]).use_begin(), ie = (*instructionPool[j]).use_end(); i!=ie; ++i){
       dbgs() << "Use of the instruction " << *(*i) << "\n";
     }
   }
-  
-  
-  
-  
+  */
   
   
   unsigned long long TotalSpan = 0;
