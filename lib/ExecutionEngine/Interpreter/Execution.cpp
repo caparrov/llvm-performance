@@ -101,7 +101,7 @@ static cl::opt < unsigned > PrefetchLevel("prefetch-level", cl::Hidden, cl::desc
 
 static cl::opt < unsigned > PrefetchDispatch("prefetch-dispatch", cl::Hidden, cl::desc("Level of the memory hierarchy in which a miss causes a prefetch from the next line. 0= always try to prefetch, 1 = prefetch when there is a L1 miss, 2 = prefetch when there is a L2 miss, 3 = prefetch when there is a LLC miss,. Default is 1"),cl::init(1));
 
-static cl::opt < unsigned > PrefetchTarget("prefetch-target", cl::Hidden, cl::desc("Prefetch only if the target block is in the specified level of the memory or a lower level. 2 = prefetch if the target line is in L2 or lower, 3 = prefetch if the target line is in LLC or lower, 4 = prefetch if the target line is in MEM. Default is 4"),cl::init(4));
+static cl::opt < unsigned > PrefetchTarget("prefetch-target", cl::Hidden, cl::desc("Prefetch only if the target block is in the specified level of the memory or a lower leve`l. 2 = prefetch if the target line is in L2 or lower, 3 = prefetch if the target line is in LLC or lower, 4 = prefetch if the target line is in MEM. Default is 4"),cl::init(4));
 
 
 static cl::opt < bool > InOrderExecution("in-order-execution", cl::Hidden, cl::desc("In order execution"),cl::init(false));

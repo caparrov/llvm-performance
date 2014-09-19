@@ -2869,6 +2869,10 @@ DynamicAnalysis::PrintDispatchToLineFillBuffer(){
 void
 DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  GenericValue * visitResult){
   
+  
+  
+  
+  
   int k = 0;
   int Distance;
   int NextCacheLineExtendedInstructionType;
@@ -2897,6 +2901,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
   unsigned NumArgs;
   unsigned ExtendedInstructionType = InstructionType;
   unsigned ExecutionResource = 0;
+  unsigned TreeChunk = 0;
   
   TotalInstructions++;
   
@@ -3031,12 +3036,16 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
     }
   }else{
     
-    DEBUG(dbgs()<<  I<< "\n");
+
     
     //================= Update Fetch Cycle, remove insts from buffers =========//
     // EVERY INSTRUCTION IN THE RESERVATION STATION IS ALSO IN THE REORDER BUFFER
     
     if (InstructionType >= 0) {
+          DEBUG(dbgs()<<  I<< "\n");
+      
+        instructionPool.push_back(&I);
+      
       //   if (ReservationStationIssueCycles.size() == (unsigned)ReservationStationSize) {
       if (RemainingInstructionsFetch == 0 || RemainingInstructionsFetch == INF||
           (ReorderBufferCompletionCycles.size() == (unsigned)ReorderBufferSize && ReorderBufferSize != 0)
@@ -3141,8 +3150,16 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
           if (InstructionFetchCycle>CurrentInstructionFetchCycle+1)
             FirstNonEmptyLevel[RS_STALL] = (FirstNonEmptyLevel[RS_STALL]==0)?CurrentInstructionFetchCycle+1:FirstNonEmptyLevel[RS_STALL];
           
+          
           for (uint64_t i = CurrentInstructionFetchCycle+1; i< InstructionFetchCycle; i++) {
-            FullOccupancyCyclesTree[i/SplitTreeRange] = insert_node(i, RS_STALL,FullOccupancyCyclesTree[i/SplitTreeRange]);
+            TreeChunk =i/SplitTreeRange;
+            if (TreeChunk >= (unsigned)FullOccupancyCyclesTree.size()) {
+              for (unsigned j = FullOccupancyCyclesTree.size(); j<= TreeChunk; j++) {
+                DEBUG(dbgs() << "Iserting element in FullOccupancyCyclesTree");
+                FullOccupancyCyclesTree.push_back(NULL);
+              }
+            }
+            FullOccupancyCyclesTree[TreeChunk] = insert_node(i, RS_STALL,FullOccupancyCyclesTree[TreeChunk]);
             InstructionsCountExtended[RS_STALL]++;
             InstructionsLastIssueCycle[RS_STALL] =i;
           }
@@ -3160,8 +3177,18 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
             FirstNonEmptyLevel[ROB_STALL] = (FirstNonEmptyLevel[ROB_STALL]==0)?CurrentInstructionFetchCycle+1:FirstNonEmptyLevel[ROB_STALL];
           }
           
+          
           for (uint64_t i = CurrentInstructionFetchCycle+1; i< InstructionFetchCycle; i++) {
-            FullOccupancyCyclesTree[i/SplitTreeRange] = insert_node(i, ROB_STALL, FullOccupancyCyclesTree[i/SplitTreeRange] );
+            // Get the node, if any, corresponding to this issue cycle.
+            TreeChunk =i/SplitTreeRange;
+            if (TreeChunk >= (unsigned)FullOccupancyCyclesTree.size()) {
+              for (unsigned j = FullOccupancyCyclesTree.size(); j<= TreeChunk; j++) {
+                DEBUG(dbgs() << "Iserting element in FullOccupancyCyclesTree");
+                FullOccupancyCyclesTree.push_back(NULL);
+              }
+            }
+            
+            FullOccupancyCyclesTree[TreeChunk] = insert_node(i, ROB_STALL, FullOccupancyCyclesTree[TreeChunk] );
             InstructionsCountExtended[ROB_STALL]++;
             InstructionsLastIssueCycle[ROB_STALL] =i;
           }
@@ -4050,6 +4077,22 @@ DynamicAnalysis::printHeaderStat(string Header){
 
 void
 DynamicAnalysis::finishAnalysis(){
+  
+  
+  
+  
+  
+  for (int j = 0; j< instructionPool.size(); j++) {
+    dbgs() << *instructionPool[j] << "\n";
+    for(Value::use_iterator i = (*instructionPool[j]).use_begin(), ie = (*instructionPool[j]).use_end(); i!=ie; ++i){
+      dbgs() << "Use of the instruction " << *(*i) << "\n";
+    }
+  }
+  
+  
+  
+  
+  
   
   unsigned long long TotalSpan = 0;
   uint64_t TotalStallSpan = 0;

@@ -612,6 +612,11 @@ public:
                   unsigned PrefetchTarget);
 
   
+  
+  vector<Instruction*> instructionPool;
+  int count=0;
+  
+  
   void analyze();
   void analyzeInstruction(Instruction &I, ExecutionContext &SF, GenericValue * visitResult);
   
