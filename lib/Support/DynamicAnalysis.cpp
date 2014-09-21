@@ -4795,7 +4795,8 @@ DynamicAnalysis::finishAnalysis(){
         }
         dbgs() << "\n";
       }
-      
+    }
+    
       printHeaderStat("Bottlenecks");
       dbgs() << "Bottleneck\tISSUE\tLAT\t";
       for(int j=RS_STALL; j<= LFB_STALL; j++){
@@ -4835,7 +4836,7 @@ DynamicAnalysis::finishAnalysis(){
           dbgs() << "\n";
         }
       }
-    }
+    
     
     printHeaderStat("Execution Times Breakdowns");
     float MinExecutionTime;
