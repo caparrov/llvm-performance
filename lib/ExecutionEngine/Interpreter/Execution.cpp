@@ -65,19 +65,19 @@ static cl::opt <unsigned> LLCCacheSize("llc-cache-size", cl::desc("Specify the s
 static cl::opt<string> Microarchitecture("uarch", cl::desc("Name of the microarchitecture"),
                                       cl::init("SB"));
 
-static cl::list <unsigned> ExecutionUnitsLatency("execution-units-latency",  cl::CommaSeparated, cl::desc("Specify the execution latency of the nodes(cycles). Default value is 1 cycle"));
+static cl::list <float> ExecutionUnitsLatency("execution-units-latency",  cl::CommaSeparated, cl::desc("Specify the execution latency of the nodes(cycles). Default value is 1 cycle"));
 
 
 static cl::list <float> ExecutionUnitsThroughput("execution-units-throughput",  cl::CommaSeparated, cl::desc("Specify the execution bandwidth of the nodes(ops executed/cycles). Default value is -1 cycle"));
 
-static cl::list <unsigned> ExecutionUnitsParallelIssue("execution-units-parallel-issue",  cl::CommaSeparated, cl::desc("Specify the number of nodes that can be executed in parallel based on ports execution. Default value is -1 cycle"));
+static cl::list <int> ExecutionUnitsParallelIssue("execution-units-parallel-issue",  cl::CommaSeparated, cl::desc("Specify the number of nodes that can be executed in parallel based on ports execution. Default value is -1 cycle"));
 
 static cl::list<unsigned>  MemAccessGranularity("mem-access-granularity", cl::CommaSeparated, cl::desc("Specify the memory access granularity for the different levels of the memory hierarchy (bytes). Default value is memory word size"));
 
 static cl::opt <unsigned> AddressGenerationUnits("address-generation-units", cl::desc("Specify thenumber of address generation units. Default value is infinity"),cl::init(-1));
 
 
-static cl::opt <unsigned> IFB("instruction-fetch-bandwidth", cl::desc("Specify the size of the reorder buffer. Default value is infinity"),cl::init(-1));
+static cl::opt <int> IFB("instruction-fetch-bandwidth", cl::desc("Specify the size of the reorder buffer. Default value is infinity"),cl::init(-1));
 
 static cl::opt <unsigned> ReservationStation("reservation-station-size", cl::desc("Specify the size of a centralized reservation station. Default value is infinity"),cl::init(0));
 
@@ -93,7 +93,9 @@ static cl::opt < bool > WarmCache("warm-cache", cl::Hidden, cl::desc("Enable ana
 
 static cl::opt < bool > x86MemoryModel("x86-memory-model", cl::Hidden, cl::desc("Implement x86 memory model. Default value is FALSE"),cl::init(false));
 
-static cl::opt < bool > ConstraintThroughput("constraint-throughput", cl::Hidden, cl::desc("Instructions can only be scheduled in cycles multiple of the throughput. Default value is FALSE"),cl::init(false));
+static cl::opt < bool > ConstraintPorts("constraint-ports", cl::Hidden, cl::desc("Constraint ports dispatch according to specified architecture. Default value is FALSE"),cl::init(false));
+
+static cl::opt < bool > ConstraintAGUs("constraint-agus", cl::Hidden, cl::desc("Constraint agus according to specified architecture. Default value is FALSE"),cl::init(false));
 
 static cl::opt < bool > SpatialPrefetcher("spatial-prefetcher", cl::Hidden, cl::desc("Implement spatial Prefetching"),cl::init(false));
 
@@ -2347,7 +2349,7 @@ void Interpreter::run() {
   Analyzer = new DynamicAnalysis(TargetFunction, MemoryWordSize, CacheLineSize, L1CacheSize, L2CacheSize, LLCCacheSize, FLatency, MLatency, FlopIssueThroughput, FlopIssueWidth, MemAccessGranularity, MemIssueThroughput, MemIssueWidth, AddressGenerationUnits, IFB, ReservationStation, ReorderBuffer, LoadBuffer, StoreBuffer, LineFillBuffer, WarmCache, x86MemoryModel, SpatialPrefetcher, ConstraintThroughput, 0, InOrderExecution);
   */
   
-  Analyzer = new DynamicAnalysis(TargetFunction, Microarchitecture, MemoryWordSize, CacheLineSize, L1CacheSize, L2CacheSize, LLCCacheSize, ExecutionUnitsLatency, ExecutionUnitsThroughput, ExecutionUnitsParallelIssue, MemAccessGranularity, AddressGenerationUnits, IFB, ReservationStation, ReorderBuffer, LoadBuffer, StoreBuffer, LineFillBuffer, WarmCache, x86MemoryModel, SpatialPrefetcher, ConstraintThroughput, 0, InOrderExecution,ReportOnlyPerformance,PrefetchLevel, PrefetchDispatch, PrefetchTarget);
+  Analyzer = new DynamicAnalysis(TargetFunction, Microarchitecture, MemoryWordSize, CacheLineSize, L1CacheSize, L2CacheSize, LLCCacheSize, ExecutionUnitsLatency, ExecutionUnitsThroughput, ExecutionUnitsParallelIssue, MemAccessGranularity, AddressGenerationUnits, IFB, ReservationStation, ReorderBuffer, LoadBuffer, StoreBuffer, LineFillBuffer, WarmCache, x86MemoryModel, SpatialPrefetcher, ConstraintPorts, ConstraintAGUs, 0, InOrderExecution,ReportOnlyPerformance,PrefetchLevel, PrefetchDispatch, PrefetchTarget);
   
    tStart = clock();
   bool startAnalysis = false;

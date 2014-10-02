@@ -61,21 +61,6 @@
 
 
 
-
-
-
-// Memory hierarchy parameters (number of floating point elements)
-/*
-
-
-// Cache line size in number of words according to granularity
-#define CACHE_LINE_SIZE 8
-
-#define REGISTER_FILE_SIZE 16
-
-*/
-
-
 // Can be further broken down into FPMults, FPAdds, etc..
 #ifdef REDUCED_INST_TYPES
 #define N_INST_TYPES 2
@@ -443,9 +428,9 @@ public:
   vector<unsigned> PortNodes;
   vector<vector<unsigned> > DispatchPort;
   
-  vector<unsigned> ExecutionUnitsLatency;
+  vector<float> ExecutionUnitsLatency;
   vector<float> ExecutionUnitsThroughput;
-  vector<unsigned> ExecutionUnitsParallelIssue;
+  vector<int> ExecutionUnitsParallelIssue;
   vector<unsigned> PortsWidth;
   
   vector<unsigned> IssueCycleGranularities;
@@ -494,12 +479,13 @@ public:
   bool WarmCache;
   bool x86MemoryModel;
   bool SpatialPrefetcher;
+  bool ConstraintPorts;
+  bool ConstraintAGUs;
   unsigned PrefetchLevel;
   unsigned PrefetchDispatch;
   unsigned PrefetchTarget;
   unsigned PrefetchDestination;
 
-  bool ConstraintThroughput;
   bool InOrderExecution;
   bool ReportOnlyPerformance;
   
@@ -589,9 +575,9 @@ public:
                   unsigned L1CacheSize,
                   unsigned L2CacheSize,
                   unsigned LLCCacheSize,
-                  vector<unsigned> ExecutionUnitsLatency,
+                  vector<float> ExecutionUnitsLatency,
                   vector<float> ExecutionUnitsThroughput,
-                  vector<unsigned> ExecutionUnitsParallelIssue,
+                  vector<int> ExecutionUnitsParallelIssue,
                   vector<unsigned>  MemAccessGranularity,
                   int AddressGenerationUnits,
                   int InstructionFetchBandwidth,
@@ -603,7 +589,8 @@ public:
                   bool WarmCache,
                   bool x86MemoryModel,
                   bool SpatialPrefetcher,
-                  bool ConstraintThroughput,
+                  bool ConstraintPorts,
+                  bool ConstraintAGUs,
                   int rep,
                   bool InOrderExecution,
                   bool ReportOnlyPerformance,
@@ -631,9 +618,6 @@ public:
   CacheLineInfo getCacheLineInfo(uint64_t v);
   uint64_t getMemoryAddressIssueCycle(uint64_t v);
   
-  
-  unsigned  GetAccessWidth(unsigned ExecutionResource, unsigned NElementsVector);
-
   unsigned  GetInstructionTypeFromPrefetchType(unsigned PrefetchType);
 
   

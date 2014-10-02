@@ -19,9 +19,9 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
                                  unsigned L1CacheSize,
                                  unsigned L2CacheSize,
                                  unsigned LLCCacheSize,
-                                 vector<unsigned> ExecutionUnitsLatency,
+                                 vector<float> ExecutionUnitsLatency,
                                  vector<float> ExecutionUnitsThroughput,
-                                 vector<unsigned> ExecutionUnitsParallelIssue,
+                                 vector<int> ExecutionUnitsParallelIssue,
                                  vector<unsigned>  MemAccessGranularity,
                                  int AddressGenerationUnits,
                                  int InstructionFetchBandwidth,
@@ -33,7 +33,8 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
                                  bool WarmCache,
                                  bool x86MemoryModel,
                                  bool SpatialPrefetcher,
-                                 bool ConstraintThroughput,
+                                 bool ConstraintPorts,
+                                 bool ConstraintAGUs,
                                  int rep,
                                  bool InOrderExecution,
                                  bool ReportOnlyPerformance,
@@ -41,7 +42,7 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
                                  unsigned PrefetchDispatch,
                                  unsigned PrefetchTarget){
   
-  //Test comment	
+  //Test comment
   // Initialize local variables with command-line arguemtns
   this->TargetFunction = TargetFunction;
   this->MemoryWordSize = MemoryWordSize;
@@ -59,7 +60,8 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
   this->WarmCache = WarmCache;
   this->x86MemoryModel = x86MemoryModel;
   this->SpatialPrefetcher = SpatialPrefetcher;
-  this->ConstraintThroughput = ConstraintThroughput;
+  this->ConstraintPorts = ConstraintPorts;
+  this->ConstraintAGUs = ConstraintAGUs;
   this->InOrderExecution = InOrderExecution;
   this->ReportOnlyPerformance = ReportOnlyPerformance;
   this->rep = rep;
@@ -113,7 +115,7 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
     case 4:
       this->PrefetchTarget = L3_STORE_CHANNEL;
       break;
-       default:
+    default:
       report_fatal_error("Prefetch target not recognized");
       break;
   }
@@ -252,7 +254,7 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
   // Make sure that there are no more parallel execution units that dispatch ports associated
   // to these units
   for (unsigned i = 0; i < nCompNodes +nMemNodes; i++) { // Dispatch ports are associated to nodes
-    if (DispatchPort[i].size() < ExecutionUnitsParallelIssue[ExecutionUnit[i]]) {
+    if (ExecutionUnitsParallelIssue[ExecutionUnit[i]] > 0 && DispatchPort[i].size() < (unsigned)ExecutionUnitsParallelIssue[ExecutionUnit[i]]) {
       DEBUG(dbgs() << "ExecutionUnit " << i << "\n");
       DEBUG(dbgs() << "DispatchPort[i].size() " << DispatchPort[i].size() << "\n");
       DEBUG(dbgs() << "ExecutionUnitsParallelIssue[i] " << ExecutionUnitsParallelIssue[i] << "\n");
@@ -299,8 +301,13 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
   // Latency and throughput of AGUs
   if (nAGUs > 0) {
     this->ExecutionUnitsLatency.push_back(1);
-    this->ExecutionUnitsThroughput.push_back(1);
-    this->ExecutionUnitsParallelIssue.push_back(SANDY_BRIDGE_AGUS);
+    if (ConstraintAGUs) {
+      this->ExecutionUnitsThroughput.push_back(1);
+      this->ExecutionUnitsParallelIssue.push_back(SANDY_BRIDGE_AGUS);
+    }else{
+      this->ExecutionUnitsThroughput.push_back(-1);
+      this->ExecutionUnitsParallelIssue.push_back(-1);
+    }
     AccessGranularities.push_back(1);
   }
   
@@ -321,8 +328,13 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
   // Latency and throughput of ports
   for (unsigned i = 0; i< nPorts; i++) {
     this->ExecutionUnitsLatency.push_back(1); //Default value for latency
-    this->ExecutionUnitsThroughput.push_back(1); // Infinite throughput
-    this->ExecutionUnitsParallelIssue.push_back(1);
+    if (ConstraintPorts) {
+      this->ExecutionUnitsThroughput.push_back(1); // Infinite throughput
+      this->ExecutionUnitsParallelIssue.push_back(1);
+    }else{
+      this->ExecutionUnitsThroughput.push_back(-1); // Infinite throughput
+      this->ExecutionUnitsParallelIssue.push_back(-1);
+    }
     AccessGranularities.push_back(1);
   }
   
@@ -335,7 +347,7 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
     AccessGranularities.push_back(1);
   }
   
-
+  
   // We need AccessWidth and Throughput for every resource for which we calculte
   // span, including ports
   for (unsigned i = 0; i < nExecutionUnits + nAGUs +nPorts + nBuffers; i++) {
@@ -838,26 +850,6 @@ DynamicAnalysis::FindNextAvailableIssueCyclePortAndThroughtput(unsigned Instruct
 }
 
 
-
-unsigned
-DynamicAnalysis::GetAccessWidth(unsigned ExecutionResource, unsigned NElementsVector){
-  
-  unsigned AccessWidth = 0;
-  
-  if (ExecutionResource < nCompExecutionUnits){
-    AccessWidth = NElementsVector;
-  }else{
-    if (ExecutionResource >= nCompExecutionUnits && ExecutionResource < nCompExecutionUnits + nMemExecutionUnits) {
-      AccessWidth = roundNextMultiple(NElementsVector*MemoryWordSize, AccessGranularities[ExecutionResource]);
-    }else{
-      AccessWidth = 1;
-    }
-  }
-  return AccessWidth;
-}
-
-
-
 // Find next available issue cycle depending on resource availability.
 // Returns a pointer
 unsigned
@@ -1110,6 +1102,9 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
 bool
 DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsigned ExecutionResource, uint64_t ExtendedInstructionType, unsigned NElementsVector, bool isPrefetch){
   
+  
+  DEBUG(dbgs() << "Inserting  NextAvailableCycle " <<  NextAvailableCycle << "\n");
+  
   Tree<uint64_t> * Node = AvailableCyclesTree[ExecutionResource];
   unsigned NodeIssueOccupancy = 0;
   unsigned NodeWidthOccupancy = 0;
@@ -1154,121 +1149,127 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
   // TODO: IF we know in advanced that the available level gets full directly, we can avoid inserting it and removing it
   // from AvailableCyclesTree.
   
-  if (ExecutionResource <= nExecutionUnits) {
-    
-    DEBUG(dbgs() << "Inserting next available issue cycle "<< NextAvailableCycle <<" in execution unit "<< ResourcesNames[ExecutionResource] <<" for Instruction type "<< NodesNames[ExtendedInstructionType]<<"\n");
-    
-    
-    AvailableCyclesTree[ExecutionResource] = insert_node(NextAvailableCycle,  AvailableCyclesTree[ExecutionResource]);
-    Node = AvailableCyclesTree[ExecutionResource];
-    
-    if (ExecutionUnitsThroughput[ExecutionResource] < 1) {
+  // if (ExecutionResource <= nExecutionUnits) {
+  
+  DEBUG(dbgs() << "Inserting next available issue cycle "<< NextAvailableCycle <<" in execution unit "<< ResourcesNames[ExecutionResource] <<" for Instruction type "<< NodesNames[ExtendedInstructionType]<<"\n");
+  
+  
+  AvailableCyclesTree[ExecutionResource] = insert_node(NextAvailableCycle,  AvailableCyclesTree[ExecutionResource]);
+  Node = AvailableCyclesTree[ExecutionResource];
+  
+  DEBUG(dbgs() << "Checking execution units thtoughput\n");
+  
+  if (ExecutionUnitsThroughput[ExecutionResource] < 1) {
+    if (isPrefetch) {
+      Node->occupancyPrefetch++;
+    }else{
+      Node->issueOccupancy++;
+    }
+  }else{
+    if (AccessWidth <= ExecutionUnitsThroughput[ExecutionResource]) {
+      DEBUG(dbgs() << "Increasing issue Occupancy\n");
       if (isPrefetch) {
         Node->occupancyPrefetch++;
       }else{
         Node->issueOccupancy++;
       }
+      Node->widthOccupancy += AccessWidth;
     }else{
-      if (AccessWidth <= ExecutionUnitsThroughput[ExecutionResource]) {
-        DEBUG(dbgs() << "Increasing issue Occupancy\n");
-        if (isPrefetch) {
-          Node->occupancyPrefetch++;
-        }else{
-          Node->issueOccupancy++;
-        }
-        Node->widthOccupancy += AccessWidth;
+      //  if (AccessWidth > ExecutionUnitsThroughput[ExecutionResource])
+      // e.g., if I access 64B and bandwidth is 8
+      //TODO: Fill in, and take into account that AccessWidth might be > than troughput
+      // when finding next available issue cycle.
+      if (isPrefetch) {
+        Node->occupancyPrefetch++;
       }else{
-        //TODO: Fill in, and take into account that AccessWidth might be > than troughput
-        // when finding next available issue cycle.
-        if (isPrefetch) {
-          Node->occupancyPrefetch++;
-        }else{
-          Node->issueOccupancy++;
-        }
-        Node->widthOccupancy += AccessWidth;
+        Node->issueOccupancy++;
       }
+      Node->widthOccupancy += AccessWidth;
     }
-    
-    DEBUG(dbgs() << " Node->OccupancyPrefetch " <<  Node->occupancyPrefetch << "\n");
-    DEBUG(dbgs() << " Node->issueOccupancy " <<  Node->issueOccupancy << "\n");
-    DEBUG(dbgs() << " Node->widthOccupancy " <<  Node->widthOccupancy << "\n");
-    
-    /* Copy these values becasue later on the Node is not the same anymore */
-    NodeIssueOccupancy = Node->issueOccupancy;
-    NodeWidthOccupancy = Node->widthOccupancy;
-    NodeOccupancyPrefetch = Node->occupancyPrefetch;
-    MaxOccupancy[ExecutionResource] = max(MaxOccupancy[ExecutionResource], NodeIssueOccupancy + NodeOccupancyPrefetch);
-    
-    DEBUG(dbgs() << "NodeIssueOccupancy " << NodeIssueOccupancy << "\n");
-    DEBUG(dbgs() << "ExecutionUnitsParallelIssue[ExecutionResource] " << ExecutionUnitsParallelIssue[ExecutionResource] << "\n");
-    
-    if (NodeIssueOccupancy+NodeOccupancyPrefetch == ExecutionUnitsParallelIssue[ExecutionResource]) {
-      
-      DEBUG(dbgs() << "Level got full\n");
-      LevelGotFull = true;
-      
-      // Check whether next cycle is in full. because if it is, it should not be inserted into AvailableCyclesTree
-      // Next cycle is not NexAvailableCycle+1, is NextAvailableCycle + 1/Throughput
-      // Here is where the distinction betweeen execution resource and instruction type is important.
-      //  unsigned NextCycle = CalculateIssueCycleGranularity(ExecutionResource, NElementsVector);
-      unsigned NextCycle = IssueCycleGranularities[ExecutionResource];
-      
-      DEBUG(dbgs() << "AccessWidth " << AccessWidth << "\n");
-      DEBUG(dbgs() << "Next Cycle " << NextCycle << "\n");
-      
-      AvailableCyclesTree[ExecutionResource]= delete_node(NextAvailableCycle,  AvailableCyclesTree[ExecutionResource]);
-      
-      // Insert node in FullOccupancy
-      //    FullOccupancyCyclesTree = insert_node(NextAvailableCycle,)
-      DEBUG(dbgs() << "Inserting in FullOccupancyCyclesTree of type " << ResourcesNames[ExecutionResource] << " node with key "<< NextAvailableCycle<<"\n");
-      unsigned TreeChunk = NextAvailableCycle/SplitTreeRange;
-      if (TreeChunk >= FullOccupancyCyclesTree.size()) {
-        for (unsigned i = FullOccupancyCyclesTree.size(); i<= TreeChunk; i++) {
-          DEBUG(dbgs() << "Inserting element into FullOccupancyCyclesTree\n");
-          FullOccupancyCyclesTree.push_back(NULL);
-        }
-      }
-      FullOccupancyCyclesTree[TreeChunk] =insert_node(NextAvailableCycle, ExecutionResource, FullOccupancyCyclesTree[TreeChunk]);
-      
-      DEBUG(dbgs() <<"FullOccupancyCyclesTree->BitVector[ExecutionResource] = " << FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource] << "\n");
-      
-      // We don't need to do this anymore because it will be larger than LastIssueCycle - TODO
-      // Do it only if NextAvailableCycle+1 == InstructionsLastIssueCycle
-      // Insert if it is not in full
-      DEBUG(dbgs() << "Checking if key "<< NextAvailableCycle + NextCycle <<" is in Full Occupancy Tree\n");
-      TreeChunk = (NextAvailableCycle+NextCycle)/SplitTreeRange;
-      if (TreeChunk >= FullOccupancyCyclesTree.size()) {
-        for (unsigned i = FullOccupancyCyclesTree.size(); i<= TreeChunk; i++) {
-          DEBUG(dbgs() << "Inserting element into FullOccupancyCyclesTree\n");
-          FullOccupancyCyclesTree.push_back(NULL);
-        }
-      }
-      DEBUG(dbgs() << "FullOccupancyCyclesTree.size() "<<FullOccupancyCyclesTree.size() <<"\n");
-      DEBUG(dbgs() << "TreeChunk "<< TreeChunk <<"\n");
-      
-      // Instead of splay, we need insert_node
-      FullOccupancyCyclesTree[TreeChunk] = splay(NextAvailableCycle+NextCycle/*1*/,  FullOccupancyCyclesTree[TreeChunk]);
-      
-      if (FullOccupancyCyclesTree[TreeChunk] == NULL)
-        DEBUG(dbgs() << "FullOccupancyCyclesTree[TreeChunk] == NULL\n");
-      
-      if (FullOccupancyCyclesTree[TreeChunk] == NULL || (FullOccupancyCyclesTree[TreeChunk]!=NULL && !(FullOccupancyCyclesTree[TreeChunk]->key == NextAvailableCycle+NextCycle &&
-                                                                                                       FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource] ==1) )) {
-        DEBUG(dbgs() << "The next node was not in full, so insert in available " << NextAvailableCycle+NextCycle << "\n");
-        
-        AvailableCyclesTree[ExecutionResource] = insert_node(NextAvailableCycle+NextCycle,  AvailableCyclesTree[ExecutionResource]);
-        
-        //Update LastIssueCycle -> Distinguish prefetch loads/stores!!
-        InstructionsLastIssueCycle[ExecutionResource] = max( InstructionsLastIssueCycle[ExecutionResource] ,NextAvailableCycle+NextCycle);
-        
-        DEBUG(dbgs() << "Updating InstructionsLastIssueCycle of execution resource " << ResourcesNames[ExecutionResource] << " to " <<InstructionsLastIssueCycle[ExecutionResource]  << "\n");
-        
-      }else
-        DEBUG(dbgs() << "key found in FullOccupancyTree\n");
-    }
-  }else{
-    FullOccupancyCyclesTree[NextAvailableCycle/SplitTreeRange] =insert_node(NextAvailableCycle, ExecutionResource, FullOccupancyCyclesTree[NextAvailableCycle/SplitTreeRange]);
   }
+  
+  DEBUG(dbgs() << " Node->OccupancyPrefetch " <<  Node->occupancyPrefetch << "\n");
+  DEBUG(dbgs() << " Node->issueOccupancy " <<  Node->issueOccupancy << "\n");
+  DEBUG(dbgs() << " Node->widthOccupancy " <<  Node->widthOccupancy << "\n");
+  
+  /* Copy these values becasue later on the Node is not the same anymore */
+  NodeIssueOccupancy = Node->issueOccupancy;
+  NodeWidthOccupancy = Node->widthOccupancy;
+  NodeOccupancyPrefetch = Node->occupancyPrefetch;
+  MaxOccupancy[ExecutionResource] = max(MaxOccupancy[ExecutionResource], NodeIssueOccupancy + NodeOccupancyPrefetch);
+  
+  DEBUG(dbgs() << "NodeIssueOccupancy " << NodeIssueOccupancy << "\n");
+  DEBUG(dbgs() << "ExecutionUnitsParallelIssue[ExecutionResource] " << ExecutionUnitsParallelIssue[ExecutionResource] << "\n");
+  
+  if ((ExecutionUnitsParallelIssue[ExecutionResource] > 0 && (NodeWidthOccupancy == (unsigned)ExecutionUnitsParallelIssue[ExecutionResource]*ExecutionUnitsThroughput[ExecutionResource]
+                                                              || NodeIssueOccupancy == (unsigned)ExecutionUnitsParallelIssue[ExecutionResource])) || (ExecutionUnitsParallelIssue[ExecutionResource]<0 && (NodeWidthOccupancy == ExecutionUnitsThroughput[ExecutionResource]))) {
+    //  if (NodeIssueOccupancy+NodeOccupancyPrefetch == ExecutionUnitsParallelIssue[ExecutionResource]) {
+    
+    DEBUG(dbgs() << "Level got full\n");
+    LevelGotFull = true;
+    
+    // Check whether next cycle is in full. because if it is, it should not be inserted into AvailableCyclesTree
+    // Next cycle is not NexAvailableCycle+1, is NextAvailableCycle + 1/Throughput
+    // Here is where the distinction betweeen execution resource and instruction type is important.
+    //  unsigned NextCycle = CalculateIssueCycleGranularity(ExecutionResource, NElementsVector);
+    unsigned NextCycle = IssueCycleGranularities[ExecutionResource];
+    
+    DEBUG(dbgs() << "AccessWidth " << AccessWidth << "\n");
+    DEBUG(dbgs() << "Next Cycle " << NextCycle << "\n");
+    
+    AvailableCyclesTree[ExecutionResource]= delete_node(NextAvailableCycle,  AvailableCyclesTree[ExecutionResource]);
+    
+    // Insert node in FullOccupancy
+    //    FullOccupancyCyclesTree = insert_node(NextAvailableCycle,)
+    DEBUG(dbgs() << "Inserting in FullOccupancyCyclesTree of type " << ResourcesNames[ExecutionResource] << " node with key "<< NextAvailableCycle<<"\n");
+    unsigned TreeChunk = NextAvailableCycle/SplitTreeRange;
+    if (TreeChunk >= FullOccupancyCyclesTree.size()) {
+      for (unsigned i = FullOccupancyCyclesTree.size(); i<= TreeChunk; i++) {
+        DEBUG(dbgs() << "Inserting element into FullOccupancyCyclesTree\n");
+        FullOccupancyCyclesTree.push_back(NULL);
+      }
+    }
+    FullOccupancyCyclesTree[TreeChunk] =insert_node(NextAvailableCycle, ExecutionResource, FullOccupancyCyclesTree[TreeChunk]);
+    
+    DEBUG(dbgs() <<"FullOccupancyCyclesTree->BitVector[ExecutionResource] = " << FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource] << "\n");
+    
+    // We don't need to do this anymore because it will be larger than LastIssueCycle - TODO
+    // Do it only if NextAvailableCycle+1 == InstructionsLastIssueCycle
+    // Insert if it is not in full
+    DEBUG(dbgs() << "Checking if key "<< NextAvailableCycle + NextCycle <<" is in Full Occupancy Tree\n");
+    TreeChunk = (NextAvailableCycle+NextCycle)/SplitTreeRange;
+    if (TreeChunk >= FullOccupancyCyclesTree.size()) {
+      for (unsigned i = FullOccupancyCyclesTree.size(); i<= TreeChunk; i++) {
+        DEBUG(dbgs() << "Inserting element into FullOccupancyCyclesTree\n");
+        FullOccupancyCyclesTree.push_back(NULL);
+      }
+    }
+    DEBUG(dbgs() << "FullOccupancyCyclesTree.size() "<<FullOccupancyCyclesTree.size() <<"\n");
+    DEBUG(dbgs() << "TreeChunk "<< TreeChunk <<"\n");
+    
+    // Instead of splay, we need insert_node
+    FullOccupancyCyclesTree[TreeChunk] = splay(NextAvailableCycle+NextCycle/*1*/,  FullOccupancyCyclesTree[TreeChunk]);
+    
+    if (FullOccupancyCyclesTree[TreeChunk] == NULL)
+      DEBUG(dbgs() << "FullOccupancyCyclesTree[TreeChunk] == NULL\n");
+    
+    if (FullOccupancyCyclesTree[TreeChunk] == NULL || (FullOccupancyCyclesTree[TreeChunk]!=NULL && !(FullOccupancyCyclesTree[TreeChunk]->key == NextAvailableCycle+NextCycle &&
+                                                                                                     FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource] ==1) )) {
+      DEBUG(dbgs() << "The next node was not in full, so insert in available " << NextAvailableCycle+NextCycle << "\n");
+      
+      AvailableCyclesTree[ExecutionResource] = insert_node(NextAvailableCycle+NextCycle,  AvailableCyclesTree[ExecutionResource]);
+      
+      //Update LastIssueCycle -> Distinguish prefetch loads/stores!!
+      InstructionsLastIssueCycle[ExecutionResource] = max( InstructionsLastIssueCycle[ExecutionResource] ,NextAvailableCycle+NextCycle);
+      
+      DEBUG(dbgs() << "Updating InstructionsLastIssueCycle of execution resource " << ResourcesNames[ExecutionResource] << " to " <<InstructionsLastIssueCycle[ExecutionResource]  << "\n");
+      
+    }else
+      DEBUG(dbgs() << "key found in FullOccupancyTree\n");
+  }
+  //}else{
+  //  FullOccupancyCyclesTree[NextAvailableCycle/SplitTreeRange] =insert_node(NextAvailableCycle, ExecutionResource, FullOccupancyCyclesTree[NextAvailableCycle/SplitTreeRange]);
+  //}
   return LevelGotFull;
 }
 
@@ -1285,8 +1286,8 @@ DynamicAnalysis::ReuseDistance(uint64_t Last, uint64_t Current, uint64_t address
   
   int Distance = -1;
   int PrefetchReuseTreeDistance = 0;
- // if (!(WarmCache && rep == 0))
-
+  // if (!(WarmCache && rep == 0))
+  
   DEBUG(dbgs() << "Size of reuse tree " << node_size(ReuseTree) << "\n");
   
   int ReuseTreeDistance = ReuseTreeSearchDelete(Last, address, false);
@@ -1301,19 +1302,19 @@ DynamicAnalysis::ReuseDistance(uint64_t Last, uint64_t Current, uint64_t address
     //int PrefetchReuseTreeSizeBefore = tree_size(PrefetchReuseTree);
     int PrefetchReuseTreeSizeBefore = PrefetchReuseTreeSize;
     PrefetchReuseTreeDistance = ReuseTreeSearchDelete(Last, address, true);
-  //  if (!(WarmCache && rep == 0))
-
+    //  if (!(WarmCache && rep == 0))
+    
     DEBUG(dbgs() << "PrefetchReuseTreeDistance  "<<PrefetchReuseTreeDistance<<"\n");
     
     // int PrefetchReuseTreeSizeAfter = tree_size(PrefetchReuseTree);
     int PrefetchReuseTreeSizeAfter = PrefetchReuseTreeSize;
     
     if (PrefetchReuseTreeSizeAfter < PrefetchReuseTreeSizeBefore){
-   //   if (!(WarmCache && rep == 0))
+      //   if (!(WarmCache && rep == 0))
       DEBUG(dbgs() << "PREFETCHED DATA ITEM\n");
       IsInPrefetchReuseTree = true;
     }else{
-     // if (!(WarmCache && rep == 0))
+      // if (!(WarmCache && rep == 0))
       DEBUG(dbgs() << "This data item has not been prefetched\n");
     }
     if (IsInPrefetchReuseTree == false ) {
@@ -1328,16 +1329,16 @@ DynamicAnalysis::ReuseDistance(uint64_t Last, uint64_t Current, uint64_t address
         Distance = ReuseTreeDistance;
       }
     }else{
-     // if (!(WarmCache && rep == 0))
+      // if (!(WarmCache && rep == 0))
       DEBUG(dbgs() << "The element is in prefetch tree\n");
       
       // If the data item is a prefetched data item (found in PrefetchReuseTree)
       Distance = PrefetchLevel;
-   //   if (!(WarmCache && rep == 0))
+      //   if (!(WarmCache && rep == 0))
       DEBUG(dbgs() << "Distance "<<Distance<<"\n");
       if (ReuseTreeDistance >=0) {
         Distance += ReuseTreeDistance;
-      //  if (!(WarmCache && rep == 0))
+        //  if (!(WarmCache && rep == 0))
         DEBUG(dbgs() << "Increasing distance to  "<<Distance<<"\n");
       }else{
         // The data item has only been prefetched. In that case, the distance is
@@ -1345,7 +1346,7 @@ DynamicAnalysis::ReuseDistance(uint64_t Last, uint64_t Current, uint64_t address
       }
       if (PrefetchReuseTreeDistance >=0) {
         Distance += PrefetchReuseTreeDistance;
-      //  if (!(WarmCache && rep == 0))
+        //  if (!(WarmCache && rep == 0))
         DEBUG(dbgs() << "Increasing distance to  "<<Distance<<"\n");
         
       }else{
@@ -1372,7 +1373,7 @@ DynamicAnalysis::ReuseDistance(uint64_t Last, uint64_t Current, uint64_t address
   }
   
 #ifdef DEBUG_REUSE_DISTANCE
- // if (!(WarmCache && rep == 0))
+  // if (!(WarmCache && rep == 0))
   DEBUG(dbgs() << "Memory op reuse distance " << Distance << "\n");
 #endif
   return Distance;
@@ -2218,7 +2219,8 @@ DynamicAnalysis::GetLastIssueCycle(unsigned ExecutionResource, bool WithPrefetch
   unsigned  IssueCycleGranularity = IssueCycleGranularities[ExecutionResource];
   uint64_t LastCycle = InstructionsLastIssueCycle[ExecutionResource];
   
-  DEBUG(dbgs() << "Last cycle in InstructionLastIssueCycle " << LastCycle << "\n");
+  DEBUG(dbgs() << "Last cycle in InstructionLastIssueCycle for resource " <<
+        ResourcesNames[ExecutionResource]<< ": " << LastCycle << "\n");
   
   if(ExecutionResource <= nExecutionUnits){
     
@@ -2252,14 +2254,14 @@ unsigned
 DynamicAnalysis::CalculateGroupSpan(vector<int> & ResourcesVector, bool WithPrefetch, bool ForceUnitLatency){
   
   unsigned Span = 0;
-  unsigned MaxLatency = 0;
+  float MaxLatency = 0;
   uint64_t First = 0;
   bool EmptyLevel = true;
   bool IsGap = false;
   int NResources = ResourcesVector.size();
   uint64_t LastCycle = 0;
   uint64_t ResourceLastCycle = 0;
-  unsigned MaxLatencyLevel = 0;
+  float MaxLatencyLevel = 0;
   unsigned ResourceType = 0;
   unsigned AccessWidth = 0;
   
@@ -2285,14 +2287,14 @@ DynamicAnalysis::CalculateGroupSpan(vector<int> & ResourcesVector, bool WithPref
       if (EmptyLevel == true) { // This will be only executed the first time of a non-empty level
         EmptyLevel = false;
         First = FirstNonEmptyLevel[ResourceType];
-        MaxLatency = max(ExecutionUnitsLatency[ResourceType],(unsigned)ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType]));
+        MaxLatency = max(ExecutionUnitsLatency[ResourceType],(float)ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType]));
       }else{
         if (First == FirstNonEmptyLevel[ResourceType])
-          MaxLatency = max(MaxLatency,max(ExecutionUnitsLatency[ResourceType],(unsigned)ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType])));
+          MaxLatency = max(MaxLatency,max(ExecutionUnitsLatency[ResourceType],(float)ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType])));
         else{
           First = min(First,FirstNonEmptyLevel[ResourceType]);{
             if (First == FirstNonEmptyLevel[ResourceType])
-              MaxLatency = max(ExecutionUnitsLatency[ResourceType],(unsigned)ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType]));
+              MaxLatency = max(ExecutionUnitsLatency[ResourceType],(float)ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType]));
           }
         }
       }
@@ -2354,12 +2356,11 @@ DynamicAnalysis::CalculateGroupSpan(vector<int> & ResourcesVector, bool WithPref
             if (ForceUnitLatency ==true) {
               MaxLatencyLevel = 1;
             }else{
-              //   AccessWidth = GetAccessWidth(ResourceType,1);
               AccessWidth =AccessWidths[ResourceType];
               // dbgs() << "AccessWidth "<< AccessWidths[ResourceType]<<"\n";
               //  dbgs() << "ExecutionUnitsThroughput "<<ExecutionUnitsThroughput[ResourceType]<<"\n";
               
-              MaxLatencyLevel = max(MaxLatencyLevel, max(ExecutionUnitsLatency[ResourceType],(unsigned)ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType])));
+              MaxLatencyLevel = max(MaxLatencyLevel, max(ExecutionUnitsLatency[ResourceType],(float)ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType])));
             }
             
             // NextNonEmptyLevelVector[j] = FindNextNonEmptyLevel(j, i);
@@ -2377,10 +2378,10 @@ DynamicAnalysis::CalculateGroupSpan(vector<int> & ResourcesVector, bool WithPref
           
           if (i+MaxLatencyLevel > DominantLevel+MaxLatency && MaxLatencyLevel!=0) {
 #ifdef DEBUG_SPAN_CALCULATION
-            DEBUG(dbgs() << "Increasing Span by the difference " << ((i+MaxLatencyLevel)-max((DominantLevel+MaxLatency),(unsigned)1)) << "\n");
+            DEBUG(dbgs() << "Increasing Span by the difference " << ((i+MaxLatencyLevel)-max((DominantLevel+MaxLatency),(float)1)) << "\n");
 #endif
             
-            Span+=((i+MaxLatencyLevel)-max((DominantLevel+MaxLatency),(unsigned)1));
+            Span+=((i+MaxLatencyLevel)-max((DominantLevel+MaxLatency),(float)1));
             DominantLevel = i;
             MaxLatency = MaxLatencyLevel;
           }
@@ -2436,6 +2437,7 @@ DynamicAnalysis::CalculateIssueSpan(vector<int> & ResourcesVector){
   unsigned MaxLatencyLevel = 0;
   unsigned ResourceType = 0;
   unsigned AccessWidth = 0;
+  unsigned TmpLatency = 0;
   
 #ifdef DEBUG_SPAN_CALCULATION
   DEBUG(dbgs() << "Resources that contribute to Span:\n");
@@ -2452,6 +2454,10 @@ DynamicAnalysis::CalculateIssueSpan(vector<int> & ResourcesVector){
     if (InstructionsCountExtended[ResourceType]>0) {
       
       AccessWidth = AccessWidths[ResourceType];
+      if (ExecutionUnitsThroughput[ResourceType]==INF)
+        TmpLatency = 1;
+      else
+        TmpLatency = ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType]);
       
       DEBUG(dbgs() << "AccessWidth "<< AccessWidth<<"\n");
       DEBUG(dbgs() << "There are instructions of type "<< ResourceType<<"\n");
@@ -2459,14 +2465,17 @@ DynamicAnalysis::CalculateIssueSpan(vector<int> & ResourcesVector){
       if (EmptyLevel == true) { // This will be only executed the first time of a non-empty level
         EmptyLevel = false;
         First = FirstNonEmptyLevel[ResourceType];
-        MaxLatency = ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType]);
+        //    MaxLatency = ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType]);
+        MaxLatency = TmpLatency;
       }else{
         if (First == FirstNonEmptyLevel[ResourceType])
-          MaxLatency = max(MaxLatency,(unsigned)ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType]));
+          // MaxLatency = max(MaxLatency,(unsigned)ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType]));
+          MaxLatency = max(MaxLatency,TmpLatency);
         else{
           First = min(First,FirstNonEmptyLevel[ResourceType]);{
             if (First == FirstNonEmptyLevel[ResourceType])
-              MaxLatency = ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType]);
+              //MaxLatency = ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType]);
+              MaxLatency = TmpLatency;
           }
         }
       }
@@ -2504,7 +2513,11 @@ DynamicAnalysis::CalculateIssueSpan(vector<int> & ResourcesVector){
         if (i <= LastIssueCycleVector[ResourceType]/*GetLastIssueCycle(ResourceType, 0)*/) {
           if (IsEmptyLevel(ResourceType, i, false) == false) {
             AccessWidth = AccessWidths[ResourceType];
-            MaxLatencyLevel = max(MaxLatencyLevel, (unsigned)ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType]));
+            if (ExecutionUnitsThroughput[ResourceType]==INF)
+              TmpLatency = 1;
+            else
+              TmpLatency = ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType]);
+            MaxLatencyLevel = max(MaxLatencyLevel, TmpLatency);
           }
         }
       }
@@ -2663,7 +2676,7 @@ DynamicAnalysis::DispatchToLineFillBuffer(uint64_t Cycle){
 
 uint64_t
 DynamicAnalysis::FindIssueCycleWhenLineFillBufferIsFull(){
-
+  
   size_t BufferSize = DispatchToLineFillBufferQueue.size();
   
   if ( BufferSize== 0) {
@@ -2943,7 +2956,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
   if (WarmCache && rep == 0) {
     
     if (InstructionType >= 0) {
-
+      
       switch (I.getOpcode()) {
         case Instruction::Load:{
           //Transform visitResult to uint64_t
@@ -2953,12 +2966,12 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
           MemoryAddress = strtol(OS.str().str().c_str(),NULL,16);
           CacheLine = MemoryAddress >> BitsPerCacheLine;
           Info = getCacheLineInfo(CacheLine);
-
- #ifdef DEBUG_MEMORY_TRACES
+          
+#ifdef DEBUG_MEMORY_TRACES
           DEBUG(dbgs() << "MemoryAddress " << MemoryAddress << "\n");
           DEBUG(dbgs() << "CacheLine " << CacheLine << "\n");
 #endif
-
+          
           //Code for reuse calculation
           Distance =  ReuseDistance(Info.LastAccess, TotalInstructions, CacheLine);
           
@@ -2976,12 +2989,12 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
           MemoryAddress = strtol(OS.str().str().c_str(),NULL,16);
           CacheLine = MemoryAddress >> BitsPerCacheLine;
           Info = getCacheLineInfo(CacheLine);
-
+          
 #ifdef DEBUG_MEMORY_TRACES
           DEBUG(dbgs() << "MemoryAddress " << MemoryAddress << "\n");
           DEBUG(dbgs() << "CacheLine " << CacheLine << "\n");
 #endif
-
+          
           Distance = ReuseDistance(Info.LastAccess, TotalInstructions, CacheLine);
           
           Info.LastAccess = TotalInstructions;
@@ -3011,24 +3024,24 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
         
         ExecutionResource = ExecutionUnit[NextCacheLineExtendedInstructionType];
         
-     //   if (!(WarmCache && rep == 0)){
+        //   if (!(WarmCache && rep == 0)){
 #ifdef DEBUG_PREFETCHER
         DEBUG(dbgs() << "CacheLine " << CacheLine << "\n");
         DEBUG(dbgs() << "NextCacheLine " << NextCacheLine << "\n");
         DEBUG(dbgs() << "Execution Resource  " << ResourcesNames[ExecutionResource] << "\n");
         DEBUG(dbgs() << "PrefetchTarget  " << PrefetchTarget << "\n");
         DEBUG(dbgs() << "PrefetchLevel  " << PrefetchLevel << "\n");
-
+        
 #endif
         //}
         // Only bring data from memory to the die, not for example, from LLC to L2
-       // if (ExecutionResource == MEM_LOAD_CHANNEL || ExecutionResource == MEM_STORE_CHANNEL) {
-         if (ExecutionResource > PrefetchTarget && ExecutionResource >= PrefetchDestination) {
+        // if (ExecutionResource == MEM_LOAD_CHANNEL || ExecutionResource == MEM_STORE_CHANNEL) {
+        if (ExecutionResource > PrefetchTarget && ExecutionResource >= PrefetchDestination) {
           // if (!(WarmCache && rep == 0)){
 #ifdef DEBUG_PREFETCHER
           DEBUG(dbgs() << "Prefetching next cache line which is in "<<ResourcesNames[ExecutionResource]<<"\n");
 #endif
-           //}
+          //}
           Info.LastAccess = TotalInstructions;
           insertCacheLineLastAccess(NextCacheLine, Info.LastAccess );
         }
@@ -3036,15 +3049,15 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
     }
   }else{
     
-
+    
     
     //================= Update Fetch Cycle, remove insts from buffers =========//
     // EVERY INSTRUCTION IN THE RESERVATION STATION IS ALSO IN THE REORDER BUFFER
     
     if (InstructionType >= 0) {
-          DEBUG(dbgs()<<  I<< "\n");
+      DEBUG(dbgs()<<  I<< "\n");
       
-        instructionPool.push_back(&I);
+      instructionPool.push_back(&I);
       
       //   if (ReservationStationIssueCycles.size() == (unsigned)ReservationStationSize) {
       if (RemainingInstructionsFetch == 0 || RemainingInstructionsFetch == INF||
@@ -3549,7 +3562,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
                   InstructionIssueLineFillBufferAvailable = FindIssueCycleWhenLineFillBufferIsFull();
                 }
               }
-
+              
             }else{ // If the Store Buffer is not fulll...
               if (ExtendedInstructionType >= L2_LOAD_NODE && LineFillBufferSize > 0) { // If it has to go to the LFS...
                 
@@ -3784,7 +3797,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
         Info = getCacheLineInfo(NextCacheLine);
         Distance =  ReuseDistance(Info.LastAccess, TotalInstructions, NextCacheLine, true);
         NextCacheLineExtendedInstructionType = GetMemoryInstructionType(Distance, MemoryAddress);
-
+        
         
         ExecutionResource = ExecutionUnit[NextCacheLineExtendedInstructionType];
         LatencyPrefetch =  ExecutionUnitsLatency[ExecutionResource]-ExecutionUnitsLatency[PrefetchDestination];
@@ -3810,7 +3823,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
           NextCacheLineIssueCycle = FindNextAvailableIssueCycle(NewInstructionIssueCycle, ExecutionResource, NextCacheLineExtendedInstructionType);
           
           updateReuseDistanceDistribution(Distance, NextCacheLineIssueCycle);
-
+          
 #ifdef DEBUG_PREFETCHER
           DEBUG(dbgs() << "Prefetching next cache line at cycle " << NextCacheLineIssueCycle << "\n");
 #endif
@@ -4080,13 +4093,13 @@ DynamicAnalysis::finishAnalysis(){
   
   
   /*
-  for (int j = 0; j< instructionPool.size(); j++) {
-    dbgs() << *instructionPool[j] << "\n";
-    for(Value::use_iterator i = (*instructionPool[j]).use_begin(), ie = (*instructionPool[j]).use_end(); i!=ie; ++i){
-      dbgs() << "Use of the instruction " << *(*i) << "\n";
-    }
-  }
-  */
+   for (int j = 0; j< instructionPool.size(); j++) {
+   dbgs() << *instructionPool[j] << "\n";
+   for(Value::use_iterator i = (*instructionPool[j]).use_begin(), ie = (*instructionPool[j]).use_end(); i!=ie; ++i){
+   dbgs() << "Use of the instruction " << *(*i) << "\n";
+   }
+   }
+   */
   
   
   unsigned long long TotalSpan = 0;
@@ -4795,8 +4808,8 @@ DynamicAnalysis::finishAnalysis(){
         }
         dbgs() << "\n";
       }
-    }
-    
+      
+      
       printHeaderStat("Bottlenecks");
       dbgs() << "Bottleneck\tISSUE\tLAT\t";
       for(int j=RS_STALL; j<= LFB_STALL; j++){
@@ -4836,51 +4849,81 @@ DynamicAnalysis::finishAnalysis(){
           dbgs() << "\n";
         }
       }
-    
+    }
     
     printHeaderStat("Execution Times Breakdowns");
     float MinExecutionTime;
     float IssueEffects;
     float LatencyEffects;
     float StallEffects;
+    int Throughput = 0;
     dbgs() << "RESOURCE\tMIN-EXEC-TIME\tISSUE-EFFECTS\tLATENCY-EFFECTS\tSTALL-EFFECTS\tTOTAL\n";
-
+    
     for(unsigned i=0; i< nExecutionUnits; i++){
-        if (!(MergeArithmeticOps &&  i==FP_MULTIPLIER) && !(MergeArithmeticOps && i==FP_DIVIDER)){
-
-          if (InstructionsCountExtended[i]==0) {
-            MinExecutionTime = 0;
-            LatencyEffects = 0;
-            IssueEffects = 0;
-            StallEffects = 0;
+      if (!(MergeArithmeticOps &&  i==FP_MULTIPLIER) && !(MergeArithmeticOps && i==FP_DIVIDER)){
+        
+        if (InstructionsCountExtended[i]==0) {
+          MinExecutionTime = 0;
+          LatencyEffects = 0;
+          IssueEffects = 0;
+          StallEffects = 0;
+        }else{
+          if (ExecutionUnitsParallelIssue[i]==INF) {
+            if (ExecutionUnitsThroughput[i]==INF) {
+              Throughput = INF;
+            }else
+              Throughput = ExecutionUnitsThroughput[i];
           }else{
-          if (i < nCompExecutionUnits) {
-            MinExecutionTime = InstructionsCountExtended[i]/ExecutionUnitsThroughput[i]*ExecutionUnitsParallelIssue[i];
-          }else
-            MinExecutionTime = InstructionsCountExtended[i]*AccessGranularities[i]/(ExecutionUnitsThroughput[i]*ExecutionUnitsParallelIssue[i]);
+            if (ExecutionUnitsThroughput[i]==INF) {
+              Throughput = ExecutionUnitsParallelIssue[i];
+            }else
+              Throughput = ExecutionUnitsThroughput[i]*ExecutionUnitsParallelIssue[i];
+          }
           
+          if (i < nCompExecutionUnits) {
+            if (Throughput == INF) {
+              MinExecutionTime = 1;
+            }else
+              MinExecutionTime = InstructionsCountExtended[i]/Throughput;
+          }else{
+            if (Throughput == INF) {
+              MinExecutionTime = 1;
+            }else
+              MinExecutionTime = InstructionsCountExtended[i]*AccessGranularities[i]/(Throughput);
+          }
+          
+          if (Throughput==INF && IssueSpan[i]==1 ) {
+            IssueEffects = 0;
+            
+          }else{
             IssueEffects = IssueSpan[i] - MinExecutionTime;
-            LatencyEffects = ResourcesSpan[i] - IssueSpan[i];
-            StallEffects = ResourcesTotalStallSpanVector[i] - ResourcesSpan[i];
             
           }
- 
+          LatencyEffects = ResourcesSpan[i] - IssueSpan[i];
+          StallEffects = ResourcesTotalStallSpanVector[i] - ResourcesSpan[i];
+          
+        }
+        
         dbgs() << ResourcesNames[i]<< "\t\t";
-          fprintf(stderr, " %1.3f ", MinExecutionTime);
-          dbgs() << "\t";
-          fprintf(stderr, " %1.3f ", IssueEffects);
-          dbgs() << "\t";
-          fprintf(stderr, " %1.3f ", LatencyEffects);
-          dbgs() << "\t";
-          fprintf(stderr, " %1.3f ", StallEffects);
+        fprintf(stderr, " %1.3f ", MinExecutionTime);
+        dbgs() << "\t";
+        fprintf(stderr, " %1.3f ", IssueEffects);
+        dbgs() << "\t";
+        fprintf(stderr, " %1.3f ", LatencyEffects);
+        dbgs() << "\t";
+        fprintf(stderr, " %1.3f ", StallEffects);
+        if (MinExecutionTime + IssueEffects + LatencyEffects +  StallEffects != ResourcesTotalStallSpanVector[i]) {
+          report_fatal_error("Breakdown of execution time does not match total execution time\n");
+          
+        }else{
           dbgs() << "\t"<< ResourcesTotalStallSpanVector[i]<<"\n";
-
+        }
       }
     }
-  
-  
-  
-  
+    
+    
+    
+    
     printHeaderStat("TOTAL");
     dbgs() << "TOTAL FLOPS"<< "\t"<<InstructionsCount[0] <<"\t\t"<<CalculateGroupSpan(compResources)<<" \n";
     dbgs() << "TOTAL MOPS"<< "\t"<<InstructionsCount[1]<<"\t\t"<<CalculateGroupSpan(memResources)<<" \n";
