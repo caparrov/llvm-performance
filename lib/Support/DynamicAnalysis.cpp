@@ -500,7 +500,7 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
   
   SplitTreeRange = 100000;
   
-  for (unsigned i = 0; i<= nExecutionUnits; i++)
+  for (unsigned i = 0; i< nExecutionUnits + nPorts + nAGUs + nLoadAGUs + nStoreAGUs; i++)
     AvailableCyclesTree.push_back(NULL);
   
 }
@@ -1153,11 +1153,13 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
   
   DEBUG(dbgs() << "Inserting next available issue cycle "<< NextAvailableCycle <<" in execution unit "<< ResourcesNames[ExecutionResource] <<" for Instruction type "<< NodesNames[ExtendedInstructionType]<<"\n");
   
+  DEBUG(dbgs() << "Size of AvailableCyclesTree "<< AvailableCyclesTree.size()<<"\n");
+  DEBUG(dbgs() << "Accessing element at position "<< ExecutionResource<<"\n");
   
   AvailableCyclesTree[ExecutionResource] = insert_node(NextAvailableCycle,  AvailableCyclesTree[ExecutionResource]);
   Node = AvailableCyclesTree[ExecutionResource];
   
-  DEBUG(dbgs() << "Checking execution units thtoughput\n");
+  DEBUG(dbgs() << "Checking execution units throughput\n");
   
   if (ExecutionUnitsThroughput[ExecutionResource] < 1) {
     if (isPrefetch) {
@@ -4167,7 +4169,7 @@ DynamicAnalysis::finishAnalysis(){
           TmpResourcesVector.push_back(j+1);
           TmpResourcesVector.push_back(j+2);
           Span =CalculateGroupSpan(TmpResourcesVector);
-          ResourcesSpan.at(j) = Span;
+          ResourcesSpan[j] = Span;
         }else{
           if (!MergeArithmeticOps) { // Calculate only once
             TmpResourcesVector.clear();
@@ -4175,7 +4177,7 @@ DynamicAnalysis::finishAnalysis(){
             DEBUG(dbgs() << "Calculating group span for resource " << j << "\n");
             Span =CalculateGroupSpan(TmpResourcesVector);
             DEBUG(dbgs() << "Span " << Span << "\n");
-            ResourcesSpan.at(j) = Span;
+            ResourcesSpan[j] = Span;
           }
         }
         
@@ -4202,8 +4204,8 @@ DynamicAnalysis::finishAnalysis(){
       // obtain the span from a different way.
       Span=InstructionsCountExtended[j];
       DEBUG(dbgs() << "Span  " << Span << "\n");
-      ResourcesSpan.at(j) = Span;
-      DEBUG(dbgs() << "Storing span  " <<  ResourcesSpan.at(j) << "\n");
+      ResourcesSpan[j] = Span;
+      DEBUG(dbgs() << "Storing span  " <<  ResourcesSpan[j] << "\n");
 #ifdef ASSERT
       if (!MergeArithmeticOps) {
         TmpResourcesVector.clear();
@@ -4343,7 +4345,7 @@ DynamicAnalysis::finishAnalysis(){
         }
         TmpResourcesVector.push_back(i);
         
-        ResourcesTotalStallSpanVector.at(i)= CalculateGroupSpan(TmpResourcesVector);
+        ResourcesTotalStallSpanVector[i]= CalculateGroupSpan(TmpResourcesVector);
         
       }
       
@@ -4355,8 +4357,8 @@ DynamicAnalysis::finishAnalysis(){
     for(unsigned j=0; j< nExecutionUnits; j++){
       if (!(MergeArithmeticOps &&  j==FP_MULTIPLIER) && !(MergeArithmeticOps && j==FP_DIVIDER)){
         
-        dbgs() << ResourcesNames[j]<< "\t\t"<<InstructionsCountExtended[j]<<"\t\t"<<ResourcesSpan.at(j)<<"\t\t"<<IssueSpan[j]<<
-        "\t\t"<<ResourcesTotalStallSpanVector.at(j) <<"\t\t"<< SpanGaps[j]<<"\t\t"<< MaxOccupancy[j] << " \n";
+        dbgs() << ResourcesNames[j]<< "\t\t"<<InstructionsCountExtended[j]<<"\t\t"<<ResourcesSpan[j]<<"\t\t"<<IssueSpan[j]<<
+        "\t\t"<<ResourcesTotalStallSpanVector[j] <<"\t\t"<< SpanGaps[j]<<"\t\t"<< MaxOccupancy[j] << " \n";
         
       }
     }
@@ -4371,7 +4373,7 @@ DynamicAnalysis::finishAnalysis(){
     
     for(int j=RS_STALL; j<= LFB_STALL; j++){
       
-      dbgs() << ResourcesNames[j]<< "\t\t" << ResourcesSpan.at(j) << "\t\t" << BuffersOccupancy[j-RS_STALL]/TotalSpan<<"\n";
+      dbgs() << ResourcesNames[j]<< "\t\t" << ResourcesSpan[j] << "\t\t" << BuffersOccupancy[j-RS_STALL]/TotalSpan<<"\n";
       
     }
     
@@ -4435,13 +4437,13 @@ DynamicAnalysis::finishAnalysis(){
                 PairSpan = InstructionsCountExtended[j];
               }else{
                 if (InstructionsCountExtended[j]== 0 ) {
-                  PairSpan = ResourcesSpan.at(i);
+                  PairSpan = ResourcesSpan[i];
                   
                 }
               }
             }
             dbgs() << PairSpan << "\t";
-            (ResourcesStallSpanVector.at(i)).at(j-RS_STALL) = PairSpan; // Store the Span value
+            ResourcesStallSpanVector[i][j-RS_STALL] = PairSpan; // Store the Span value
           }
           dbgs() << "\n";
         }
@@ -4462,9 +4464,9 @@ DynamicAnalysis::finishAnalysis(){
           dbgs() << ResourcesNames[i]<< "\t\t";
           for(uint j=RS_STALL; j <= LFB_STALL; j++){
             if (InstructionsCountExtended[i]!=0 && InstructionsCountExtended[j]!=0){
-              Total = (ResourcesStallSpanVector.at(i)).at(j-RS_STALL);
-              T1 = ResourcesSpan.at(i);
-              T2 = ResourcesSpan.at(j);
+              Total = ResourcesStallSpanVector[i][j-RS_STALL];
+              T1 = ResourcesSpan[i];
+              T2 = ResourcesSpan[j];
               assert(Total <= T1+T2);
               OverlapCycles =  T1+T2-Total;
               OverlapPercetage = (float)OverlapCycles/(float(min(T1, T2)));
@@ -4504,7 +4506,7 @@ DynamicAnalysis::finishAnalysis(){
               TmpResourcesVector.push_back(j);
               PairSpan = CalculateIssueSpan(TmpResourcesVector);
               //PairSpan = CalculateGroupSpanUnitLatency(TmpResourcesVector);
-              ResourcesIssueStallSpanVector.at(i).at(j-RS_STALL) = PairSpan;
+              ResourcesIssueStallSpanVector[i][j-RS_STALL] = PairSpan;
               
               /*
                #ifdef ASSERT
@@ -4517,11 +4519,11 @@ DynamicAnalysis::finishAnalysis(){
             }else{
               if (InstructionsCountExtended[i]==0) {
                 PairSpan = InstructionsCountExtended[j];
-                ResourcesIssueStallSpanVector.at(i).at(j-RS_STALL) = PairSpan;
+                ResourcesIssueStallSpanVector[i][j-RS_STALL] = PairSpan;
               }else{
                 if (InstructionsCountExtended[j]== 0 ) {
                   PairSpan = IssueSpan[i];
-                  ResourcesIssueStallSpanVector.at(i).at(j-RS_STALL) = PairSpan;
+                  ResourcesIssueStallSpanVector[i][j-RS_STALL] = PairSpan;
                   
                 }
               }
@@ -4547,7 +4549,7 @@ DynamicAnalysis::finishAnalysis(){
           dbgs() << ResourcesNames[i]<< "\t\t";
           for(uint j=RS_STALL; j <= LFB_STALL; j++){
             if (InstructionsCountExtended[i]!=0 && InstructionsCountExtended[j]!=0){
-              Total = (ResourcesIssueStallSpanVector.at(i)).at(j-RS_STALL);
+              Total = ResourcesIssueStallSpanVector[i][j-RS_STALL];
               T1 = IssueSpan[i];
               T2 = InstructionsCountExtended[j];
               assert(Total <= T1+T2);
@@ -4596,18 +4598,18 @@ DynamicAnalysis::finishAnalysis(){
                 
               }else{
                 if(InstructionsCountExtended[i]==0){
-                  PairSpan = ResourcesSpan.at(j);
+                  PairSpan = ResourcesSpan[j];
                   
                 }else{
                   if(InstructionsCountExtended[j]==0){
-                    PairSpan = ResourcesSpan.at(i);
+                    PairSpan = ResourcesSpan[i];
                   }
                 }
               }
               
               dbgs() << PairSpan << "\t";
               
-              (ResourcesResourcesNoStallSpanVector.at(j)).at(i) = PairSpan;
+              ResourcesResourcesNoStallSpanVector[j][i] = PairSpan;
               
             }
           }
@@ -4631,9 +4633,9 @@ DynamicAnalysis::finishAnalysis(){
           for(unsigned i=0; i< j; i++){
             if (!(MergeArithmeticOps &&  i==FP_MULTIPLIER) && !(MergeArithmeticOps && i==FP_DIVIDER)){
               if (InstructionsCountExtended[i]!= 0 && InstructionsCountExtended[j]!=0) {
-                Total = (ResourcesResourcesNoStallSpanVector.at(j)).at(i);
-                T1 = ResourcesSpan.at(j);
-                T2 = ResourcesSpan.at(i);
+                Total = ResourcesResourcesNoStallSpanVector[j][i];
+                T1 = ResourcesSpan[j];
+                T2 = ResourcesSpan[i];
                 /* dbgs() << "T1 " << T1 << "\n";
                  dbgs() << "T2 " << T2 << "\n";
                  dbgs() << "Total " << Total << "\n";*/
@@ -4694,14 +4696,14 @@ DynamicAnalysis::finishAnalysis(){
                   
                 }else{
                   if(InstructionsCountExtended[j]==0){
-                    PairSpan = ResourcesTotalStallSpanVector.at(i);
+                    PairSpan = ResourcesTotalStallSpanVector[i];
                     
                   }
                 }
               }
               
               dbgs() << PairSpan << "\t";
-              (ResourcesResourcesSpanVector.at(j)).at(i) = PairSpan;
+              ResourcesResourcesSpanVector[j][i] = PairSpan;
             }
           }
           dbgs() << "\n";
@@ -4723,9 +4725,9 @@ DynamicAnalysis::finishAnalysis(){
           for(unsigned i=0; i< j; i++){
             if (!(MergeArithmeticOps &&  i==FP_MULTIPLIER) && !(MergeArithmeticOps && i==FP_DIVIDER)){
               if (InstructionsCountExtended[i]!= 0 && InstructionsCountExtended[j]!=0) {
-                Total = (ResourcesResourcesSpanVector.at(j)).at(i);
-                T1 = ResourcesTotalStallSpanVector.at(j);
-                T2 = ResourcesTotalStallSpanVector.at(i);
+                Total = ResourcesResourcesSpanVector[j][i];
+                T1 = ResourcesTotalStallSpanVector[j];
+                T2 = ResourcesTotalStallSpanVector[i];
                 /* dbgs() << "T1 " << T1 << "\n";
                  dbgs() << "T2 " << T2 << "\n";
                  dbgs() << "Ttotal " << Total << "\n";*/
@@ -4767,16 +4769,16 @@ DynamicAnalysis::finishAnalysis(){
             
           }else{
             if(InstructionsCountExtended[i]==0){
-              PairSpan = ResourcesSpan.at(j);
+              PairSpan = ResourcesSpan[j];
             }else{
               if(InstructionsCountExtended[j]==0){
-                PairSpan = ResourcesSpan.at(i);
+                PairSpan = ResourcesSpan[i];
               }
             }
           }
           
           dbgs() << PairSpan << "\t";
-          (StallStallSpanVector.at(j-RS_STALL)).at(i-RS_STALL) = PairSpan;
+          StallStallSpanVector[j-RS_STALL][i-RS_STALL] = PairSpan;
         }
         dbgs() << "\n";
       }
@@ -4793,9 +4795,9 @@ DynamicAnalysis::finishAnalysis(){
         dbgs() << ResourcesNames[j]<< "\t\t";
         for(unsigned i=RS_STALL; i< j; i++){
           if (InstructionsCountExtended[j]!= 0 && InstructionsCountExtended[i]!=0) {
-            Total = (StallStallSpanVector.at(j-RS_STALL)).at(i-RS_STALL);
-            T1 = ResourcesSpan.at(j);
-            T2 = ResourcesSpan.at(i);
+            Total = StallStallSpanVector[j-RS_STALL][i-RS_STALL];
+            T1 = ResourcesSpan[j];
+            T2 = ResourcesSpan[i];
             assert(Total <= T1+T2);
             OverlapCycles =  T1+T2-Total;
             OverlapPercetage = (float)OverlapCycles/(float(min(T1, T2)));
@@ -4832,15 +4834,15 @@ DynamicAnalysis::finishAnalysis(){
             fprintf(stderr, " %1.3f ", Performance);
           }else
             dbgs() << INF<<"\t";
-          if(ResourcesSpan.at(i)>0){
-            Performance = (float)Work/((float)ResourcesSpan.at(i));
+          if(ResourcesSpan[i]>0){
+            Performance = (float)Work/((float)ResourcesSpan[i]);
             fprintf(stderr, " %1.3f ", Performance);
           }else
             dbgs() << INF<<"\t";
           // dbgs() << "inf\t";
           for(unsigned j=0; j< nBuffers; j++){
-            if(ResourcesIssueStallSpanVector.at(i).at(j) >0 && /* IssueSpan[i]>0 &&*/  ResourcesSpan.at(j+RS_STALL) !=0/*ResourcesIssueStallSpanVector.at(i).at(j) != IssueSpan[i]*/ ){
-              Performance = (float)Work/((float)ResourcesIssueStallSpanVector.at(i).at(j));
+            if(ResourcesIssueStallSpanVector[i][j] >0 && /* IssueSpan[i]>0 &&*/  ResourcesSpan[j+RS_STALL] !=0/*ResourcesIssueStallSpanVector.at(i).at(j) != IssueSpan[i]*/ ){
+              Performance = (float)Work/((float)ResourcesIssueStallSpanVector[i][j]);
               fprintf(stderr, " %1.3f ", Performance);
             }else
               dbgs() << INF<<"\t";
