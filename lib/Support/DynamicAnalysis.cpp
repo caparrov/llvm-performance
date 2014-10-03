@@ -4868,7 +4868,7 @@ DynamicAnalysis::finishAnalysis(){
           MinExecutionTime = 0;
           LatencyEffects = 0;
           IssueEffects = 0;
-          StallEffects = 0;
+          StallEffects = ResourcesTotalStallSpanVector[i];
         }else{
           if (ExecutionUnitsParallelIssue[i]==INF) {
             if (ExecutionUnitsThroughput[i]==INF) {
