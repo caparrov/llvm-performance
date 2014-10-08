@@ -4858,7 +4858,7 @@ DynamicAnalysis::finishAnalysis(){
     float IssueEffects;
     float LatencyEffects;
     float StallEffects;
-    int Throughput = 0;
+    float Throughput = 0;
     dbgs() << "RESOURCE\tMIN-EXEC-TIME\tISSUE-EFFECTS\tLATENCY-EFFECTS\tSTALL-EFFECTS\tTOTAL\n";
     
     for(unsigned i=0; i< nExecutionUnits; i++){
@@ -4878,15 +4878,17 @@ DynamicAnalysis::finishAnalysis(){
           }else{
             if (ExecutionUnitsThroughput[i]==INF) {
               Throughput = ExecutionUnitsParallelIssue[i];
-            }else
+            }else{
               Throughput = ExecutionUnitsThroughput[i]*ExecutionUnitsParallelIssue[i];
+            }
           }
           
           if (i < nCompExecutionUnits) {
             if (Throughput == INF) {
               MinExecutionTime = 1;
-            }else
+            }else{
               MinExecutionTime = InstructionsCountExtended[i]/Throughput;
+            }
           }else{
             if (Throughput == INF) {
               MinExecutionTime = 1;
@@ -4899,7 +4901,6 @@ DynamicAnalysis::finishAnalysis(){
             
           }else{
             IssueEffects = IssueSpan[i] - MinExecutionTime;
-            
           }
           LatencyEffects = ResourcesSpan[i] - IssueSpan[i];
           StallEffects = ResourcesTotalStallSpanVector[i] - ResourcesSpan[i];

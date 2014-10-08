@@ -194,6 +194,7 @@ namespace SplayTree{
     Tree<T> * new_node;
 
     if (t != NULL) {
+
       t = splay(i,t);
       //if (compare(i, t->key)==0) {
       if (i == t->key){
