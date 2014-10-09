@@ -3767,10 +3767,11 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
       // can only be issued after the first one has finished.
       // This only applies to memory accesses > L1. If we access a cache line at cycle
       // X which is in L3, e.g., it has a latency of 30. The next  time this cache line
-      // is accesses it is in L1, but it is inconsistent to assume that it can be
+      // is accessed it is in L1, but it is inconsistent to assume that it can be
       // loaded also at cycle X and have a latency of 4 cycles.
       
-      if (I.getOpcode() ==Instruction::Load && RARDependences && ExtendedInstructionType > L1_LOAD_NODE){
+      if (I.getOpcode() ==Instruction::Load && RARDependences && ExtendedInstructionType > L1_LOAD_NODE &&
+          ExecutionUnitsLatency[ExtendedInstructionType] > ExecutionUnitsLatency[L1_LOAD_NODE]){
         // if (Distance < 0) {
         Info = getCacheLineInfo(LoadCacheLine);
         Info.IssueCycle = NewInstructionIssueCycle+Latency;
@@ -3779,7 +3780,8 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
         insertMemoryAddressIssueCycle(MemoryAddress, NewInstructionIssueCycle+Latency);
       }
       
-      if (I.getOpcode() == Instruction::Store && ExtendedInstructionType > L1_STORE_NODE ) {
+      if (I.getOpcode() == Instruction::Store && ExtendedInstructionType > L1_STORE_NODE
+          && ExecutionUnitsLatency[ExtendedInstructionType] > ExecutionUnitsLatency[L1_LOAD_NODE]) {
         //   if (Distance < 0 ){
         DEBUG(dbgs() << "Inserting issue cycle " << NewInstructionIssueCycle+Latency << " for cache line " << StoreCacheLine << "\n");
         Info = getCacheLineInfo(StoreCacheLine);
