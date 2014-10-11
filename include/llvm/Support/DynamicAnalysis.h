@@ -428,7 +428,7 @@ public:
   vector<unsigned> PortNodes;
   vector<vector<unsigned> > DispatchPort;
   
-  vector<float> ExecutionUnitsLatency;
+  vector<unsigned> ExecutionUnitsLatency;
   vector<float> ExecutionUnitsThroughput;
   vector<int> ExecutionUnitsParallelIssue;
   vector<unsigned> PortsWidth;
