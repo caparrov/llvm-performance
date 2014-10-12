@@ -2289,14 +2289,26 @@ DynamicAnalysis::CalculateGroupSpan(vector<int> & ResourcesVector, bool WithPref
       if (EmptyLevel == true) { // This will be only executed the first time of a non-empty level
         EmptyLevel = false;
         First = FirstNonEmptyLevel[ResourceType];
-        MaxLatency = max(ExecutionUnitsLatency[ResourceType],(unsigned)ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType]));
+        
+        if (ExecutionUnitsThroughput[ResourceType] == INF) {
+          MaxLatency = ExecutionUnitsLatency[ResourceType];
+        }else
+          MaxLatency = max(ExecutionUnitsLatency[ResourceType],(unsigned)ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType]));
       }else{
-        if (First == FirstNonEmptyLevel[ResourceType])
-          MaxLatency = max(MaxLatency,max(ExecutionUnitsLatency[ResourceType],(unsigned)ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType])));
+        if (First == FirstNonEmptyLevel[ResourceType]){
+          if (ExecutionUnitsThroughput[ResourceType] == INF) {
+            MaxLatency = max(MaxLatency,ExecutionUnitsLatency[ResourceType]);
+          }else
+            MaxLatency = max(MaxLatency,max(ExecutionUnitsLatency[ResourceType],(unsigned)ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType])));
+        }
         else{
           First = min(First,FirstNonEmptyLevel[ResourceType]);{
-            if (First == FirstNonEmptyLevel[ResourceType])
-              MaxLatency = max(ExecutionUnitsLatency[ResourceType],(unsigned)ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType]));
+            if (First == FirstNonEmptyLevel[ResourceType]){
+              if (ExecutionUnitsThroughput[ResourceType] == INF) {
+                MaxLatency =ExecutionUnitsLatency[ResourceType];
+              }else
+                MaxLatency = max(ExecutionUnitsLatency[ResourceType],(unsigned)ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType]));
+            }
           }
         }
       }
@@ -2361,8 +2373,13 @@ DynamicAnalysis::CalculateGroupSpan(vector<int> & ResourcesVector, bool WithPref
               AccessWidth =AccessWidths[ResourceType];
               // dbgs() << "AccessWidth "<< AccessWidths[ResourceType]<<"\n";
               //  dbgs() << "ExecutionUnitsThroughput "<<ExecutionUnitsThroughput[ResourceType]<<"\n";
-              
-              MaxLatencyLevel = max(MaxLatencyLevel, max(ExecutionUnitsLatency[ResourceType],(unsigned)ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType])));
+              if (ExecutionUnitsThroughput[ResourceType] == INF) {
+                MaxLatencyLevel = max(MaxLatencyLevel, ExecutionUnitsLatency[ResourceType]);
+                
+                
+              }else{
+                MaxLatencyLevel = max(MaxLatencyLevel, max(ExecutionUnitsLatency[ResourceType],(unsigned)ceil(AccessWidth/ExecutionUnitsThroughput[ResourceType])));
+              }
             }
             
             // NextNonEmptyLevelVector[j] = FindNextNonEmptyLevel(j, i);
