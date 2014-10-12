@@ -4920,13 +4920,17 @@ DynamicAnalysis::finishAnalysis(){
         }
         
         dbgs() << ResourcesNames[i]<< "\t\t";
-        fprintf(stderr, " %1.3f ", MinExecutionTime);
+        dbgs() << " " << MinExecutionTime;
+        //  fprintf(stderr, " %1.3f ", MinExecutionTime);
         dbgs() << "\t";
-        fprintf(stderr, " %1.3f ", IssueEffects);
+         dbgs() << " " << IssueEffects;
+       // fprintf(stderr, " %1.3f ", IssueEffects);
         dbgs() << "\t";
-        fprintf(stderr, " %1.3f ", LatencyEffects);
+        dbgs() << " " << LatencyEffects;
+       // fprintf(stderr, " %1.3f ", LatencyEffects);
         dbgs() << "\t";
-        fprintf(stderr, " %1.3f ", StallEffects);
+        dbgs() << " " << StallEffects;
+       // fprintf(stderr, " %1.3f ", StallEffects);
         if (MinExecutionTime + IssueEffects + LatencyEffects +  StallEffects != ResourcesTotalStallSpanVector[i]) {
           report_fatal_error("Breakdown of execution time does not match total execution time\n");
           
