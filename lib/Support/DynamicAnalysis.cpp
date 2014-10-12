@@ -1161,6 +1161,7 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
   
   DEBUG(dbgs() << "Checking execution units throughput\n");
   
+  //TODO: clean this up
   if (ExecutionUnitsThroughput[ExecutionResource] < 1) {
     if (isPrefetch) {
       Node->occupancyPrefetch++;
@@ -1203,10 +1204,31 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
   DEBUG(dbgs() << "NodeIssueOccupancy " << NodeIssueOccupancy << "\n");
   DEBUG(dbgs() << "ExecutionUnitsParallelIssue[ExecutionResource] " << ExecutionUnitsParallelIssue[ExecutionResource] << "\n");
   
+  // If ExecutionUnitsThroughput is INF, the level never gets full
+  
+  if (ExecutionUnitsThroughput[ExecutionResource] ==INF) {
+    LevelGotFull = false;
+  }else{
+    if (ExecutionUnitsParallelIssue[ExecutionResource] != INF) {
+      if (NodeWidthOccupancy == (unsigned)ExecutionUnitsParallelIssue[ExecutionResource]*ExecutionUnitsThroughput[ExecutionResource]) {
+        LevelGotFull = true;
+      }
+      if (NodeIssueOccupancy == (unsigned)ExecutionUnitsParallelIssue[ExecutionResource] ) {
+        LevelGotFull = true;
+      }
+    }else{ // If ParallelIssue is INF, but ExecutionUnitsThroughput is not INF
+      if (NodeIssueOccupancy >= ExecutionUnitsThroughput[ExecutionResource]) {
+        LevelGotFull = true;
+      }
+    }
+  }
+  
+  if (LevelGotFull) {
+  /*
   if ((ExecutionUnitsParallelIssue[ExecutionResource] > 0 && (NodeWidthOccupancy == (unsigned)ExecutionUnitsParallelIssue[ExecutionResource]*ExecutionUnitsThroughput[ExecutionResource]
                                                               || NodeIssueOccupancy == (unsigned)ExecutionUnitsParallelIssue[ExecutionResource])) || (ExecutionUnitsParallelIssue[ExecutionResource]<0 && (NodeWidthOccupancy == ExecutionUnitsThroughput[ExecutionResource]))) {
     //  if (NodeIssueOccupancy+NodeOccupancyPrefetch == ExecutionUnitsParallelIssue[ExecutionResource]) {
-    
+    */
     DEBUG(dbgs() << "Level got full\n");
     LevelGotFull = true;
     
@@ -2182,34 +2204,6 @@ DynamicAnalysis::CalculateSpan(int ResourceType){
   }
   return Span;
 }
-
-
-
-unsigned
-DynamicAnalysis::CalculateIssueCycleGranularity(unsigned ExecutionResource, unsigned NElementsVector){
-  
-  unsigned IssueCycleGranularity = 0;
-  
-  DEBUG(dbgs() << "Calculating issue cycle granularity for instruction executed in resource "<< ResourcesNames[ExecutionResource]<<"\n");
-  
-  if (ExecutionUnitsThroughput[ExecutionResource]>0) {
-    unsigned AccessWidth = AccessWidths[ExecutionResource];
-    //TODO: Fix this for Vector
-    /*
-     IssueCycleGranularity = (AccessWidth > ExecutionUnitsThroughput[ExecutionResource]) ?
-     ceil(AccessWidth/(ExecutionUnitsThroughput[ExecutionResource]*ExecutionUnitsParallelIssue[ExecutionResource])):
-     ceil(AccessWidth/ExecutionUnitsThroughput[ExecutionResource]);
-     */
-    IssueCycleGranularity = ceil(AccessWidth/ExecutionUnitsThroughput[ExecutionResource]);
-    
-  }else{
-    IssueCycleGranularity = 1;
-  }
-  
-  return IssueCycleGranularity;
-}
-
-
 
 
 uint64_t
@@ -4327,7 +4321,6 @@ DynamicAnalysis::finishAnalysis(){
         // If there are instructions of this type
         if (InstructionsCountExtended[j]>0) {
           
-          // IssueCycleGranularity = CalculateIssueCycleGranularity(j);
           IssueCycleGranularity = IssueCycleGranularities[j];
           
           InstructionLatency  =ExecutionUnitsLatency[j];
