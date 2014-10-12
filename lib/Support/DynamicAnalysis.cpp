@@ -4866,10 +4866,10 @@ DynamicAnalysis::finishAnalysis(){
     }
     
     printHeaderStat("Execution Times Breakdowns");
-    float MinExecutionTime;
-    float IssueEffects;
-    float LatencyEffects;
-    float StallEffects;
+    unsigned MinExecutionTime;
+    unsigned IssueEffects;
+    unsigned LatencyEffects;
+    unsigned StallEffects;
     float Throughput = 0;
     dbgs() << "RESOURCE\tMIN-EXEC-TIME\tISSUE-EFFECTS\tLATENCY-EFFECTS\tSTALL-EFFECTS\tTOTAL\n";
     
@@ -4899,13 +4899,13 @@ DynamicAnalysis::finishAnalysis(){
             if (Throughput == INF) {
               MinExecutionTime = 1;
             }else{
-              MinExecutionTime = InstructionsCountExtended[i]/Throughput;
+              MinExecutionTime = (unsigned)ceil(InstructionsCountExtended[i]/Throughput);
             }
           }else{
             if (Throughput == INF) {
               MinExecutionTime = 1;
             }else
-              MinExecutionTime = InstructionsCountExtended[i]*AccessGranularities[i]/(Throughput);
+              MinExecutionTime = (unsigned)ceil(InstructionsCountExtended[i]*AccessGranularities[i]/(Throughput));
           }
           
           if (Throughput==INF && IssueSpan[i]==1 ) {
