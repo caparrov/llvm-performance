@@ -1219,18 +1219,19 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
         LevelGotFull = true;
       }
     }else{ // If ParallelIssue is INF, but ExecutionUnitsThroughput is not INF
-      if (NodeIssueOccupancy >= ExecutionUnitsThroughput[ExecutionResource]) {
+      if (NodeWidthOccupancy >= ExecutionUnitsThroughput[ExecutionResource]) {
         LevelGotFull = true;
       }
     }
   }
   
   if (LevelGotFull) {
-    /*
+   
+  /*
      if ((ExecutionUnitsParallelIssue[ExecutionResource] > 0 && (NodeWidthOccupancy == (unsigned)ExecutionUnitsParallelIssue[ExecutionResource]*ExecutionUnitsThroughput[ExecutionResource]
      || NodeIssueOccupancy == (unsigned)ExecutionUnitsParallelIssue[ExecutionResource])) || (ExecutionUnitsParallelIssue[ExecutionResource]<0 && (NodeWidthOccupancy == ExecutionUnitsThroughput[ExecutionResource]))) {
      //  if (NodeIssueOccupancy+NodeOccupancyPrefetch == ExecutionUnitsParallelIssue[ExecutionResource]) {
-     */
+    */
     DEBUG(dbgs() << "Level got full\n");
     LevelGotFull = true;
     
@@ -4922,6 +4923,9 @@ DynamicAnalysis::finishAnalysis(){
             IssueEffects = 0;
             
           }else{
+            if (IssueSpan[i] < MinExecutionTime) {
+              report_fatal_error("IssueSpan < Min execution time");
+            }
             IssueEffects = IssueSpan[i] - MinExecutionTime;
           }
           LatencyEffects = ResourcesSpan[i] - IssueSpan[i];
