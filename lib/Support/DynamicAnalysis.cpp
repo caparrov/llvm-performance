@@ -731,6 +731,7 @@ void
 DynamicAnalysis::insertInstructionValueIssueCycle(Value* v,uint64_t InstructionIssueCycle, bool isPHINode){
   
   map <Value*, uint64_t>::iterator IssueCycleMapIt;
+
   
   IssueCycleMapIt = InstructionValueIssueCycleMap.find(v);
   if (IssueCycleMapIt != InstructionValueIssueCycleMap.end()){
@@ -740,6 +741,7 @@ DynamicAnalysis::insertInstructionValueIssueCycle(Value* v,uint64_t InstructionI
       IssueCycleMapIt->second = max(IssueCycleMapIt->second, InstructionIssueCycle/*+1*/);
   }else //Insert an entry for the instrucion.
     InstructionValueIssueCycleMap[v] = InstructionIssueCycle/*+1*/;
+  
 }
 
 
@@ -1224,11 +1226,11 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
   }
   
   if (LevelGotFull) {
-  /*
-  if ((ExecutionUnitsParallelIssue[ExecutionResource] > 0 && (NodeWidthOccupancy == (unsigned)ExecutionUnitsParallelIssue[ExecutionResource]*ExecutionUnitsThroughput[ExecutionResource]
-                                                              || NodeIssueOccupancy == (unsigned)ExecutionUnitsParallelIssue[ExecutionResource])) || (ExecutionUnitsParallelIssue[ExecutionResource]<0 && (NodeWidthOccupancy == ExecutionUnitsThroughput[ExecutionResource]))) {
-    //  if (NodeIssueOccupancy+NodeOccupancyPrefetch == ExecutionUnitsParallelIssue[ExecutionResource]) {
-    */
+    /*
+     if ((ExecutionUnitsParallelIssue[ExecutionResource] > 0 && (NodeWidthOccupancy == (unsigned)ExecutionUnitsParallelIssue[ExecutionResource]*ExecutionUnitsThroughput[ExecutionResource]
+     || NodeIssueOccupancy == (unsigned)ExecutionUnitsParallelIssue[ExecutionResource])) || (ExecutionUnitsParallelIssue[ExecutionResource]<0 && (NodeWidthOccupancy == ExecutionUnitsThroughput[ExecutionResource]))) {
+     //  if (NodeIssueOccupancy+NodeOccupancyPrefetch == ExecutionUnitsParallelIssue[ExecutionResource]) {
+     */
     DEBUG(dbgs() << "Level got full\n");
     LevelGotFull = true;
     
@@ -3066,9 +3068,11 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
     
     //================= Update Fetch Cycle, remove insts from buffers =========//
     // EVERY INSTRUCTION IN THE RESERVATION STATION IS ALSO IN THE REORDER BUFFER
-    
+    DEBUG(dbgs()<<  I<< "\n");
+    DEBUG(dbgs()<<  &I<< "\n");
     if (InstructionType >= 0) {
-      DEBUG(dbgs()<<  I<< "\n");
+      //  DEBUG(dbgs()<<  I<< "\n");
+      // DEBUG(dbgs()<<  &I<< "\n");
       
       instructionPool.push_back(&I);
       
@@ -3303,7 +3307,13 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
 #ifdef DEBUG_PHI_NODE
             DEBUG(dbgs() << "Use of the PHI node " << *i << "\n");
 #endif
-            insertInstructionValueIssueCycle(*i, InstructionIssueCycle);
+            if (dyn_cast<PHINode>(*i)) {
+              insertInstructionValueIssueCycle(*i, InstructionIssueCycle, true);
+            }else{
+              insertInstructionValueIssueCycle(*i, InstructionIssueCycle);
+            }
+            
+           // insertInstructionValueIssueCycle(*i, InstructionIssueCycle);
           }
         }
         
@@ -3857,9 +3867,9 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
       //Iterate over the uses of the generated value (except for GetElementPtr)
       if(I.getOpcode() != Instruction::GetElementPtr){
         for(Value::use_iterator i = I.use_begin(), ie = I.use_end(); i!=ie; ++i){
-#ifdef DEBUG_DEPS_FUNCTION_CALL
-          DEBUG(dbgs() << "Setting use  "<< *i << " to "<<  NewInstructionIssueCycle+Latency<<"\n");
           
+#ifdef DEBUG_DEPS_FUNCTION_CALL
+          dbgs() << "Setting use  "<< *i << " to "<<  NewInstructionIssueCycle+Latency<<"\n";
 #endif
           if (dyn_cast<PHINode>(*i)) {
             insertInstructionValueIssueCycle(*i, NewInstructionIssueCycle+Latency, true);
@@ -4923,14 +4933,14 @@ DynamicAnalysis::finishAnalysis(){
         dbgs() << " " << MinExecutionTime;
         //  fprintf(stderr, " %1.3f ", MinExecutionTime);
         dbgs() << "\t";
-         dbgs() << " " << IssueEffects;
-       // fprintf(stderr, " %1.3f ", IssueEffects);
+        dbgs() << " " << IssueEffects;
+        // fprintf(stderr, " %1.3f ", IssueEffects);
         dbgs() << "\t";
         dbgs() << " " << LatencyEffects;
-       // fprintf(stderr, " %1.3f ", LatencyEffects);
+        // fprintf(stderr, " %1.3f ", LatencyEffects);
         dbgs() << "\t";
         dbgs() << " " << StallEffects;
-       // fprintf(stderr, " %1.3f ", StallEffects);
+        // fprintf(stderr, " %1.3f ", StallEffects);
         if (MinExecutionTime + IssueEffects + LatencyEffects +  StallEffects != ResourcesTotalStallSpanVector[i]) {
           report_fatal_error("Breakdown of execution time does not match total execution time\n");
           
