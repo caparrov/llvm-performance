@@ -1170,6 +1170,8 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
     }else{
       Node->issueOccupancy++;
     }
+    Node->widthOccupancy += AccessWidth;
+
   }else{
     if (AccessWidth <= ExecutionUnitsThroughput[ExecutionResource]) {
       DEBUG(dbgs() << "Increasing issue Occupancy\n");
@@ -4127,7 +4129,7 @@ DynamicAnalysis::finishAnalysis(){
    }
    */
   
-  
+  bool PrintWarning = false;
   unsigned long long TotalSpan = 0;
   uint64_t TotalStallSpan = 0;
   uint64_t PairSpan = 0;
@@ -4924,7 +4926,9 @@ DynamicAnalysis::finishAnalysis(){
             
           }else{
             if (IssueSpan[i] < MinExecutionTime) {
-              report_fatal_error("IssueSpan < Min execution time");
+		PrintWarning = true;
+		IssueSpan[i] = MinExecutionTime;              
+		//report_fatal_error("IssueSpan < Min execution time");
             }
             IssueEffects = IssueSpan[i] - MinExecutionTime;
           }
@@ -4963,7 +4967,8 @@ DynamicAnalysis::finishAnalysis(){
     dbgs() << "TOTAL"<< "\t\t"<<InstructionsCount[0] +InstructionsCount[1]<<"\t\t"<<TotalSpan<<" \n";
     Performance = (float)InstructionsCount[0]/((float)TotalSpan);
     fprintf(stderr, "PERFORMANCE %1.3f\n", Performance);
-    
+    if(PrintWarning == true)
+	dbgs() << "WARNING: IssueSpan < MinExecutionTime\n";
     
 #ifdef ILP_DISTRIBUTION
     if(TotalSpan != SpanDistribution)
