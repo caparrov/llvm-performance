@@ -2439,11 +2439,6 @@ DynamicAnalysis::CalculateIssueSpan(vector<int> & ResourcesVector){
     }
   }
   
-    dbgs() << "First non-empty level  " << First << "\n";
-    dbgs() << "MaxLatency  " << MaxLatency << "\n";
-    dbgs() << "LastCycle  " << LastCycle << "\n";
-    
- 
   
 #ifdef DEBUG_SPAN_CALCULATION
   DEBUG(dbgs() << "First non-empty level  " << First << "\n");
@@ -3474,10 +3469,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
           DEBUG(dbgs() << "======== Instruction Issue Cycle (Throughput Availability)"<< InstructionIssueThroughputAvailable	 << "========\n");
           DEBUG(dbgs() << "__________________Instruction Issue Cycle "<< InstructionIssueCycle << "__________________\n");
 #endif
-          if (ExecutionResource==L2_LOAD_CHANNEL) {
-            dbgs() << "InstructionIssueThroughputAvailable " << InstructionIssueThroughputAvailable << "\n";
-          }
-        }
+                  }
         
         break;
         // The Store can execute as soon as the value being stored is calculated
@@ -4108,12 +4100,10 @@ DynamicAnalysis::finishAnalysis(){
   for (unsigned j = 0; j < nExecutionUnits + nAGUs + nPorts + nBuffers; j++)
     LastIssueCycleVector.push_back(GetLastIssueCycle(j, false));
   
-  //for (unsigned j=0; j< nExecutionUnits; j++) {
-    for (unsigned j=L2_LOAD_CHANNEL; j<= L2_LOAD_CHANNEL; j++) {
+  for (unsigned j=0; j< nExecutionUnits; j++) {
     TmpResourcesVector.clear();
     TmpResourcesVector.push_back(j);
     IssueSpan[j] = CalculateIssueSpan(TmpResourcesVector);
-    dbgs() << "Group SPan " << CalculateGroupSpan(TmpResourcesVector, false, true) << "\n";
   }
   
   
