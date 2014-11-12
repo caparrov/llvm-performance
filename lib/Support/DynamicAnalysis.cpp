@@ -5,7 +5,7 @@
 //  Victoria Caparros Cabezas <caparrov@inf.ethz.ch>
 //===----------------------------------------------------------------------===//
 
-#define INTERPRETER
+//#define INTERPRETER
 
 #ifdef INTERPRETER
 #include "llvm/Support/DynamicAnalysis.h"
@@ -3292,18 +3292,18 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
 #else
             // Iterate through the uses of the PHI node
             for (User *U : PN->users()) {
-              if (Instruction *i = dyn_cast<Instruction>(U)) {
+      //        if (Instruction *i = dyn_cast<Instruction>(U)) {
 #ifdef DEBUG_PHI_NODE
-              DEBUG(dbgs() << "Use of the PHI node " << *i << "\n");
+              DEBUG(dbgs() << "Use of the PHI node " << i << "\n");
 #endif
-              if (dyn_cast<PHINode>(*i)) {
+              if (dyn_cast<PHINode>(i)) {
                 insertInstructionValueIssueCycle(i, InstructionIssueCycle, true);
               }else{
                 insertInstructionValueIssueCycle(i, InstructionIssueCycle);
               }
               
               // insertInstructionValueIssueCycle(*i, InstructionIssueCycle);
-            }
+            //}
             }
 #endif
           }
@@ -3317,10 +3317,10 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
           }
 #else
         for (User *U : I.users()) {
-          if (Instruction *i = dyn_cast<Instruction>(U)) {
+         // if (Instruction *i = dyn_cast<Instruction>(U)) {
             insertInstructionValueIssueCycle(i, InstructionIssueCycle+1/*???*/);
 
-          }
+          //}
         }
 #endif
         }
@@ -3744,14 +3744,14 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
 #else
         
         for (User *U : F->users()) {
-          if (Instruction *Inst = dyn_cast<Instruction>(U)) {
+        //  if (Instruction *Inst = dyn_cast<Instruction>(U)) {
             for (User *UI : Inst->users()) {
-              if (Instruction *i = dyn_cast<Instruction>(UI)) {
+             // if (Instruction *i = dyn_cast<Instruction>(UI)) {
                 insertInstructionValueIssueCycle(i, InstructionIssueCycle);
 
-              }
+             // }
             }
-          }
+          //}
         }
 #endif
         break;
@@ -3955,7 +3955,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
         // No interpreter: new way of iterating through the uses of an instruction.
         // TODO: Fix also iterating through the arguments
         for (User *U : I.users()) {
-          if (Instruction *i = dyn_cast<Instruction>(U)) {
+        //  if (Instruction *i = dyn_cast<Instruction>(U)) {
             // for(Value::use_iterator i = I.use_begin(), ie = I.use_end(); i!=ie; ++i){
             
             #ifdef DEBUG_DEPS_FUNCTION_CALL
@@ -4013,7 +4013,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
                 }
               }
             }
-          }
+         // }
         }
 #endif
       }
