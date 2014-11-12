@@ -6,7 +6,15 @@
 //===----------------------------------------------------------------------===//
 
 
+#ifdef INTERPRETER
 #include "llvm/Support/DynamicAnalysis.h"
+#else
+#include "DynamicAnalysis.h"
+#endif
+
+#ifndef INTERPRETER
+#define DEBUG_TYPE "dynamic-analysis"
+#endif
 
 //===----------------------------------------------------------------------===//
 //                        Constructor of the analyzer
@@ -66,7 +74,12 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
   this->ReportOnlyPerformance = ReportOnlyPerformance;
   this->rep = rep;
   
+#ifdef INTERPRETER
   BitsPerCacheLine = log2(this->CacheLineSize * (this->MemoryWordSize));
+#else
+  BitsPerCacheLine = log2(CacheLineSize/4);
+#endif
+  
   // In reality is if L2, but need to specify the size for the reuse disrance
   switch (PrefetchLevel) {
     case 1:
@@ -731,7 +744,7 @@ void
 DynamicAnalysis::insertInstructionValueIssueCycle(Value* v,uint64_t InstructionIssueCycle, bool isPHINode){
   
   map <Value*, uint64_t>::iterator IssueCycleMapIt;
-
+  
   
   IssueCycleMapIt = InstructionValueIssueCycleMap.find(v);
   if (IssueCycleMapIt != InstructionValueIssueCycleMap.end()){
@@ -914,8 +927,8 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
         DEBUG(dbgs() << "nExecutionUnits "<< nExecutionUnits<<"\n");
         
         if (TargetLevel==true && FoundInFullOccupancyCyclesTree == false) {
-        
-       
+          
+          
           DEBUG(dbgs() << "Making sure there is also enough bandwidth...\n");
           
           AccessWidth = AccessWidths[ExecutionResource];
@@ -1188,7 +1201,7 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
       Node->issueOccupancy++;
     }
     Node->widthOccupancy += AccessWidth;
-
+    
   }else{
     if (AccessWidth <= ExecutionUnitsThroughput[ExecutionResource]) {
       DEBUG(dbgs() << "Increasing issue Occupancy\n");
@@ -1246,12 +1259,12 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
   }
   
   if (LevelGotFull) {
-   
-  /*
+    
+    /*
      if ((ExecutionUnitsParallelIssue[ExecutionResource] > 0 && (NodeWidthOccupancy == (unsigned)ExecutionUnitsParallelIssue[ExecutionResource]*ExecutionUnitsThroughput[ExecutionResource]
      || NodeIssueOccupancy == (unsigned)ExecutionUnitsParallelIssue[ExecutionResource])) || (ExecutionUnitsParallelIssue[ExecutionResource]<0 && (NodeWidthOccupancy == ExecutionUnitsThroughput[ExecutionResource]))) {
      //  if (NodeIssueOccupancy+NodeOccupancyPrefetch == ExecutionUnitsParallelIssue[ExecutionResource]) {
-    */
+     */
     DEBUG(dbgs() << "Level got full\n");
     LevelGotFull = true;
     
@@ -1767,7 +1780,7 @@ DynamicAnalysis::FindNextNonEmptyLevel(unsigned ExecutionResource, uint64_t Leve
     Closest = Original;
     
     while (IsInAvailableCyclesTree == true) {
-     
+      
       
       while( true ) {
         
@@ -2459,7 +2472,7 @@ DynamicAnalysis::CalculateIssueSpan(vector<int> & ResourcesVector){
         
         if (i <= LastIssueCycleVector[ResourceType]/*GetLastIssueCycle(ResourceType, 0)*/) {
           if (IsEmptyLevel(ResourceType, i, false) == false) {
-         //   dbgs() << "Level "<< i<<" got full2\n";
+            //   dbgs() << "Level "<< i<<" got full2\n";
             AccessWidth = AccessWidths[ResourceType];
             if (ExecutionUnitsThroughput[ResourceType]==INF)
               TmpLatency = 1;
@@ -2477,10 +2490,10 @@ DynamicAnalysis::CalculateIssueSpan(vector<int> & ResourcesVector){
       
       //That is, only if there are instructions scheduled in this cycle
       if(MaxLatencyLevel !=0){
-     //   dbgs() << "MaxLatencyLevel !=0\n";
+        //   dbgs() << "MaxLatencyLevel !=0\n";
         if ( i <= DominantLevel+MaxLatency-1){
-    //      dbgs() << "This should never be executed. i = "<<i<<", DominantLevel = "<< DominantLevel<<", MaxLatency "<<MaxLatency<<", DominantLevel+MaxLatency-1 = "<<DominantLevel+MaxLatency-1<<"\n";
-
+          //      dbgs() << "This should never be executed. i = "<<i<<", DominantLevel = "<< DominantLevel<<", MaxLatency "<<MaxLatency<<", DominantLevel+MaxLatency-1 = "<<DominantLevel+MaxLatency-1<<"\n";
+          
           if (i+MaxLatencyLevel > DominantLevel+MaxLatency && MaxLatencyLevel!=0) {
 #ifdef DEBUG_SPAN_CALCULATION
             DEBUG(dbgs() << "Increasing Span by the difference " << ((i+MaxLatencyLevel)-max((DominantLevel+MaxLatency),(unsigned)1)) << "\n");
@@ -2493,8 +2506,8 @@ DynamicAnalysis::CalculateIssueSpan(vector<int> & ResourcesVector){
         }else{
           
           if (ResourceType == L2_LOAD_CHANNEL) {
-        //    dbgs() << "Vicky. i = "<<i<<", DominantLevel = "<< DominantLevel<<", MaxLatency "<<MaxLatency<<", DominantLevel+MaxLatency-1 = "<<DominantLevel+MaxLatency-1<<"\n";
-        //    dbgs() << "Increasing Span by " << MaxLatencyLevel << "\n";
+            //    dbgs() << "Vicky. i = "<<i<<", DominantLevel = "<< DominantLevel<<", MaxLatency "<<MaxLatency<<", DominantLevel+MaxLatency-1 = "<<DominantLevel+MaxLatency-1<<"\n";
+            //    dbgs() << "Increasing Span by " << MaxLatencyLevel << "\n";
           }
 #ifdef DEBUG_SPAN_CALCULATION
           DEBUG(dbgs() << "Increasing Span by " << MaxLatencyLevel << "\n");
@@ -2834,9 +2847,14 @@ DynamicAnalysis::PrintDispatchToLineFillBuffer(){
 // operands, but the issue cycle of its operands does not have to be determined,
 // already contains the right value because they are uses of a previous definition.
 
+#ifdef INTERPRETER
 void
-DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  GenericValue * visitResult){
-  
+DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  GenericValue * visitResult)
+#else
+void
+DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
+#endif
+{
   
   
   
@@ -2914,11 +2932,16 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
       
       switch (I.getOpcode()) {
         case Instruction::Load:{
+#ifdef INTERPRETER
           //Transform visitResult to uint64_t
           SmallString <128> StrVal;
           raw_svector_ostream OS(StrVal);
           OS << visitResult;
           MemoryAddress = strtol(OS.str().str().c_str(),NULL,16);
+#else
+          MemoryAddress = addr;
+#endif
+          
           CacheLine = MemoryAddress >> BitsPerCacheLine;
           Info = getCacheLineInfo(CacheLine);
           
@@ -2938,10 +2961,14 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
         }
           break;
         case Instruction::Store:{
+#ifdef INTERPRETER
           SmallString <128> StrVal;
           raw_svector_ostream OS(StrVal);
           OS << visitResult;
           MemoryAddress = strtol(OS.str().str().c_str(),NULL,16);
+#else
+          MemoryAddress = addr;
+#endif
           CacheLine = MemoryAddress >> BitsPerCacheLine;
           Info = getCacheLineInfo(CacheLine);
           
@@ -3223,46 +3250,54 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
       }
     }
     
-    //==================== Handle spectial cases ===============================//
+    //==================== Handle special cases ===============================//
     switch (I.getOpcode()) {
         // Dependences through PHI nodes
       case Instruction::Br:
       case Instruction::IndirectBr:
-      case Instruction::Switch:
+      case Instruction::Switch:{
+#ifdef INTERPRETER
         // Loop over all of the PHI nodes in the current block, reading their inputs.
         SF.CurInst = SF.CurBB->begin();
         for (unsigned i = 0; PHINode *PN = dyn_cast<PHINode>(SF.CurInst);
              ++SF.CurInst, ++i) {
-          //Value *Predecesor = PN->getIncomingValue(PN->getBasicBlockIndex(I.getParent()));
-          // The PHI node was a use of its predecessor. Hence, its entry in the map
-          //contains the correct value of the InstructionIssueCycle
-          // InstructionIssueCycle = getInstructionValueIssueCycle(Predecesor); -> WRONG!!
-          InstructionIssueCycle = max(max(InstructionFetchCycle,BasicBlockBarrier),getInstructionValueIssueCycle(PN));
-#ifdef DEBUG_PHI_NODE
-          DEBUG(dbgs() << "PHI Node " << PN << "\n");
-          DEBUG(dbgs() << "InstructionValueIssueCycle of PHI Node " << InstructionIssueCycle << "\n");
+#else
+          auto it = I.getParent()->begin();
+          for (unsigned i = 0; PHINode *PN = dyn_cast<PHINode>(it);
+               ++it, ++i) {
 #endif
-          // Iterate through the uses of the PHI node
-          for(Value::use_iterator i = PN->use_begin(), ie = PN->use_end(); i!=ie; ++i){
+            //Value *Predecesor = PN->getIncomingValue(PN->getBasicBlockIndex(I.getParent()));
+            // The PHI node was a use of its predecessor. Hence, its entry in the map
+            //contains the correct value of the InstructionIssueCycle
+            // InstructionIssueCycle = getInstructionValueIssueCycle(Predecesor); -> WRONG!!
+            InstructionIssueCycle = max(max(InstructionFetchCycle,BasicBlockBarrier),getInstructionValueIssueCycle(PN));
 #ifdef DEBUG_PHI_NODE
-            DEBUG(dbgs() << "Use of the PHI node " << *i << "\n");
+            DEBUG(dbgs() << "PHI Node " << PN << "\n");
+            DEBUG(dbgs() << "InstructionValueIssueCycle of PHI Node " << InstructionIssueCycle << "\n");
 #endif
-            if (dyn_cast<PHINode>(*i)) {
-              insertInstructionValueIssueCycle(*i, InstructionIssueCycle, true);
-            }else{
-              insertInstructionValueIssueCycle(*i, InstructionIssueCycle);
+            // Iterate through the uses of the PHI node
+            for(Value::use_iterator i = PN->use_begin(), ie = PN->use_end(); i!=ie; ++i){
+#ifdef DEBUG_PHI_NODE
+              DEBUG(dbgs() << "Use of the PHI node " << *i << "\n");
+#endif
+              if (dyn_cast<PHINode>(*i)) {
+                insertInstructionValueIssueCycle(*i, InstructionIssueCycle, true);
+              }else{
+                insertInstructionValueIssueCycle(*i, InstructionIssueCycle);
+              }
+              
+              // insertInstructionValueIssueCycle(*i, InstructionIssueCycle);
             }
-            
-           // insertInstructionValueIssueCycle(*i, InstructionIssueCycle);
+          }
+          
+          InstructionIssueCycle = max(max(InstructionFetchCycle,BasicBlockBarrier),getInstructionValueIssueCycle(&I)); // This is the branch instrucion
+          
+          //Iterate over the uses of the generated value
+          for(Value::use_iterator i = I.use_begin(), ie = I.use_end(); i!=ie; ++i){
+            insertInstructionValueIssueCycle(*i, InstructionIssueCycle+1/*???*/);
           }
         }
-        
-        InstructionIssueCycle = max(max(InstructionFetchCycle,BasicBlockBarrier),getInstructionValueIssueCycle(&I)); // This is the branch instrucion
-        
-        //Iterate over the uses of the generated value
-        for(Value::use_iterator i = I.use_begin(), ie = I.use_end(); i!=ie; ++i){
-          insertInstructionValueIssueCycle(*i, InstructionIssueCycle+1/*???*/);
-        }
+      }
         break;
         
         // Dependences through the arguments of a method call
@@ -3286,7 +3321,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
         if (InstructionType >= 0) {
           
           isLoad = true;
-          
+#ifdef INTERPRETER
           //Transform visitResult to uint64_t
           SmallString <128> StrVal;
           raw_svector_ostream OS(StrVal);
@@ -3295,6 +3330,9 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
           // StringRef.str() returns the contents as a std::string
           // std::string.c_str() converts the string into the const char* required by strtol
           MemoryAddress = strtol(OS.str().str().c_str(),NULL,16);
+#else
+          MemoryAddress = addr;
+#endif
           CacheLine = MemoryAddress >> BitsPerCacheLine;
           
 #ifdef DEBUG_MEMORY_TRACES
@@ -3469,17 +3507,21 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
           DEBUG(dbgs() << "======== Instruction Issue Cycle (Throughput Availability)"<< InstructionIssueThroughputAvailable	 << "========\n");
           DEBUG(dbgs() << "__________________Instruction Issue Cycle "<< InstructionIssueCycle << "__________________\n");
 #endif
-                  }
+        }
         
         break;
         // The Store can execute as soon as the value being stored is calculated
       case Instruction::Store:
         if (InstructionType >= 0) {
           isLoad = false;
+#ifdef INTERPRETER
           SmallString <128> StrVal;
           raw_svector_ostream OS(StrVal);
           OS << visitResult;
           MemoryAddress = strtol(OS.str().str().c_str(),NULL,16);
+#else
+          MemoryAddress = addr;
+#endif
           CacheLine = MemoryAddress >> BitsPerCacheLine;
           
           StoreCacheLine = CacheLine;
@@ -3642,7 +3684,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
           }else{
             InstructionIssueThroughputAvailable= FindNextAvailableIssueCyclePortAndThroughtput(InstructionIssueCycle,ExtendedInstructionType, NElementsVector);
           }
-          
+          InstructionIssueCycle = max(InstructionIssueCycle, InstructionIssueThroughputAvailable);
 #ifdef DEBUG_ISSUE_CYCLE
           DEBUG(dbgs() << "======== Instruction Issue Cycle (fetch cycle) "<< InstructionIssueFetchCycle	 << " ========\n");
           DEBUG(dbgs() << "======== Instruction Issue Cycle (SB availability) "<< InstructionIssueStoreBufferAvailable	 << " ========\n");
@@ -3708,7 +3750,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
     
     
     
-
+    
     if (InstructionType >= 0) {
       
       uint64_t NewInstructionIssueCycle = InstructionIssueCycle;
@@ -3734,8 +3776,10 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
       // is accessed it is in L1, but it is inconsistent to assume that it can be
       // loaded also at cycle X and have a latency of 4 cycles.
       
+      ExecutionResource=ExecutionUnit[ExtendedInstructionType];
+      
       if (I.getOpcode() ==Instruction::Load && RARDependences && ExtendedInstructionType > L1_LOAD_NODE &&
-          ExecutionUnitsLatency[ExtendedInstructionType] > ExecutionUnitsLatency[L1_LOAD_NODE]){
+          ExecutionUnitsLatency[ExecutionResource] > ExecutionUnitsLatency[L1_LOAD_CHANNEL]){
         // if (Distance < 0) {
         Info = getCacheLineInfo(LoadCacheLine);
         Info.IssueCycle = NewInstructionIssueCycle+Latency;
@@ -3745,7 +3789,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
       }
       
       if (I.getOpcode() == Instruction::Store && ExtendedInstructionType > L1_STORE_NODE
-          && ExecutionUnitsLatency[ExtendedInstructionType] > ExecutionUnitsLatency[L1_LOAD_NODE]) {
+          && ExecutionUnitsLatency[ExecutionResource] > ExecutionUnitsLatency[L1_LOAD_CHANNEL]) {
         //   if (Distance < 0 ){
         DEBUG(dbgs() << "Inserting issue cycle " << NewInstructionIssueCycle+Latency << " for cache line " << StoreCacheLine << "\n");
         Info = getCacheLineInfo(StoreCacheLine);
@@ -3809,8 +3853,8 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
       
       //Iterate over the uses of the generated value (except for GetElementPtr)
       if(I.getOpcode() != Instruction::GetElementPtr){
+#ifdef INTERPRETER
         for(Value::use_iterator i = I.use_begin(), ie = I.use_end(); i!=ie; ++i){
-          
 #ifdef DEBUG_DEPS_FUNCTION_CALL
           dbgs() << "Setting use  "<< *i << " to "<<  NewInstructionIssueCycle+Latency<<"\n";
 #endif
@@ -3867,6 +3911,71 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
             }
           }
         }
+#else 
+        // No interpreter: new way of iterating through the uses of an instruction.
+        // TODO: Fix also iterating through the arguments
+        for (User *U : I.users()) {
+          if (Instruction *i = dyn_cast<Instruction>(U)) {
+            // for(Value::use_iterator i = I.use_begin(), ie = I.use_end(); i!=ie; ++i){
+            
+            //#ifdef DEBUG_DEPS_FUNCTION_CALL
+            dbgs() << "Setting use  "<< *i << " to "<<  NewInstructionIssueCycle+Latency<<"\n";
+            //#endif
+            if (dyn_cast<PHINode>(i)) {
+              insertInstructionValueIssueCycle(i, NewInstructionIssueCycle+Latency, true);
+            }else{
+              insertInstructionValueIssueCycle(i, NewInstructionIssueCycle+Latency);
+            }
+            if(dyn_cast<CallInst>(i)){
+#ifdef DEBUG_DEPS_FUNCTION_CALL
+              DEBUG(dbgs() << "The use is a call to function\n");
+#endif
+              CS = CallSite(i);
+              F = CS.getCalledFunction();
+              // Loop over the arguments of the called function --- From Execution.cpp
+              NumArgs = CS.arg_size();
+              ArgVals.reserve(NumArgs);
+              for (CallSite::arg_iterator j = CS.arg_begin(),
+                   e = CS.arg_end(); j != e; ++j) {
+                Value *V = *j;
+                ArgVals.push_back(V);
+              }
+              
+              // Make sure it is an LLVM-well-defined funciton
+              if (static_cast<Function*>(F)) {
+                for (Function::arg_iterator AI = F->arg_begin(), E = F->arg_end();
+                     AI != E; ++AI, ++k){
+#ifdef DEBUG_DEPS_FUNCTION_CALL
+                  DEBUG(dbgs() << "Iterate through the arguments of the call\n");
+#endif
+                  /*   Latency = (&AI->getOpcode() == Instruction::Load || (ArgVals[j])->getOpcode()
+                   == Instruction::Store)? MEM_LATENCY:FLOP_LATENCY;*/
+#ifdef DEBUG_DEPS_FUNCTION_CALL
+                  DEBUG(dbgs() << "Argument "<< ArgVals[k] <<"\n");
+#endif
+                  /* //Iterate through the uses of the argument?
+                   insertInstructionValueIssueCycle(AI, InstructionIssueCycle+1); // +1???
+                   */
+#ifdef DEBUG_DEPS_FUNCTION_CALL
+                  DEBUG(dbgs() << "Iterate through the uses of the argument\n");
+#endif
+                  if( ArgVals[k] == &I){
+#ifdef DEBUG_DEPS_FUNCTION_CALL
+                    DEBUG(dbgs() << "Argument equal to current instruction\n");
+#endif
+                    for(Value::use_iterator vi = (*AI).use_begin(), vie = (*AI).use_end(); vi!=vie; ++vi){
+#ifdef DEBUG_DEPS_FUNCTION_CALL
+                      DEBUG(dbgs() << "Use of the argument "<< *vi <<"\n");
+#endif
+                      insertInstructionValueIssueCycle(*vi,NewInstructionIssueCycle+Latency);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+#endif
       }
       
       //========================= Update Parallelism Distribution ===================//
@@ -4477,10 +4586,10 @@ DynamicAnalysis::finishAnalysis(){
               
               
               // #ifdef ASSERT
-               //if (!MergeArithmeticOps) {
-               //assert(PairSpan == CalculateGroupSpan(TmpResourcesVector,false, true));
+              //if (!MergeArithmeticOps) {
+              //assert(PairSpan == CalculateGroupSpan(TmpResourcesVector,false, true));
               // }
-               
+              
               // #endif
               
             }else{
@@ -4692,7 +4801,7 @@ DynamicAnalysis::finishAnalysis(){
                 Total = ResourcesResourcesSpanVector[j][i];
                 T1 = ResourcesTotalStallSpanVector[j];
                 T2 = ResourcesTotalStallSpanVector[i];
-              
+                
                 
                 assert(Total <= T1+T2);
                 OverlapCycles =  T1+T2-Total;
@@ -4863,9 +4972,9 @@ DynamicAnalysis::finishAnalysis(){
             
           }else{
             if (IssueSpan[i] < MinExecutionTime) {
-		PrintWarning = true;
-		IssueSpan[i] = MinExecutionTime;              
-		//report_fatal_error("IssueSpan < Min execution time");
+              PrintWarning = true;
+              IssueSpan[i] = MinExecutionTime;
+              //report_fatal_error("IssueSpan < Min execution time");
             }
             IssueEffects = IssueSpan[i] - MinExecutionTime;
           }
@@ -4905,7 +5014,7 @@ DynamicAnalysis::finishAnalysis(){
     Performance = (float)InstructionsCount[0]/((float)TotalSpan);
     fprintf(stderr, "PERFORMANCE %1.3f\n", Performance);
     if(PrintWarning == true)
-	dbgs() << "WARNING: IssueSpan < MinExecutionTime\n";
+      dbgs() << "WARNING: IssueSpan < MinExecutionTime\n";
     
 #ifdef ILP_DISTRIBUTION
     if(TotalSpan != SpanDistribution)
