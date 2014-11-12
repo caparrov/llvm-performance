@@ -5,6 +5,7 @@
 //  Victoria Caparros Cabezas <caparrov@inf.ethz.ch>
 //===----------------------------------------------------------------------===//
 
+#define INTERPRETER
 
 #ifdef INTERPRETER
 #include "llvm/Support/DynamicAnalysis.h"
@@ -3260,12 +3261,13 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
         // Loop over all of the PHI nodes in the current block, reading their inputs.
         SF.CurInst = SF.CurBB->begin();
         for (unsigned i = 0; PHINode *PN = dyn_cast<PHINode>(SF.CurInst);
-             ++SF.CurInst, ++i) {
+             ++SF.CurInst, ++i)
 #else
           auto it = I.getParent()->begin();
           for (unsigned i = 0; PHINode *PN = dyn_cast<PHINode>(it);
-               ++it, ++i) {
+               ++it, ++i)
 #endif
+          {
             //Value *Predecesor = PN->getIncomingValue(PN->getBasicBlockIndex(I.getParent()));
             // The PHI node was a use of its predecessor. Hence, its entry in the map
             //contains the correct value of the InstructionIssueCycle
@@ -3297,7 +3299,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
             insertInstructionValueIssueCycle(*i, InstructionIssueCycle+1/*???*/);
           }
         }
-      }
+      
         break;
         
         // Dependences through the arguments of a method call
