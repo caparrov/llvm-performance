@@ -75,12 +75,9 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
   this->ReportOnlyPerformance = ReportOnlyPerformance;
   this->rep = rep;
   
-#ifdef INTERPRETER
+
   BitsPerCacheLine = log2(this->CacheLineSize * (this->MemoryWordSize));
-#else
-  BitsPerCacheLine = log2(CacheLineSize/4);
-#endif
-  
+
   // In reality is if L2, but need to specify the size for the reuse disrance
   switch (PrefetchLevel) {
     case 1:
@@ -3920,9 +3917,9 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
           if (Instruction *i = dyn_cast<Instruction>(U)) {
             // for(Value::use_iterator i = I.use_begin(), ie = I.use_end(); i!=ie; ++i){
             
-            //#ifdef DEBUG_DEPS_FUNCTION_CALL
-            dbgs() << "Setting use  "<< *i << " to "<<  NewInstructionIssueCycle+Latency<<"\n";
-            //#endif
+            #ifdef DEBUG_DEPS_FUNCTION_CALL
+            DEBUG(dbgs() << "Setting use  "<< *i << " to "<<  NewInstructionIssueCycle+Latency<<"\n");
+            #endif
             if (dyn_cast<PHINode>(i)) {
               insertInstructionValueIssueCycle(i, NewInstructionIssueCycle+Latency, true);
             }else{
