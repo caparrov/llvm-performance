@@ -3274,6 +3274,8 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
             DEBUG(dbgs() << "PHI Node " << PN << "\n");
             DEBUG(dbgs() << "InstructionValueIssueCycle of PHI Node " << InstructionIssueCycle << "\n");
 #endif
+            
+#ifdef INTERPRETER
             // Iterate through the uses of the PHI node
             for(Value::use_iterator i = PN->use_begin(), ie = PN->use_end(); i!=ie; ++i){
 #ifdef DEBUG_PHI_NODE
@@ -3287,14 +3289,40 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
               
               // insertInstructionValueIssueCycle(*i, InstructionIssueCycle);
             }
+#else
+            // Iterate through the uses of the PHI node
+            for (User *U : PN->users()) {
+              if (Instruction *i = dyn_cast<Instruction>(U)) {
+#ifdef DEBUG_PHI_NODE
+              DEBUG(dbgs() << "Use of the PHI node " << *i << "\n");
+#endif
+              if (dyn_cast<PHINode>(*i)) {
+                insertInstructionValueIssueCycle(i, InstructionIssueCycle, true);
+              }else{
+                insertInstructionValueIssueCycle(i, InstructionIssueCycle);
+              }
+              
+              // insertInstructionValueIssueCycle(*i, InstructionIssueCycle);
+            }
+            }
+#endif
           }
           
           InstructionIssueCycle = max(max(InstructionFetchCycle,BasicBlockBarrier),getInstructionValueIssueCycle(&I)); // This is the branch instrucion
           
           //Iterate over the uses of the generated value
+#ifdef INTERPRETER
           for(Value::use_iterator i = I.use_begin(), ie = I.use_end(); i!=ie; ++i){
             insertInstructionValueIssueCycle(*i, InstructionIssueCycle+1/*???*/);
           }
+#else
+        for (User *U : I.users()) {
+          if (Instruction *i = dyn_cast<Instruction>(U)) {
+            insertInstructionValueIssueCycle(i, InstructionIssueCycle+1/*???*/);
+
+          }
+        }
+#endif
         }
       
         break;
@@ -3706,13 +3734,26 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
         // of info about how iterate through functions, bbs, etc.
         F = I.getParent()->getParent();
         InstructionIssueCycle = max(max(InstructionFetchCycle,BasicBlockBarrier),getInstructionValueIssueCycle(&I));
-        
+#ifdef INTERPRETER
         for (Value::use_iterator IT = F->use_begin(), ET = F->use_end(); IT != ET; ++IT) {
           // Iterate over the users of the uses of the function
           for(Value::use_iterator it = (*IT)->use_begin(), ite = (*IT)->use_end(); it!=ite; ++it){
             insertInstructionValueIssueCycle(*it, InstructionIssueCycle);
           }
         }
+#else
+        
+        for (User *U : F->users()) {
+          if (Instruction *Inst = dyn_cast<Instruction>(U)) {
+            for (User *UI : Inst->users()) {
+              if (Instruction *i = dyn_cast<Instruction>(UI)) {
+                insertInstructionValueIssueCycle(i, InstructionIssueCycle);
+
+              }
+            }
+          }
+        }
+#endif
         break;
         
         //-------------------------General case------------------------------//
