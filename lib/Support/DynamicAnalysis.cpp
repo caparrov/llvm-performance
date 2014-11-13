@@ -2,7 +2,7 @@
 //
 //                     The LLVM Compiler Infrastructure
 //
-//  Victoria Caparros Cabezas <caparrov@inf.ethz.ch>
+//  Vtetoria Caparros Cabezas <caparrov@inf.ethz.ch>
 //===----------------------------------------------------------------------===//
 
 //#define INTERPRETER
@@ -3033,8 +3033,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
     
     //================= Update Fetch Cycle, remove insts from buffers =========//
     // EVERY INSTRUCTION IN THE RESERVATION STATION IS ALSO IN THE REORDER BUFFER
-    DEBUG(dbgs()<<  I<< "\n");
-    DEBUG(dbgs()<<  &I<< "\n");
+    DEBUG(dbgs()<<  I<< " ("<< &I <<")\n");
     if (InstructionType >= 0) {
       //  DEBUG(dbgs()<<  I<< "\n");
       // DEBUG(dbgs()<<  &I<< "\n");
@@ -3254,17 +3253,22 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
       case Instruction::Br:
       case Instruction::IndirectBr:
       case Instruction::Switch:{
+#ifdef DEBUG_PHI_NODE
+DEBUG(dbgs() << "Loop over all of the PHI nodes in the current block\n");
+#endif
 #ifdef INTERPRETER
         // Loop over all of the PHI nodes in the current block, reading their inputs.
         SF.CurInst = SF.CurBB->begin();
         for (unsigned i = 0; PHINode *PN = dyn_cast<PHINode>(SF.CurInst);
              ++SF.CurInst, ++i)
+/*
 #else
           auto it = I.getParent()->begin();
           for (unsigned i = 0; PHINode *PN = dyn_cast<PHINode>(it);
                ++it, ++i)
+
 #endif
-          {
+*/          {
             //Value *Predecesor = PN->getIncomingValue(PN->getBasicBlockIndex(I.getParent()));
             // The PHI node was a use of its predecessor. Hence, its entry in the map
             //contains the correct value of the InstructionIssueCycle
@@ -3289,25 +3293,27 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
               
               // insertInstructionValueIssueCycle(*i, InstructionIssueCycle);
             }
+/*
 #else
             // Iterate through the uses of the PHI node
             for (User *U : PN->users()) {
       //        if (Instruction *i = dyn_cast<Instruction>(U)) {
 #ifdef DEBUG_PHI_NODE
-              DEBUG(dbgs() << "Use of the PHI node " << i << "\n");
+              DEBUG(dbgs() << "Use of the PHI node " << U << "\n");
 #endif
-              if (dyn_cast<PHINode>(i)) {
-                insertInstructionValueIssueCycle(i, InstructionIssueCycle, true);
+              if (dyn_cast<PHINode>(U)) {
+                insertInstructionValueIssueCycle(U, InstructionIssueCycle, true);
               }else{
-                insertInstructionValueIssueCycle(i, InstructionIssueCycle);
+                insertInstructionValueIssueCycle(U, InstructionIssueCycle);
               }
               
               // insertInstructionValueIssueCycle(*i, InstructionIssueCycle);
             //}
             }
+*/
 #endif
           }
-          
+      #endif          
           InstructionIssueCycle = max(max(InstructionFetchCycle,BasicBlockBarrier),getInstructionValueIssueCycle(&I)); // This is the branch instrucion
           
           //Iterate over the uses of the generated value
@@ -3318,15 +3324,38 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
 #else
         for (User *U : I.users()) {
          // if (Instruction *i = dyn_cast<Instruction>(U)) {
-            insertInstructionValueIssueCycle(i, InstructionIssueCycle+1/*???*/);
+            insertInstructionValueIssueCycle(U, InstructionIssueCycle+1/*???*/);
 
           //}
         }
 #endif
         }
-      
+
         break;
-        
+        case Instruction::PHI:
+#ifndef INTERPRETER
+          InstructionIssueCycle = max(max(InstructionFetchCycle,BasicBlockBarrier),getInstructionValueIssueCycle(&I)); // This is the branch instrucion
+#ifdef DEBUG_PHI_NODE
+DEBUG(dbgs() << "Executing PHI Node. Iterate over it uses.\n");
+#endif
+// Iterate through the uses of the PHI node
+            for (User *U : I.users()) {
+      //        if (Instruction *i = dyn_cast<Instruction>(U)) {
+#ifdef DEBUG_PHI_NODE
+              DEBUG(dbgs() << "Use of the PHI node " << U << "\n");
+#endif
+              if (dyn_cast<PHINode>(U)) {
+                insertInstructionValueIssueCycle(U, InstructionIssueCycle, true);
+              }else{
+                insertInstructionValueIssueCycle(U, InstructionIssueCycle);
+              }
+              
+              // insertInstructionValueIssueCycle(*i, InstructionIssueCycle);
+            //}
+            }
+
+#endif
+break;
         // Dependences through the arguments of a method call
       case Instruction::Call:
         CS = CallSite(&I);
@@ -3745,9 +3774,9 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
         
         for (User *U : F->users()) {
         //  if (Instruction *Inst = dyn_cast<Instruction>(U)) {
-            for (User *UI : Inst->users()) {
+            for (User *UI : U->users()) {
              // if (Instruction *i = dyn_cast<Instruction>(UI)) {
-                insertInstructionValueIssueCycle(i, InstructionIssueCycle);
+                insertInstructionValueIssueCycle(UI, InstructionIssueCycle);
 
              // }
             }
@@ -3896,7 +3925,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
 #ifdef INTERPRETER
         for(Value::use_iterator i = I.use_begin(), ie = I.use_end(); i!=ie; ++i){
 #ifdef DEBUG_DEPS_FUNCTION_CALL
-          dbgs() << "Setting use  "<< *i << " to "<<  NewInstructionIssueCycle+Latency<<"\n";
+          DEBUG(dbgs() << "Setting use  "<< *i << " to "<<  NewInstructionIssueCycle+Latency<<"\n");
 #endif
           if (dyn_cast<PHINode>(*i)) {
             insertInstructionValueIssueCycle(*i, NewInstructionIssueCycle+Latency, true);
@@ -3959,18 +3988,18 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
             // for(Value::use_iterator i = I.use_begin(), ie = I.use_end(); i!=ie; ++i){
             
             #ifdef DEBUG_DEPS_FUNCTION_CALL
-            DEBUG(dbgs() << "Setting use  "<< *i << " to "<<  NewInstructionIssueCycle+Latency<<"\n");
+            DEBUG(dbgs() << "Setting use  "<< U << " to "<<  NewInstructionIssueCycle+Latency<<"\n");
             #endif
-            if (dyn_cast<PHINode>(i)) {
-              insertInstructionValueIssueCycle(i, NewInstructionIssueCycle+Latency, true);
+            if (dyn_cast<PHINode>(U)) {
+              insertInstructionValueIssueCycle(U, NewInstructionIssueCycle+Latency, true);
             }else{
-              insertInstructionValueIssueCycle(i, NewInstructionIssueCycle+Latency);
+              insertInstructionValueIssueCycle(U, NewInstructionIssueCycle+Latency);
             }
-            if(dyn_cast<CallInst>(i)){
+            if(dyn_cast<CallInst>(U)){
 #ifdef DEBUG_DEPS_FUNCTION_CALL
               DEBUG(dbgs() << "The use is a call to function\n");
 #endif
-              CS = CallSite(i);
+              CS = CallSite(U);
               F = CS.getCalledFunction();
               // Loop over the arguments of the called function --- From Execution.cpp
               NumArgs = CS.arg_size();
