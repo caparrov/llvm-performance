@@ -2342,8 +2342,8 @@ void Interpreter::run() {
   bool TargetFunctionExecuted = false;
   
   //VCA
-  clock_t tStart, tEnd;
-  float Cycles, ExecutionTime;
+  clock_t tStart, tEnd, tStartPostProcessing, tEndPostProcessing;
+  float Cycles, ExecutionTime, CyclesPostProcessing, ExecutionTimePostProcessing;
   
   /*
   Analyzer = new DynamicAnalysis(TargetFunction, MemoryWordSize, CacheLineSize, L1CacheSize, L2CacheSize, LLCCacheSize, FLatency, MLatency, FlopIssueThroughput, FlopIssueWidth, MemAccessGranularity, MemIssueThroughput, MemIssueWidth, AddressGenerationUnits, IFB, ReservationStation, ReorderBuffer, LoadBuffer, StoreBuffer, LineFillBuffer, WarmCache, x86MemoryModel, SpatialPrefetcher, ConstraintThroughput, 0, InOrderExecution);
@@ -2451,7 +2451,12 @@ void Interpreter::run() {
           ExecutionTime = Cycles / CLOCKS_PER_SEC;
           if (!(WarmCache && Analyzer->rep == 0)) {
 
+             tStartPostProcessing = clock();
             Analyzer->finishAnalysis();
+            tEndPostProcessing = clock();
+            CyclesPostProcessing = ((float)tEndPostProcessing - (float)tStartPostProcessing);
+            ExecutionTimePostProcessing = CyclesPostProcessing / CLOCKS_PER_SEC;
+            dbgs() << "Execution time Post processing " << ExecutionTimePostProcessing << " s\n";
           }else{
 
       TargetFunctionExecuted= true;
