@@ -1197,7 +1197,7 @@ return NULL;    }
         --me;
       IL->LowerIntrinsicCall(cast<CallInst>(CS.getInstruction()));
         // Here instruction is still well-formed
-        dbgs() << *SF.CurInst << "\n";
+      //  dbgs() << *SF.CurInst << "\n";
 
       // Restore the CurInst pointer to the first instruction newly inserted, if
       // any.
@@ -1207,7 +1207,7 @@ return NULL;    }
         SF.CurInst = me;
         ++SF.CurInst;
       }
-        dbgs() << *SF.CurInst << "\n";
+   //     dbgs() << *SF.CurInst << "\n";
       return NULL;
     }
 
@@ -2345,9 +2345,7 @@ void Interpreter::run() {
   clock_t tStart, tEnd, tStartPostProcessing, tEndPostProcessing;
   float Cycles, ExecutionTime, CyclesPostProcessing, ExecutionTimePostProcessing;
   
-  /*
-  Analyzer = new DynamicAnalysis(TargetFunction, MemoryWordSize, CacheLineSize, L1CacheSize, L2CacheSize, LLCCacheSize, FLatency, MLatency, FlopIssueThroughput, FlopIssueWidth, MemAccessGranularity, MemIssueThroughput, MemIssueWidth, AddressGenerationUnits, IFB, ReservationStation, ReorderBuffer, LoadBuffer, StoreBuffer, LineFillBuffer, WarmCache, x86MemoryModel, SpatialPrefetcher, ConstraintThroughput, 0, InOrderExecution);
-  */
+
   
   Analyzer = new DynamicAnalysis(TargetFunction, Microarchitecture, MemoryWordSize, CacheLineSize, L1CacheSize, L2CacheSize, LLCCacheSize, ExecutionUnitsLatency, ExecutionUnitsThroughput, ExecutionUnitsParallelIssue, MemAccessGranularity, AddressGenerationUnits, IFB, ReservationStation, ReorderBuffer, LoadBuffer, StoreBuffer, LineFillBuffer, WarmCache, x86MemoryModel, SpatialPrefetcher, ConstraintPorts, ConstraintAGUs, 0, InOrderExecution,ReportOnlyPerformance,PrefetchLevel, PrefetchDispatch, PrefetchTarget);
   
@@ -2415,13 +2413,13 @@ void Interpreter::run() {
         //DEBUG(dbgs() << "Source code line " << SourceCodeLine << "\n");
       }
       if (isCallInstruction) {
-        /*
-         Make sure it is not a C++ built-in function (check llvm-nm.cpp to see how
-         to distinguish different function types, e.g., declared functions vs. defined function).
+        
+        // Make sure it is not a C++ built-in function (check llvm-nm.cpp to see how
+         //to distinguish different function types, e.g., declared functions vs. defined function).
          
-         Check first if the called function is a function, to avoid
-         segmentation faults in instructions like this one:
-         %call31.i.i.i = call i8* %49(i8* %50, i32 %mul29.i.i.i, i32 1) nounwind*/
+        // Check first if the called function is a function, to avoid
+        // segmentation faults in instructions like this one:
+        // %call31.i.i.i = call i8* %49(i8* %50, i32 %mul29.i.i.i, i32 1) nounwind
         if(static_cast<CallInst&>(I).getCalledFunction()){
           if(!static_cast<CallInst&>(I).getCalledFunction()->isDeclaration()){
             Analyzer->FunctionCallStack++;
@@ -2513,5 +2511,6 @@ DEBUG(
   Cycles = ((float)tEnd - (float)tStart);
   ExecutionTime = Cycles / CLOCKS_PER_SEC;
   dbgs() << "Total Execution time " << ExecutionTime << " s\n";
+  
   
 }
