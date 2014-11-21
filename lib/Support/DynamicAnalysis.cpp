@@ -78,6 +78,11 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
 
   BitsPerCacheLine = log2(this->CacheLineSize * (this->MemoryWordSize));
 
+   // If caches sizes are not multiple of a power of 2, force it.
+	this->L1CacheSize = roundNextPowerOfTwo(this->L1CacheSize);
+this->L2CacheSize = roundNextPowerOfTwo(this->L2CacheSize);
+this->LLCCacheSize = roundNextPowerOfTwo(this->LLCCacheSize);
+
   // In reality is if L2, but need to specify the size for the reuse disrance
   switch (PrefetchLevel) {
     case 1:
@@ -1633,6 +1638,7 @@ DynamicAnalysis::GetExtendedInstructionType(int OpCode, int ReuseDistance){
         return L2_LOAD_NODE;
       if ((int)L2CacheSize < ReuseDistance && (ReuseDistance <= (int)LLCCacheSize && LLCCacheSize != 0))
         return L3_LOAD_NODE;
+report_fatal_error("Instruction type not associated with a node");
       break;
       
     case Instruction::Store:
@@ -1649,6 +1655,7 @@ DynamicAnalysis::GetExtendedInstructionType(int OpCode, int ReuseDistance){
       
       if ((int)L2CacheSize < ReuseDistance && (ReuseDistance <= (int)LLCCacheSize && LLCCacheSize != 0))
         return L3_STORE_NODE;
+report_fatal_error("Instruction type not associated with a node");
       break;
       
     default:
