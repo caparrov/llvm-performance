@@ -3057,13 +3057,10 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
     // EVERY INSTRUCTION IN THE RESERVATION STATION IS ALSO IN THE REORDER BUFFER
     DEBUG(dbgs()<<  I<< " ("<< &I <<")\n");
     if (InstructionType >= 0) {
-      //  DEBUG(dbgs()<<  I<< "\n");
-      // DEBUG(dbgs()<<  &I<< "\n");
-      
-      instructionPool.push_back(&I);
+     
       
       //   if (ReservationStationIssueCycles.size() == (unsigned)ReservationStationSize) {
-      if (RemainingInstructionsFetch == 0 || RemainingInstructionsFetch == INF||
+      if (RemainingInstructionsFetch == 0 || /*RemainingInstructionsFetch == INF||*/
           (ReorderBufferCompletionCycles.size() == (unsigned)ReorderBufferSize && ReorderBufferSize != 0)
           || (ReservationStationIssueCycles.size() == (unsigned)ReservationStationSize && ReservationStationSize != 0)){
         
@@ -4259,15 +4256,7 @@ DynamicAnalysis::printHeaderStat(string Header){
 void
 DynamicAnalysis::finishAnalysis(){
   
-  
-  /*
-   for (int j = 0; j< instructionPool.size(); j++) {
-   dbgs() << *instructionPool[j] << "\n";
-   for(Value::use_iterator i = (*instructionPool[j]).use_begin(), ie = (*instructionPool[j]).use_end(); i!=ie; ++i){
-   dbgs() << "Use of the instruction " << *(*i) << "\n";
-   }
-   }
-   */
+
   
   bool PrintWarning = false;
   unsigned long long TotalSpan = 0;
