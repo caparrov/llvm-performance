@@ -5,7 +5,7 @@
 //  Vtetoria Caparros Cabezas <caparrov@inf.ethz.ch>
 //===----------------------------------------------------------------------===//
 
-//#define INTERPRETER
+#define INTERPRETER
 
 #ifdef INTERPRETER
 #include "llvm/Support/DynamicAnalysis.h"
@@ -1345,6 +1345,7 @@ DynamicAnalysis::ReuseDistance(uint64_t Last, uint64_t Current, uint64_t address
   int Distance = -1;
   int PrefetchReuseTreeDistance = 0;
   // if (!(WarmCache && rep == 0))
+if(L1CacheSize != 0){ // Otherwise, does not matter the distance, it is mem access
   
   DEBUG(dbgs() << "Size of reuse tree " << node_size(ReuseTree) << "\n");
   
@@ -1434,7 +1435,11 @@ DynamicAnalysis::ReuseDistance(uint64_t Last, uint64_t Current, uint64_t address
   // if (!(WarmCache && rep == 0))
   DEBUG(dbgs() << "Memory op reuse distance " << Distance << "\n");
 #endif
+}else{
+ReuseTree = insert_node(address,ReuseTree, address);
+}
   return Distance;
+
 }
 
 
@@ -1562,8 +1567,18 @@ DynamicAnalysis::roundNextMultiple(uint64_t num, int factor){
 unsigned
 DynamicAnalysis::GetMemoryInstructionType(int ReuseDistance, uint64_t MemoryAddress, bool isLoad){
   
-  if (ReuseDistance < 0 )
-    return MEM_LOAD_NODE;
+  if (ReuseDistance < 0 ){
+if(L1CacheSize == 0){
+dbgs() << "L1CacheSize == 0\n";
+ if (isLoad ==true)
+      return L1_LOAD_NODE;
+    else
+      return L1_STORE_NODE;
+}else{
+	  return MEM_LOAD_NODE;
+dbgs() << "L1CacheSize != 0\n";
+}  
+}
   
   if (ReuseDistance <= (int)L1CacheSize){
     if (isLoad ==true)
@@ -1606,6 +1621,9 @@ DynamicAnalysis::GetExtendedInstructionType(int OpCode, int ReuseDistance){
       return  VECTOR_SHUFFLE_NODE;
       
     case Instruction::Load:
+	
+		if (ReuseDistance < 0 && L1CacheSize == 0)
+			return L1_LOAD_NODE;
       
       if (ReuseDistance < 0 || (ReuseDistance > (int)LLCCacheSize && LLCCacheSize != 0))
         return MEM_LOAD_NODE;
@@ -1618,6 +1636,10 @@ DynamicAnalysis::GetExtendedInstructionType(int OpCode, int ReuseDistance){
       break;
       
     case Instruction::Store:
+
+	if (ReuseDistance < 0 && L1CacheSize == 0)
+			return L1_STORE_NODE;
+
       if (ReuseDistance < 0 || (ReuseDistance > (int)LLCCacheSize && LLCCacheSize != 0))
         return MEM_STORE_NODE;
       if (ReuseDistance <= (int)L1CacheSize)
@@ -2856,7 +2878,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
   
   
   
-  
+   // DEBUG(dbgs()<<  I<< " ("<< &I <<")\n");
   int k = 0;
   int Distance;
   int NextCacheLineExtendedInstructionType;
@@ -4413,6 +4435,7 @@ DynamicAnalysis::finishAnalysis(){
       dbgs () << "\n";
     }
 #endif
+	dbgs() << "DATA_SET_SIZE\t" << node_size(ReuseTree) << "\n";
     
     printHeaderStat("Statistics");
     
