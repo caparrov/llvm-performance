@@ -1160,10 +1160,13 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
   unsigned AccessWidth = AccessWidths[ExecutionResource];
   
 #ifdef DEBUG_ISSUE_CYCLE
+//DELETED DEBUG COMMENT
+/*
   DEBUG(dbgs() << "AccessGranularities[ExtendedInstructionType] " <<  AccessGranularities[ExecutionResource] << "\n");
   DEBUG(dbgs() << "NElementsVector " << NElementsVector << "\n");
   DEBUG(dbgs() << "Bytes accessed " << AccessWidth << "\n");
   DEBUG(dbgs() << "AccessWidth " << AccessWidth << "\n");
+*/
 #endif
   
   if (FirstIssue[ExecutionResource]==true) {
@@ -1188,13 +1191,11 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
   
   DEBUG(dbgs() << "Inserting next available issue cycle "<< NextAvailableCycle <<" in execution unit "<< ResourcesNames[ExecutionResource] <<" for Instruction type "<< NodesNames[ExtendedInstructionType]<<"\n");
   
-  DEBUG(dbgs() << "Size of AvailableCyclesTree "<< AvailableCyclesTree.size()<<"\n");
-  DEBUG(dbgs() << "Accessing element at position "<< ExecutionResource<<"\n");
-  
+ 
   AvailableCyclesTree[ExecutionResource] = insert_node(NextAvailableCycle,  AvailableCyclesTree[ExecutionResource]);
   Node = AvailableCyclesTree[ExecutionResource];
   
-  DEBUG(dbgs() << "Checking execution units throughput\n");
+
   
   //TODO: clean this up
   if (ExecutionUnitsThroughput[ExecutionResource] < 1) {
@@ -1227,20 +1228,22 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
       Node->widthOccupancy += AccessWidth;
     }
   }
-  
+//DELETED DEBUG COMMENT
+  /*
   DEBUG(dbgs() << " Node->OccupancyPrefetch " <<  Node->occupancyPrefetch << "\n");
   DEBUG(dbgs() << " Node->issueOccupancy " <<  Node->issueOccupancy << "\n");
   DEBUG(dbgs() << " Node->widthOccupancy " <<  Node->widthOccupancy << "\n");
-  
+  */
   /* Copy these values becasue later on the Node is not the same anymore */
   NodeIssueOccupancy = Node->issueOccupancy;
   NodeWidthOccupancy = Node->widthOccupancy;
   NodeOccupancyPrefetch = Node->occupancyPrefetch;
   MaxOccupancy[ExecutionResource] = max(MaxOccupancy[ExecutionResource], NodeIssueOccupancy + NodeOccupancyPrefetch);
-  
+  //DELETED DEBUG COMMENT
+/*
   DEBUG(dbgs() << "NodeIssueOccupancy " << NodeIssueOccupancy << "\n");
   DEBUG(dbgs() << "ExecutionUnitsParallelIssue[ExecutionResource] " << ExecutionUnitsParallelIssue[ExecutionResource] << "\n");
-  
+  */
   
   // If ExecutionUnitsThroughput is INF, the level never gets full
   
