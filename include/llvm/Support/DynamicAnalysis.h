@@ -469,6 +469,7 @@ public:
   vector<uint64_t> ReservationStationIssueCycles;
   deque<uint64_t> ReorderBufferCompletionCycles;
   vector<uint64_t> LoadBufferCompletionCycles;
+  Tree<uint64_t> LoadBufferCompletionCycles;
   vector<uint64_t> StoreBufferCompletionCycles;
   vector<uint64_t> LineFillBufferCompletionCycles;
   vector<InstructionDispatchInfo> DispatchToLoadBufferQueue;
@@ -601,7 +602,6 @@ public:
   
   
   vector<Instruction*> instructionPool;
-  int count=0;
   
   
   void analyze();
@@ -632,6 +632,7 @@ public:
   bool InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsigned ExecutionResource, uint64_t ExtendedInstructionType,
                                      unsigned NElementsVector = 1, bool isPrefetch=0);
   
+  void IncreaseInstructionFetchCycle();
   
   unsigned CalculateIssueCycleGranularity(unsigned ExecutionResource, unsigned NElementsVector=1);
   

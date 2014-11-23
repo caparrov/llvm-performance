@@ -75,14 +75,14 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
   this->ReportOnlyPerformance = ReportOnlyPerformance;
   this->rep = rep;
   
-
+  
   BitsPerCacheLine = log2(this->CacheLineSize * (this->MemoryWordSize));
-
-   // If caches sizes are not multiple of a power of 2, force it.
-	this->L1CacheSize = roundNextPowerOfTwo(this->L1CacheSize);
-this->L2CacheSize = roundNextPowerOfTwo(this->L2CacheSize);
-this->LLCCacheSize = roundNextPowerOfTwo(this->LLCCacheSize);
-
+  
+  // If caches sizes are not multiple of a power of 2, force it.
+  this->L1CacheSize = roundNextPowerOfTwo(this->L1CacheSize);
+  this->L2CacheSize = roundNextPowerOfTwo(this->L2CacheSize);
+  this->LLCCacheSize = roundNextPowerOfTwo(this->LLCCacheSize);
+  
   // In reality is if L2, but need to specify the size for the reuse disrance
   switch (PrefetchLevel) {
     case 1:
@@ -1160,13 +1160,13 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
   unsigned AccessWidth = AccessWidths[ExecutionResource];
   
 #ifdef DEBUG_ISSUE_CYCLE
-//DELETED DEBUG COMMENT
-/*
-  DEBUG(dbgs() << "AccessGranularities[ExtendedInstructionType] " <<  AccessGranularities[ExecutionResource] << "\n");
-  DEBUG(dbgs() << "NElementsVector " << NElementsVector << "\n");
-  DEBUG(dbgs() << "Bytes accessed " << AccessWidth << "\n");
-  DEBUG(dbgs() << "AccessWidth " << AccessWidth << "\n");
-*/
+  //DELETED DEBUG COMMENT
+  /*
+   DEBUG(dbgs() << "AccessGranularities[ExtendedInstructionType] " <<  AccessGranularities[ExecutionResource] << "\n");
+   DEBUG(dbgs() << "NElementsVector " << NElementsVector << "\n");
+   DEBUG(dbgs() << "Bytes accessed " << AccessWidth << "\n");
+   DEBUG(dbgs() << "AccessWidth " << AccessWidth << "\n");
+   */
 #endif
   
   if (FirstIssue[ExecutionResource]==true) {
@@ -1191,11 +1191,11 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
   
   DEBUG(dbgs() << "Inserting next available issue cycle "<< NextAvailableCycle <<" in execution unit "<< ResourcesNames[ExecutionResource] <<" for Instruction type "<< NodesNames[ExtendedInstructionType]<<"\n");
   
- 
+  
   AvailableCyclesTree[ExecutionResource] = insert_node(NextAvailableCycle,  AvailableCyclesTree[ExecutionResource]);
   Node = AvailableCyclesTree[ExecutionResource];
   
-
+  
   
   //TODO: clean this up
   if (ExecutionUnitsThroughput[ExecutionResource] < 1) {
@@ -1228,22 +1228,22 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
       Node->widthOccupancy += AccessWidth;
     }
   }
-//DELETED DEBUG COMMENT
+  //DELETED DEBUG COMMENT
   /*
-  DEBUG(dbgs() << " Node->OccupancyPrefetch " <<  Node->occupancyPrefetch << "\n");
-  DEBUG(dbgs() << " Node->issueOccupancy " <<  Node->issueOccupancy << "\n");
-  DEBUG(dbgs() << " Node->widthOccupancy " <<  Node->widthOccupancy << "\n");
-  */
+   DEBUG(dbgs() << " Node->OccupancyPrefetch " <<  Node->occupancyPrefetch << "\n");
+   DEBUG(dbgs() << " Node->issueOccupancy " <<  Node->issueOccupancy << "\n");
+   DEBUG(dbgs() << " Node->widthOccupancy " <<  Node->widthOccupancy << "\n");
+   */
   /* Copy these values becasue later on the Node is not the same anymore */
   NodeIssueOccupancy = Node->issueOccupancy;
   NodeWidthOccupancy = Node->widthOccupancy;
   NodeOccupancyPrefetch = Node->occupancyPrefetch;
   MaxOccupancy[ExecutionResource] = max(MaxOccupancy[ExecutionResource], NodeIssueOccupancy + NodeOccupancyPrefetch);
   //DELETED DEBUG COMMENT
-/*
-  DEBUG(dbgs() << "NodeIssueOccupancy " << NodeIssueOccupancy << "\n");
-  DEBUG(dbgs() << "ExecutionUnitsParallelIssue[ExecutionResource] " << ExecutionUnitsParallelIssue[ExecutionResource] << "\n");
-  */
+  /*
+   DEBUG(dbgs() << "NodeIssueOccupancy " << NodeIssueOccupancy << "\n");
+   DEBUG(dbgs() << "ExecutionUnitsParallelIssue[ExecutionResource] " << ExecutionUnitsParallelIssue[ExecutionResource] << "\n");
+   */
   
   // If ExecutionUnitsThroughput is INF, the level never gets full
   
@@ -1353,101 +1353,101 @@ DynamicAnalysis::ReuseDistance(uint64_t Last, uint64_t Current, uint64_t address
   int Distance = -1;
   int PrefetchReuseTreeDistance = 0;
   // if (!(WarmCache && rep == 0))
-if(L1CacheSize != 0){ // Otherwise, does not matter the distance, it is mem access
-  
-  DEBUG(dbgs() << "Size of reuse tree " << node_size(ReuseTree) << "\n");
-  
-  int ReuseTreeDistance = ReuseTreeSearchDelete(Last, address, false);
-  
-  //if (!(WarmCache && rep == 0))
-  DEBUG(dbgs() << "Memory op reuse distance in ReuseTree " << ReuseTreeDistance << "\n");
-  
-  if (SpatialPrefetcher == true) {
-    bool IsInPrefetchReuseTree = false;
-    // To know whether the data item was in PrefetchReuseTree or not, we check whether the
-    // element has been removed from the tree (i.e., the size of the tree).
-    //int PrefetchReuseTreeSizeBefore = tree_size(PrefetchReuseTree);
-    int PrefetchReuseTreeSizeBefore = PrefetchReuseTreeSize;
-    PrefetchReuseTreeDistance = ReuseTreeSearchDelete(Last, address, true);
-    //  if (!(WarmCache && rep == 0))
+  if(L1CacheSize != 0){ // Otherwise, does not matter the distance, it is mem access
     
-    DEBUG(dbgs() << "PrefetchReuseTreeDistance  "<<PrefetchReuseTreeDistance<<"\n");
+    DEBUG(dbgs() << "Size of reuse tree " << node_size(ReuseTree) << "\n");
     
-    // int PrefetchReuseTreeSizeAfter = tree_size(PrefetchReuseTree);
-    int PrefetchReuseTreeSizeAfter = PrefetchReuseTreeSize;
+    int ReuseTreeDistance = ReuseTreeSearchDelete(Last, address, false);
     
-    if (PrefetchReuseTreeSizeAfter < PrefetchReuseTreeSizeBefore){
-      //   if (!(WarmCache && rep == 0))
-      DEBUG(dbgs() << "PREFETCHED DATA ITEM\n");
-      IsInPrefetchReuseTree = true;
-    }else{
-      // if (!(WarmCache && rep == 0))
-      DEBUG(dbgs() << "This data item has not been prefetched\n");
-    }
-    if (IsInPrefetchReuseTree == false ) {
-      if (ReuseTreeDistance > 0 && (uint64_t)ReuseTreeDistance >= PrefetchLevel) {
-        if (PrefetchReuseTreeDistance >= 0) {
-          Distance = ReuseTreeDistance + PrefetchReuseTreeDistance;
-        }else
-          Distance = ReuseTreeDistance; // In case PrefetchReuseTreeDistance returns -1
-      }else{
-        // If is not a prefetched node and ReuseTreeDistance = -1 or is
-        // not a prefetched node and ReuseDistance < L2CacheSize
-        Distance = ReuseTreeDistance;
-      }
-    }else{
-      // if (!(WarmCache && rep == 0))
-      DEBUG(dbgs() << "The element is in prefetch tree\n");
+    //if (!(WarmCache && rep == 0))
+    DEBUG(dbgs() << "Memory op reuse distance in ReuseTree " << ReuseTreeDistance << "\n");
+    
+    if (SpatialPrefetcher == true) {
+      bool IsInPrefetchReuseTree = false;
+      // To know whether the data item was in PrefetchReuseTree or not, we check whether the
+      // element has been removed from the tree (i.e., the size of the tree).
+      //int PrefetchReuseTreeSizeBefore = tree_size(PrefetchReuseTree);
+      int PrefetchReuseTreeSizeBefore = PrefetchReuseTreeSize;
+      PrefetchReuseTreeDistance = ReuseTreeSearchDelete(Last, address, true);
+      //  if (!(WarmCache && rep == 0))
       
-      // If the data item is a prefetched data item (found in PrefetchReuseTree)
-      Distance = PrefetchLevel;
-      //   if (!(WarmCache && rep == 0))
-      DEBUG(dbgs() << "Distance "<<Distance<<"\n");
-      if (ReuseTreeDistance >=0) {
-        Distance += ReuseTreeDistance;
-        //  if (!(WarmCache && rep == 0))
-        DEBUG(dbgs() << "Increasing distance to  "<<Distance<<"\n");
+      DEBUG(dbgs() << "PrefetchReuseTreeDistance  "<<PrefetchReuseTreeDistance<<"\n");
+      
+      // int PrefetchReuseTreeSizeAfter = tree_size(PrefetchReuseTree);
+      int PrefetchReuseTreeSizeAfter = PrefetchReuseTreeSize;
+      
+      if (PrefetchReuseTreeSizeAfter < PrefetchReuseTreeSizeBefore){
+        //   if (!(WarmCache && rep == 0))
+        DEBUG(dbgs() << "PREFETCHED DATA ITEM\n");
+        IsInPrefetchReuseTree = true;
       }else{
-        // The data item has only been prefetched. In that case, the distance is
-        // the size of L2 plus the data items prefetched since the last access
+        // if (!(WarmCache && rep == 0))
+        DEBUG(dbgs() << "This data item has not been prefetched\n");
       }
-      if (PrefetchReuseTreeDistance >=0) {
-        Distance += PrefetchReuseTreeDistance;
-        //  if (!(WarmCache && rep == 0))
-        DEBUG(dbgs() << "Increasing distance to  "<<Distance<<"\n");
+      if (IsInPrefetchReuseTree == false ) {
+        if (ReuseTreeDistance > 0 && (uint64_t)ReuseTreeDistance >= PrefetchLevel) {
+          if (PrefetchReuseTreeDistance >= 0) {
+            Distance = ReuseTreeDistance + PrefetchReuseTreeDistance;
+          }else
+            Distance = ReuseTreeDistance; // In case PrefetchReuseTreeDistance returns -1
+        }else{
+          // If is not a prefetched node and ReuseTreeDistance = -1 or is
+          // not a prefetched node and ReuseDistance < L2CacheSize
+          Distance = ReuseTreeDistance;
+        }
+      }else{
+        // if (!(WarmCache && rep == 0))
+        DEBUG(dbgs() << "The element is in prefetch tree\n");
         
-      }else{
-        report_fatal_error("The data item is prefetched, PrefetchReuseTreeDistance >=0, but data item does not seem to be in PrefetchReuseTree");
+        // If the data item is a prefetched data item (found in PrefetchReuseTree)
+        Distance = PrefetchLevel;
+        //   if (!(WarmCache && rep == 0))
+        DEBUG(dbgs() << "Distance "<<Distance<<"\n");
+        if (ReuseTreeDistance >=0) {
+          Distance += ReuseTreeDistance;
+          //  if (!(WarmCache && rep == 0))
+          DEBUG(dbgs() << "Increasing distance to  "<<Distance<<"\n");
+        }else{
+          // The data item has only been prefetched. In that case, the distance is
+          // the size of L2 plus the data items prefetched since the last access
+        }
+        if (PrefetchReuseTreeDistance >=0) {
+          Distance += PrefetchReuseTreeDistance;
+          //  if (!(WarmCache && rep == 0))
+          DEBUG(dbgs() << "Increasing distance to  "<<Distance<<"\n");
+          
+        }else{
+          report_fatal_error("The data item is prefetched, PrefetchReuseTreeDistance >=0, but data item does not seem to be in PrefetchReuseTree");
+        }
       }
+      
+      // In the rest of the cases (ReuseTreeDistance > 0 && ReuseTreeDistance)
+    }else
+      Distance = ReuseTreeDistance;
+    
+#ifdef ROUND_REUSE_DISTANCE
+    if(Distance >= 0)
+      Distance = roundNextPowerOfTwo(Distance);
+#endif
+    
+    // Get a pointer to the resulting tree
+    if (FromPrefetchReuseTree == false) {
+      ReuseTree = insert_node(Current, ReuseTree, address);
+      
+    }else{
+      PrefetchReuseTree = insert_node(Current, PrefetchReuseTree, address);
+      PrefetchReuseTreeSize++;
     }
     
-    // In the rest of the cases (ReuseTreeDistance > 0 && ReuseTreeDistance)
-  }else
-    Distance = ReuseTreeDistance;
-  
-#ifdef ROUND_REUSE_DISTANCE
-  if(Distance >= 0)
-    Distance = roundNextPowerOfTwo(Distance);
-#endif
-  
-  // Get a pointer to the resulting tree
-  if (FromPrefetchReuseTree == false) {
-    ReuseTree = insert_node(Current, ReuseTree, address);
-    
-  }else{
-    PrefetchReuseTree = insert_node(Current, PrefetchReuseTree, address);
-    PrefetchReuseTreeSize++;
-  }
-  
 #ifdef DEBUG_REUSE_DISTANCE
-  // if (!(WarmCache && rep == 0))
-  DEBUG(dbgs() << "Memory op reuse distance " << Distance << "\n");
+    // if (!(WarmCache && rep == 0))
+    DEBUG(dbgs() << "Memory op reuse distance " << Distance << "\n");
 #endif
-}else{
-ReuseTree = insert_node(address,ReuseTree, address);
-}
+  }else{
+    ReuseTree = insert_node(address,ReuseTree, address);
+  }
   return Distance;
-
+  
 }
 
 
@@ -1576,17 +1576,17 @@ unsigned
 DynamicAnalysis::GetMemoryInstructionType(int ReuseDistance, uint64_t MemoryAddress, bool isLoad){
   
   if (ReuseDistance < 0 ){
-if(L1CacheSize == 0){
-dbgs() << "L1CacheSize == 0\n";
- if (isLoad ==true)
-      return L1_LOAD_NODE;
-    else
-      return L1_STORE_NODE;
-}else{
-	  return MEM_LOAD_NODE;
-dbgs() << "L1CacheSize != 0\n";
-}  
-}
+    if(L1CacheSize == 0){
+      dbgs() << "L1CacheSize == 0\n";
+      if (isLoad ==true)
+        return L1_LOAD_NODE;
+      else
+        return L1_STORE_NODE;
+    }else{
+      return MEM_LOAD_NODE;
+      dbgs() << "L1CacheSize != 0\n";
+    }
+  }
   
   if (ReuseDistance <= (int)L1CacheSize){
     if (isLoad ==true)
@@ -1629,9 +1629,9 @@ DynamicAnalysis::GetExtendedInstructionType(int OpCode, int ReuseDistance){
       return  VECTOR_SHUFFLE_NODE;
       
     case Instruction::Load:
-	
-		if (ReuseDistance < 0 && L1CacheSize == 0)
-			return L1_LOAD_NODE;
+      
+      if (ReuseDistance < 0 && L1CacheSize == 0)
+        return L1_LOAD_NODE;
       
       if (ReuseDistance < 0 || (ReuseDistance > (int)LLCCacheSize && LLCCacheSize != 0))
         return MEM_LOAD_NODE;
@@ -1641,14 +1641,14 @@ DynamicAnalysis::GetExtendedInstructionType(int OpCode, int ReuseDistance){
         return L2_LOAD_NODE;
       if ((int)L2CacheSize < ReuseDistance && (ReuseDistance <= (int)LLCCacheSize && LLCCacheSize != 0))
         return L3_LOAD_NODE;
-report_fatal_error("Instruction type not associated with a node");
+      report_fatal_error("Instruction type not associated with a node");
       break;
       
     case Instruction::Store:
-
-	if (ReuseDistance < 0 && L1CacheSize == 0)
-			return L1_STORE_NODE;
-
+      
+      if (ReuseDistance < 0 && L1CacheSize == 0)
+        return L1_STORE_NODE;
+      
       if (ReuseDistance < 0 || (ReuseDistance > (int)LLCCacheSize && LLCCacheSize != 0))
         return MEM_STORE_NODE;
       if (ReuseDistance <= (int)L1CacheSize)
@@ -1658,7 +1658,7 @@ report_fatal_error("Instruction type not associated with a node");
       
       if ((int)L2CacheSize < ReuseDistance && (ReuseDistance <= (int)LLCCacheSize && LLCCacheSize != 0))
         return L3_STORE_NODE;
-report_fatal_error("Instruction type not associated with a node");
+      report_fatal_error("Instruction type not associated with a node");
       break;
       
     default:
@@ -2707,6 +2707,70 @@ DynamicAnalysis::FindIssueCycleWhenLoadBufferIsFull(){
   if ( BufferSize== 0) {
     return GetMinCompletionCycleLoadBuffer();
   }else{
+    
+     // Iterate through the DispathToLoadBufferQueue and get the
+     // largest dispatch cycle. The new load cannot be dispatched
+     // untill all previous in Dispatch Queue have been dispatched.
+     // At the same time,
+    uint64_t EarliestDispatchCycle  = 0;
+   
+     for(vector<InstructionDispatchInfo>::iterator it = DispatchToLoadBufferQueue.begin();
+     it != DispatchToLoadBufferQueue.end(); ++it){
+       EarliestDispatchCycle = max(EarliestDispatchCycle, (*it).IssueCycle);
+     }
+    
+    //Traverse LB and count how many elements are there smaller than EarliestDispathCycle
+    unsigned counter = 0;
+    for(vector<uint64_t>::iterator it = LoadBufferCompletionCycles.begin();
+        it != LoadBufferCompletionCycles.end(); ++it){
+      if ((*it) <= EarliestDispatchCycle)
+        counter++;
+    }
+    uint64_t IssueCycle = 0;
+    // This means that in LB, there are more loads that terminate before or in
+    // my dispatch cycle -> IssueCycle is Earliest
+    if (counter > BufferSize) {
+      IssueCycle = EarliestDispatchCycle;
+    }else{
+      if (counter == BufferSize) {
+        // Iterate thtough both, DispatchBufferQueue and LB to determine the smallest
+        // completion cycle which is larger than EarliestDispatchCycle.
+        // Initialize with the Completion cycle of the last element of the
+        // DispatchToLoadBufferQueue
+        IssueCycle = DispatchToLoadBufferQueue.back().CompletionCycle;
+        for(vector<InstructionDispatchInfo>::iterator it = DispatchToLoadBufferQueue.begin();
+            it != DispatchToLoadBufferQueue.end(); ++it){
+          if ((*it).CompletionCycle > EarliestDispatchCycle)
+            IssueCycle = min(IssueCycle,(*it).CompletionCycle);
+        }
+        
+        // We have to also iterate over the completion cycles of the LB even
+        // if there are more elements in the DispatchQueue than the size
+        // of the LB. Because it can happen than all the elements of the
+        // DispatchQueue are complemente even before than an element in the
+        // LB which is waiting very long for a resource.
+        // We could, nevertheless, simplify it. We can keep the max and
+        // the min completion cycle always. If the max completion cycle
+        // is smaller than the EarliestDispatchCycle, then it is not necessary
+        // to iterate over the LB.
+        for(vector<uint64_t>::iterator it = LoadBufferCompletionCycles.begin();
+            it != LoadBufferCompletionCycles.end(); ++it){
+          if ((*it) > EarliestDispatchCycle+1)
+            IssueCycle = min(IssueCycle,*it);
+        }
+        
+      }else{
+        report_fatal_error("Error in Dispatch to Load Buffer Queue");
+
+      }
+    }
+    
+   
+    
+    // The idea before was that the lower "BufferSize" elements of the sorted
+    // LB are associated to the dipatch cycles of the elements in the DispatchQueue.
+    // But this sorting is very exepensive.
+       /*
     if (BufferSize >= (unsigned)LoadBufferSize) {
       // Iterate from end-LineFillBufferSize
       uint64_t EarliestCompletion = DispatchToLoadBufferQueue.back().CompletionCycle;
@@ -2720,8 +2784,11 @@ DynamicAnalysis::FindIssueCycleWhenLoadBufferIsFull(){
     }else{
       sort(LoadBufferCompletionCycles.begin(), LoadBufferCompletionCycles.end());
       return LoadBufferCompletionCycles[BufferSize];
-    }
+    }*/
+    return IssueCycle;
+
   }
+  
 }
 
 
@@ -2864,6 +2931,217 @@ DynamicAnalysis::PrintDispatchToLineFillBuffer(){
 }
 
 
+
+void
+DynamicAnalysis::IncreaseInstructionFetchCycle(){
+  
+  bool OOOBufferFull = false;
+  unsigned TreeChunk = 0;
+  
+  if (DispatchToLineFillBufferQueue.empty() == false) {
+    if (InstructionsCountExtended[LFB_STALL]==0)
+      FirstIssue[LFB_STALL] = true;
+    if (FirstIssue[LFB_STALL]==true) {
+      FirstNonEmptyLevel[LFB_STALL] = InstructionFetchCycle;
+      FirstIssue[LFB_STALL] = false;
+    }
+    
+    //FirstNonEmptyLevel[LFB_STALL] = (FirstNonEmptyLevel[LFB_STALL]==0)?InstructionFetchCycle:FirstNonEmptyLevel[LFB_STALL];
+    InstructionsLastIssueCycle[LFB_STALL] =InstructionFetchCycle;
+    FullOccupancyCyclesTree[InstructionFetchCycle/SplitTreeRange] = insert_node(InstructionFetchCycle, LFB_STALL, FullOccupancyCyclesTree[InstructionFetchCycle/SplitTreeRange]);
+    InstructionsCountExtended[LFB_STALL]++;
+  }
+  
+  if (DispatchToLoadBufferQueue.empty() == false) {
+    if (InstructionsCountExtended[LB_STALL]==0)
+      FirstIssue[LB_STALL] = true;
+    if (FirstIssue[LB_STALL]==true) {
+      FirstNonEmptyLevel[LB_STALL] = InstructionFetchCycle;
+      FirstIssue[LB_STALL] = false;
+    }
+    //FirstNonEmptyLevel[LB_STALL] = (FirstNonEmptyLevel[LB_STALL]==0)?InstructionFetchCycle:FirstNonEmptyLevel[LB_STALL];
+    InstructionsLastIssueCycle[LB_STALL] =InstructionFetchCycle;
+    FullOccupancyCyclesTree[InstructionFetchCycle/SplitTreeRange] = insert_node(InstructionFetchCycle, LB_STALL, FullOccupancyCyclesTree[InstructionFetchCycle/SplitTreeRange]);
+    InstructionsCountExtended[LB_STALL]++;
+  }
+  
+  if (DispatchToStoreBufferQueue.empty() == false) {
+    if (InstructionsCountExtended[SB_STALL]==0)
+      FirstIssue[SB_STALL] = true;
+    if (FirstIssue[SB_STALL]==true) {
+      FirstNonEmptyLevel[SB_STALL] = InstructionFetchCycle;
+      FirstIssue[SB_STALL] = false;
+    }
+    
+    //FirstNonEmptyLevel[SB_STALL] = (FirstNonEmptyLevel[SB_STALL]==0)?InstructionFetchCycle:FirstNonEmptyLevel[SB_STALL];
+    InstructionsLastIssueCycle[SB_STALL] =InstructionFetchCycle;
+    FullOccupancyCyclesTree[InstructionFetchCycle/SplitTreeRange] = insert_node(InstructionFetchCycle, SB_STALL,FullOccupancyCyclesTree[InstructionFetchCycle/SplitTreeRange]);
+    InstructionsCountExtended[SB_STALL]++;
+  }
+  
+  DEBUG(dbgs() << "_____________________ InstructionFetchCycle "<<InstructionFetchCycle<<"_____________________\n");
+  
+#ifdef MOO_BUFFERS
+#ifdef DEBUG_OOO_BUFFERS
+  PrintReservationStation();
+  PrintReorderBuffer();
+  PrintStoreBuffer();
+  PrintLoadBuffer();
+  PrintLineFillBuffer();
+  PrintDispatchToStoreBuffer();
+  PrintDispatchToLoadBuffer();
+  PrintDispatchToLineFillBuffer();
+#endif
+#endif
+  
+  // Remove from Reservation Stations elements issued at fetch cycle
+  if (ReservationStationSize > 0)
+    RemoveFromReservationStation(InstructionFetchCycle);
+  
+  if (ReorderBufferSize > 0)
+    RemoveFromReorderBuffer(InstructionFetchCycle);
+  
+#ifdef MOO_BUFFERS
+  //Remove from Load, Store and Fill Line Buffers elements completed at issue cycle
+  RemoveFromLoadBuffer(InstructionFetchCycle);
+  RemoveFromStoreBuffer(InstructionFetchCycle);
+  RemoveFromLineFillBuffer(InstructionFetchCycle);
+  RemoveFromDispatchToLoadBufferQueue(InstructionFetchCycle);
+  RemoveFromDispatchToStoreBufferQueue(InstructionFetchCycle);
+  RemoveFromDispatchToLineFillBufferQueue(InstructionFetchCycle);
+  // Insert into LB, SB and LFB the instructions from the dispatch queue.
+  DispatchToLoadBuffer(InstructionFetchCycle);
+  DispatchToStoreBuffer(InstructionFetchCycle);
+  DispatchToLineFillBuffer(InstructionFetchCycle);
+#endif
+  
+#ifdef MOO_BUFFERS
+#ifdef DEBUG_OOO_BUFFERS
+  PrintReservationStation();
+  PrintReorderBuffer();
+  PrintStoreBuffer();
+  PrintLoadBuffer();
+  PrintLineFillBuffer();
+  PrintDispatchToStoreBuffer();
+  PrintDispatchToLoadBuffer();
+  PrintDispatchToLineFillBuffer();
+#endif
+#endif
+  // If Reservation station is full
+  if (ReservationStationIssueCycles.size() == ReservationStationSize && ReservationStationSize > 0) {
+    // Advance InstructionFetchCyle untill min issue cycle
+    OOOBufferFull = true;
+    uint64_t CurrentInstructionFetchCycle = InstructionFetchCycle;
+    InstructionFetchCycle = GetMinIssueCycleReservationStation();
+    
+    if (InstructionFetchCycle>CurrentInstructionFetchCycle+1)
+      FirstNonEmptyLevel[RS_STALL] = (FirstNonEmptyLevel[RS_STALL]==0)?CurrentInstructionFetchCycle+1:FirstNonEmptyLevel[RS_STALL];
+    
+    
+    for (uint64_t i = CurrentInstructionFetchCycle+1; i< InstructionFetchCycle; i++) {
+      TreeChunk =i/SplitTreeRange;
+      if (TreeChunk >= (unsigned)FullOccupancyCyclesTree.size()) {
+        for (unsigned j = FullOccupancyCyclesTree.size(); j<= TreeChunk; j++) {
+          DEBUG(dbgs() << "Iserting element in FullOccupancyCyclesTree");
+          FullOccupancyCyclesTree.push_back(NULL);
+        }
+      }
+      FullOccupancyCyclesTree[TreeChunk] = insert_node(i, RS_STALL,FullOccupancyCyclesTree[TreeChunk]);
+      InstructionsCountExtended[RS_STALL]++;
+      InstructionsLastIssueCycle[RS_STALL] =i;
+    }
+    
+#ifdef DEBUG_OOO_BUFFERS
+    DEBUG(dbgs() << "Updating InstructionFetchCycle to "<<InstructionFetchCycle <<" \n");
+#endif
+  }
+  if (ReorderBufferCompletionCycles.size() == ReorderBufferSize && ReorderBufferSize > 0) {
+    //Advance InstructionFetchCycle to the head of the buffer
+    OOOBufferFull = true;
+    uint64_t CurrentInstructionFetchCycle = InstructionFetchCycle;
+    InstructionFetchCycle = max(InstructionFetchCycle, ReorderBufferCompletionCycles.front());
+    if (InstructionFetchCycle>CurrentInstructionFetchCycle+1) {
+      FirstNonEmptyLevel[ROB_STALL] = (FirstNonEmptyLevel[ROB_STALL]==0)?CurrentInstructionFetchCycle+1:FirstNonEmptyLevel[ROB_STALL];
+    }
+    
+    
+    for (uint64_t i = CurrentInstructionFetchCycle+1; i< InstructionFetchCycle; i++) {
+      // Get the node, if any, corresponding to this issue cycle.
+      TreeChunk =i/SplitTreeRange;
+      if (TreeChunk >= (unsigned)FullOccupancyCyclesTree.size()) {
+        for (unsigned j = FullOccupancyCyclesTree.size(); j<= TreeChunk; j++) {
+          DEBUG(dbgs() << "Iserting element in FullOccupancyCyclesTree");
+          FullOccupancyCyclesTree.push_back(NULL);
+        }
+      }
+      
+      FullOccupancyCyclesTree[TreeChunk] = insert_node(i, ROB_STALL, FullOccupancyCyclesTree[TreeChunk] );
+      InstructionsCountExtended[ROB_STALL]++;
+      InstructionsLastIssueCycle[ROB_STALL] =i;
+    }
+#ifdef DEBUG_OOO_BUFFERS
+    DEBUG(dbgs() << "Updating InstructionFetchCycle to "<<InstructionFetchCycle <<" \n");
+#endif
+  }
+  if (OOOBufferFull==true) {
+    // Remove from Reservation Stations elements issued at fetch cycle
+#ifdef DEBUG_OOO_BUFFERS
+    PrintReservationStation();
+    PrintReorderBuffer();
+#ifdef MOO_BUFFERS
+    PrintStoreBuffer();
+    PrintLoadBuffer();
+    PrintLineFillBuffer();
+    PrintDispatchToStoreBuffer();
+    PrintDispatchToLoadBuffer();
+    PrintDispatchToLineFillBuffer();
+#endif
+#endif
+    
+    RemoveFromReservationStation(InstructionFetchCycle);
+    RemoveFromReorderBuffer(InstructionFetchCycle);
+    
+#ifdef MOO_BUFFERS
+    //Remove from Load, Store and Fill Line Buffers elements completed at issue cycle
+    RemoveFromLoadBuffer(InstructionFetchCycle);
+    RemoveFromStoreBuffer(InstructionFetchCycle);
+    RemoveFromLineFillBuffer(InstructionFetchCycle);
+    RemoveFromDispatchToLoadBufferQueue(InstructionFetchCycle);
+    RemoveFromDispatchToStoreBufferQueue(InstructionFetchCycle);
+    RemoveFromDispatchToLineFillBufferQueue(InstructionFetchCycle);
+    // Insert into LB, SB and LFB the instructions from the dispatch queue.
+    DispatchToLoadBuffer(InstructionFetchCycle);
+    DispatchToStoreBuffer(InstructionFetchCycle);
+    DispatchToLineFillBuffer(InstructionFetchCycle);
+#endif
+    
+#ifdef DEBUG_OOO_BUFFERS
+    PrintReservationStation();
+    PrintReorderBuffer();
+#ifdef MOO_BUFFERS
+    PrintStoreBuffer();
+    PrintLoadBuffer();
+    PrintLineFillBuffer();
+    PrintDispatchToStoreBuffer();
+    PrintDispatchToLoadBuffer();
+    PrintDispatchToLineFillBuffer();
+#endif
+#endif
+  }
+  RemainingInstructionsFetch = InstructionFetchBandwidth;
+  if (OOOBufferFull==false && InstructionFetchBandwidth != INF)
+    InstructionFetchCycle++;
+  
+  BuffersOccupancy[RS_STALL-RS_STALL] += ReservationStationIssueCycles.size();
+  BuffersOccupancy[ROB_STALL-RS_STALL] += ReorderBufferCompletionCycles.size();
+  BuffersOccupancy[LB_STALL-RS_STALL] += LoadBufferCompletionCycles.size();
+  BuffersOccupancy[SB_STALL-RS_STALL] += StoreBufferCompletionCycles.size();
+  BuffersOccupancy[LFB_STALL-RS_STALL] += LineFillBufferCompletionCycles.size();
+  
+  
+}
+
+
 //===----------------------------------------------------------------------===//
 //          Main method for analysis of the instruction properties
 //                    (dependences, reuse, etc.)
@@ -2887,13 +3165,10 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
 {
   
   
-  
-   // DEBUG(dbgs()<<  I<< " ("<< &I <<")\n");
   int k = 0;
   int Distance;
   int NextCacheLineExtendedInstructionType;
   int InstructionType = getInstructionType(I);
-  bool OOOBufferFull = false;
   bool isLoad =true;
   CacheLineInfo Info;
   uint64_t CacheLine = 0;
@@ -2917,7 +3192,6 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
   unsigned NumArgs;
   unsigned ExtendedInstructionType = InstructionType;
   unsigned ExecutionResource = 0;
-  unsigned TreeChunk = 0;
   
   TotalInstructions++;
   
@@ -3066,213 +3340,15 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
     //================= Update Fetch Cycle, remove insts from buffers =========//
     // EVERY INSTRUCTION IN THE RESERVATION STATION IS ALSO IN THE REORDER BUFFER
     DEBUG(dbgs()<<  I<< " ("<< &I <<")\n");
+    
     if (InstructionType >= 0) {
-     
-      
       //   if (ReservationStationIssueCycles.size() == (unsigned)ReservationStationSize) {
       if (RemainingInstructionsFetch == 0 || /*RemainingInstructionsFetch == INF||*/
           (ReorderBufferCompletionCycles.size() == (unsigned)ReorderBufferSize && ReorderBufferSize != 0)
           || (ReservationStationIssueCycles.size() == (unsigned)ReservationStationSize && ReservationStationSize != 0)){
         
-        if (DispatchToLineFillBufferQueue.empty() == false) {
-          if (InstructionsCountExtended[LFB_STALL]==0)
-            FirstIssue[LFB_STALL] = true;
-          if (FirstIssue[LFB_STALL]==true) {
-            FirstNonEmptyLevel[LFB_STALL] = InstructionFetchCycle;
-            FirstIssue[LFB_STALL] = false;
-          }
-          
-          //FirstNonEmptyLevel[LFB_STALL] = (FirstNonEmptyLevel[LFB_STALL]==0)?InstructionFetchCycle:FirstNonEmptyLevel[LFB_STALL];
-          InstructionsLastIssueCycle[LFB_STALL] =InstructionFetchCycle;
-          FullOccupancyCyclesTree[InstructionFetchCycle/SplitTreeRange] = insert_node(InstructionFetchCycle, LFB_STALL, FullOccupancyCyclesTree[InstructionFetchCycle/SplitTreeRange]);
-          InstructionsCountExtended[LFB_STALL]++;
-        }
+        IncreaseInstructionFetchCycle();
         
-        if (DispatchToLoadBufferQueue.empty() == false) {
-          if (InstructionsCountExtended[LB_STALL]==0)
-            FirstIssue[LB_STALL] = true;
-          if (FirstIssue[LB_STALL]==true) {
-            FirstNonEmptyLevel[LB_STALL] = InstructionFetchCycle;
-            FirstIssue[LB_STALL] = false;
-          }
-          //FirstNonEmptyLevel[LB_STALL] = (FirstNonEmptyLevel[LB_STALL]==0)?InstructionFetchCycle:FirstNonEmptyLevel[LB_STALL];
-          InstructionsLastIssueCycle[LB_STALL] =InstructionFetchCycle;
-          FullOccupancyCyclesTree[InstructionFetchCycle/SplitTreeRange] = insert_node(InstructionFetchCycle, LB_STALL, FullOccupancyCyclesTree[InstructionFetchCycle/SplitTreeRange]);
-          InstructionsCountExtended[LB_STALL]++;
-        }
-        
-        if (DispatchToStoreBufferQueue.empty() == false) {
-          if (InstructionsCountExtended[SB_STALL]==0)
-            FirstIssue[SB_STALL] = true;
-          if (FirstIssue[SB_STALL]==true) {
-            FirstNonEmptyLevel[SB_STALL] = InstructionFetchCycle;
-            FirstIssue[SB_STALL] = false;
-          }
-          
-          //FirstNonEmptyLevel[SB_STALL] = (FirstNonEmptyLevel[SB_STALL]==0)?InstructionFetchCycle:FirstNonEmptyLevel[SB_STALL];
-          InstructionsLastIssueCycle[SB_STALL] =InstructionFetchCycle;
-          FullOccupancyCyclesTree[InstructionFetchCycle/SplitTreeRange] = insert_node(InstructionFetchCycle, SB_STALL,FullOccupancyCyclesTree[InstructionFetchCycle/SplitTreeRange]);
-          InstructionsCountExtended[SB_STALL]++;
-        }
-        
-        DEBUG(dbgs() << "_____________________ InstructionFetchCycle "<<InstructionFetchCycle<<"_____________________\n");
-        
-#ifdef MOO_BUFFERS
-#ifdef DEBUG_OOO_BUFFERS
-        PrintReservationStation();
-        PrintReorderBuffer();
-        PrintStoreBuffer();
-        PrintLoadBuffer();
-        PrintLineFillBuffer();
-        PrintDispatchToStoreBuffer();
-        PrintDispatchToLoadBuffer();
-        PrintDispatchToLineFillBuffer();
-#endif
-#endif
-        
-        // Remove from Reservation Stations elements issued at fetch cycle
-        if (ReservationStationSize > 0)
-          RemoveFromReservationStation(InstructionFetchCycle);
-        
-        if (ReorderBufferSize > 0)
-          RemoveFromReorderBuffer(InstructionFetchCycle);
-        
-#ifdef MOO_BUFFERS
-        //Remove from Load, Store and Fill Line Buffers elements completed at issue cycle
-        RemoveFromLoadBuffer(InstructionFetchCycle);
-        RemoveFromStoreBuffer(InstructionFetchCycle);
-        RemoveFromLineFillBuffer(InstructionFetchCycle);
-        RemoveFromDispatchToLoadBufferQueue(InstructionFetchCycle);
-        RemoveFromDispatchToStoreBufferQueue(InstructionFetchCycle);
-        RemoveFromDispatchToLineFillBufferQueue(InstructionFetchCycle);
-        // Insert into LB, SB and LFB the instructions from the dispatch queue.
-        DispatchToLoadBuffer(InstructionFetchCycle);
-        DispatchToStoreBuffer(InstructionFetchCycle);
-        DispatchToLineFillBuffer(InstructionFetchCycle);
-#endif
-        
-#ifdef MOO_BUFFERS
-#ifdef DEBUG_OOO_BUFFERS
-        PrintReservationStation();
-        PrintReorderBuffer();
-        PrintStoreBuffer();
-        PrintLoadBuffer();
-        PrintLineFillBuffer();
-        PrintDispatchToStoreBuffer();
-        PrintDispatchToLoadBuffer();
-        PrintDispatchToLineFillBuffer();
-#endif
-#endif
-        // If Reservation station is full
-        if (ReservationStationIssueCycles.size() == ReservationStationSize && ReservationStationSize > 0) {
-          // Advance InstructionFetchCyle untill min issue cycle
-          OOOBufferFull = true;
-          uint64_t CurrentInstructionFetchCycle = InstructionFetchCycle;
-          InstructionFetchCycle = GetMinIssueCycleReservationStation();
-          
-          if (InstructionFetchCycle>CurrentInstructionFetchCycle+1)
-            FirstNonEmptyLevel[RS_STALL] = (FirstNonEmptyLevel[RS_STALL]==0)?CurrentInstructionFetchCycle+1:FirstNonEmptyLevel[RS_STALL];
-          
-          
-          for (uint64_t i = CurrentInstructionFetchCycle+1; i< InstructionFetchCycle; i++) {
-            TreeChunk =i/SplitTreeRange;
-            if (TreeChunk >= (unsigned)FullOccupancyCyclesTree.size()) {
-              for (unsigned j = FullOccupancyCyclesTree.size(); j<= TreeChunk; j++) {
-                DEBUG(dbgs() << "Iserting element in FullOccupancyCyclesTree");
-                FullOccupancyCyclesTree.push_back(NULL);
-              }
-            }
-            FullOccupancyCyclesTree[TreeChunk] = insert_node(i, RS_STALL,FullOccupancyCyclesTree[TreeChunk]);
-            InstructionsCountExtended[RS_STALL]++;
-            InstructionsLastIssueCycle[RS_STALL] =i;
-          }
-          
-#ifdef DEBUG_OOO_BUFFERS
-          DEBUG(dbgs() << "Updating InstructionFetchCycle to "<<InstructionFetchCycle <<" \n");
-#endif
-        }
-        if (ReorderBufferCompletionCycles.size() == ReorderBufferSize && ReorderBufferSize > 0) {
-          //Advance InstructionFetchCycle to the head of the buffer
-          OOOBufferFull = true;
-          uint64_t CurrentInstructionFetchCycle = InstructionFetchCycle;
-          InstructionFetchCycle = max(InstructionFetchCycle, ReorderBufferCompletionCycles.front());
-          if (InstructionFetchCycle>CurrentInstructionFetchCycle+1) {
-            FirstNonEmptyLevel[ROB_STALL] = (FirstNonEmptyLevel[ROB_STALL]==0)?CurrentInstructionFetchCycle+1:FirstNonEmptyLevel[ROB_STALL];
-          }
-          
-          
-          for (uint64_t i = CurrentInstructionFetchCycle+1; i< InstructionFetchCycle; i++) {
-            // Get the node, if any, corresponding to this issue cycle.
-            TreeChunk =i/SplitTreeRange;
-            if (TreeChunk >= (unsigned)FullOccupancyCyclesTree.size()) {
-              for (unsigned j = FullOccupancyCyclesTree.size(); j<= TreeChunk; j++) {
-                DEBUG(dbgs() << "Iserting element in FullOccupancyCyclesTree");
-                FullOccupancyCyclesTree.push_back(NULL);
-              }
-            }
-            
-            FullOccupancyCyclesTree[TreeChunk] = insert_node(i, ROB_STALL, FullOccupancyCyclesTree[TreeChunk] );
-            InstructionsCountExtended[ROB_STALL]++;
-            InstructionsLastIssueCycle[ROB_STALL] =i;
-          }
-#ifdef DEBUG_OOO_BUFFERS
-          DEBUG(dbgs() << "Updating InstructionFetchCycle to "<<InstructionFetchCycle <<" \n");
-#endif
-        }
-        if (OOOBufferFull==true) {
-          // Remove from Reservation Stations elements issued at fetch cycle
-#ifdef DEBUG_OOO_BUFFERS
-          PrintReservationStation();
-          PrintReorderBuffer();
-#ifdef MOO_BUFFERS
-          PrintStoreBuffer();
-          PrintLoadBuffer();
-          PrintLineFillBuffer();
-          PrintDispatchToStoreBuffer();
-          PrintDispatchToLoadBuffer();
-          PrintDispatchToLineFillBuffer();
-#endif
-#endif
-          
-          RemoveFromReservationStation(InstructionFetchCycle);
-          RemoveFromReorderBuffer(InstructionFetchCycle);
-          
-#ifdef MOO_BUFFERS
-          //Remove from Load, Store and Fill Line Buffers elements completed at issue cycle
-          RemoveFromLoadBuffer(InstructionFetchCycle);
-          RemoveFromStoreBuffer(InstructionFetchCycle);
-          RemoveFromLineFillBuffer(InstructionFetchCycle);
-          RemoveFromDispatchToLoadBufferQueue(InstructionFetchCycle);
-          RemoveFromDispatchToStoreBufferQueue(InstructionFetchCycle);
-          RemoveFromDispatchToLineFillBufferQueue(InstructionFetchCycle);
-          // Insert into LB, SB and LFB the instructions from the dispatch queue.
-          DispatchToLoadBuffer(InstructionFetchCycle);
-          DispatchToStoreBuffer(InstructionFetchCycle);
-          DispatchToLineFillBuffer(InstructionFetchCycle);
-#endif
-          
-#ifdef DEBUG_OOO_BUFFERS
-          PrintReservationStation();
-          PrintReorderBuffer();
-#ifdef MOO_BUFFERS
-          PrintStoreBuffer();
-          PrintLoadBuffer();
-          PrintLineFillBuffer();
-          PrintDispatchToStoreBuffer();
-          PrintDispatchToLoadBuffer();
-          PrintDispatchToLineFillBuffer();
-#endif
-#endif
-        }
-        RemainingInstructionsFetch = InstructionFetchBandwidth;
-        if (OOOBufferFull==false && InstructionFetchBandwidth != INF)
-          InstructionFetchCycle++;
-        
-        BuffersOccupancy[RS_STALL-RS_STALL] += ReservationStationIssueCycles.size();
-        BuffersOccupancy[ROB_STALL-RS_STALL] += ReorderBufferCompletionCycles.size();
-        BuffersOccupancy[LB_STALL-RS_STALL] += LoadBufferCompletionCycles.size();
-        BuffersOccupancy[SB_STALL-RS_STALL] += StoreBufferCompletionCycles.size();
-        BuffersOccupancy[LFB_STALL-RS_STALL] += LineFillBufferCompletionCycles.size();
       }
     }
     
@@ -3283,108 +3359,108 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
       case Instruction::IndirectBr:
       case Instruction::Switch:{
 #ifdef DEBUG_PHI_NODE
-DEBUG(dbgs() << "Loop over all of the PHI nodes in the current block\n");
+        DEBUG(dbgs() << "Loop over all of the PHI nodes in the current block\n");
 #endif
 #ifdef INTERPRETER
         // Loop over all of the PHI nodes in the current block, reading their inputs.
         SF.CurInst = SF.CurBB->begin();
         for (unsigned i = 0; PHINode *PN = dyn_cast<PHINode>(SF.CurInst);
              ++SF.CurInst, ++i)
-/*
-#else
-          auto it = I.getParent()->begin();
-          for (unsigned i = 0; PHINode *PN = dyn_cast<PHINode>(it);
-               ++it, ++i)
-
-#endif
-*/          {
-            //Value *Predecesor = PN->getIncomingValue(PN->getBasicBlockIndex(I.getParent()));
-            // The PHI node was a use of its predecessor. Hence, its entry in the map
-            //contains the correct value of the InstructionIssueCycle
-            // InstructionIssueCycle = getInstructionValueIssueCycle(Predecesor); -> WRONG!!
-            InstructionIssueCycle = max(max(InstructionFetchCycle,BasicBlockBarrier),getInstructionValueIssueCycle(PN));
+        /*
+         #else
+         auto it = I.getParent()->begin();
+         for (unsigned i = 0; PHINode *PN = dyn_cast<PHINode>(it);
+         ++it, ++i)
+         
+         #endif
+         */          {
+           //Value *Predecesor = PN->getIncomingValue(PN->getBasicBlockIndex(I.getParent()));
+           // The PHI node was a use of its predecessor. Hence, its entry in the map
+           //contains the correct value of the InstructionIssueCycle
+           // InstructionIssueCycle = getInstructionValueIssueCycle(Predecesor); -> WRONG!!
+           InstructionIssueCycle = max(max(InstructionFetchCycle,BasicBlockBarrier),getInstructionValueIssueCycle(PN));
 #ifdef DEBUG_PHI_NODE
-            DEBUG(dbgs() << "PHI Node " << PN << "\n");
-            DEBUG(dbgs() << "InstructionValueIssueCycle of PHI Node " << InstructionIssueCycle << "\n");
+           DEBUG(dbgs() << "PHI Node " << PN << "\n");
+           DEBUG(dbgs() << "InstructionValueIssueCycle of PHI Node " << InstructionIssueCycle << "\n");
 #endif
-            
+           
 #ifdef INTERPRETER
-            // Iterate through the uses of the PHI node
-            for(Value::use_iterator i = PN->use_begin(), ie = PN->use_end(); i!=ie; ++i){
+           // Iterate through the uses of the PHI node
+           for(Value::use_iterator i = PN->use_begin(), ie = PN->use_end(); i!=ie; ++i){
 #ifdef DEBUG_PHI_NODE
-              DEBUG(dbgs() << "Use of the PHI node " << *i << "\n");
+             DEBUG(dbgs() << "Use of the PHI node " << *i << "\n");
 #endif
-              if (dyn_cast<PHINode>(*i)) {
-                insertInstructionValueIssueCycle(*i, InstructionIssueCycle, true);
-              }else{
-                insertInstructionValueIssueCycle(*i, InstructionIssueCycle);
-              }
-              
-              // insertInstructionValueIssueCycle(*i, InstructionIssueCycle);
-            }
-/*
-#else
+             if (dyn_cast<PHINode>(*i)) {
+               insertInstructionValueIssueCycle(*i, InstructionIssueCycle, true);
+             }else{
+               insertInstructionValueIssueCycle(*i, InstructionIssueCycle);
+             }
+             
+             // insertInstructionValueIssueCycle(*i, InstructionIssueCycle);
+           }
+           /*
+            #else
             // Iterate through the uses of the PHI node
             for (User *U : PN->users()) {
-      //        if (Instruction *i = dyn_cast<Instruction>(U)) {
-#ifdef DEBUG_PHI_NODE
-              DEBUG(dbgs() << "Use of the PHI node " << U << "\n");
-#endif
-              if (dyn_cast<PHINode>(U)) {
-                insertInstructionValueIssueCycle(U, InstructionIssueCycle, true);
-              }else{
-                insertInstructionValueIssueCycle(U, InstructionIssueCycle);
-              }
-              
-              // insertInstructionValueIssueCycle(*i, InstructionIssueCycle);
+            //        if (Instruction *i = dyn_cast<Instruction>(U)) {
+            #ifdef DEBUG_PHI_NODE
+            DEBUG(dbgs() << "Use of the PHI node " << U << "\n");
+            #endif
+            if (dyn_cast<PHINode>(U)) {
+            insertInstructionValueIssueCycle(U, InstructionIssueCycle, true);
+            }else{
+            insertInstructionValueIssueCycle(U, InstructionIssueCycle);
+            }
+            
+            // insertInstructionValueIssueCycle(*i, InstructionIssueCycle);
             //}
             }
-*/
+            */
 #endif
-          }
-      #endif          
-          InstructionIssueCycle = max(max(InstructionFetchCycle,BasicBlockBarrier),getInstructionValueIssueCycle(&I)); // This is the branch instrucion
-          
-          //Iterate over the uses of the generated value
+         }
+#endif
+        InstructionIssueCycle = max(max(InstructionFetchCycle,BasicBlockBarrier),getInstructionValueIssueCycle(&I)); // This is the branch instrucion
+        
+        //Iterate over the uses of the generated value
 #ifdef INTERPRETER
-          for(Value::use_iterator i = I.use_begin(), ie = I.use_end(); i!=ie; ++i){
-            insertInstructionValueIssueCycle(*i, InstructionIssueCycle+1/*???*/);
-          }
+        for(Value::use_iterator i = I.use_begin(), ie = I.use_end(); i!=ie; ++i){
+          insertInstructionValueIssueCycle(*i, InstructionIssueCycle+1/*???*/);
+        }
 #else
         for (User *U : I.users()) {
-         // if (Instruction *i = dyn_cast<Instruction>(U)) {
-            insertInstructionValueIssueCycle(U, InstructionIssueCycle+1/*???*/);
-
+          // if (Instruction *i = dyn_cast<Instruction>(U)) {
+          insertInstructionValueIssueCycle(U, InstructionIssueCycle+1/*???*/);
+          
           //}
         }
 #endif
-        }
-
+      }
+        
         break;
-        case Instruction::PHI:
+      case Instruction::PHI:
 #ifndef INTERPRETER
-          InstructionIssueCycle = max(max(InstructionFetchCycle,BasicBlockBarrier),getInstructionValueIssueCycle(&I)); // This is the branch instrucion
+        InstructionIssueCycle = max(max(InstructionFetchCycle,BasicBlockBarrier),getInstructionValueIssueCycle(&I)); // This is the branch instrucion
 #ifdef DEBUG_PHI_NODE
-DEBUG(dbgs() << "Executing PHI Node. Iterate over it uses.\n");
+        DEBUG(dbgs() << "Executing PHI Node. Iterate over it uses.\n");
 #endif
-// Iterate through the uses of the PHI node
-            for (User *U : I.users()) {
-      //        if (Instruction *i = dyn_cast<Instruction>(U)) {
+        // Iterate through the uses of the PHI node
+        for (User *U : I.users()) {
+          //        if (Instruction *i = dyn_cast<Instruction>(U)) {
 #ifdef DEBUG_PHI_NODE
-              DEBUG(dbgs() << "Use of the PHI node " << U << "\n");
+          DEBUG(dbgs() << "Use of the PHI node " << U << "\n");
 #endif
-              if (dyn_cast<PHINode>(U)) {
-                insertInstructionValueIssueCycle(U, InstructionIssueCycle, true);
-              }else{
-                insertInstructionValueIssueCycle(U, InstructionIssueCycle);
-              }
-              
-              // insertInstructionValueIssueCycle(*i, InstructionIssueCycle);
-            //}
-            }
-
+          if (dyn_cast<PHINode>(U)) {
+            insertInstructionValueIssueCycle(U, InstructionIssueCycle, true);
+          }else{
+            insertInstructionValueIssueCycle(U, InstructionIssueCycle);
+          }
+          
+          // insertInstructionValueIssueCycle(*i, InstructionIssueCycle);
+          //}
+        }
+        
 #endif
-break;
+        break;
         // Dependences through the arguments of a method call
       case Instruction::Call:
         CS = CallSite(&I);
@@ -3802,13 +3878,13 @@ break;
 #else
         
         for (User *U : F->users()) {
-        //  if (Instruction *Inst = dyn_cast<Instruction>(U)) {
-            for (User *UI : U->users()) {
-             // if (Instruction *i = dyn_cast<Instruction>(UI)) {
-                insertInstructionValueIssueCycle(UI, InstructionIssueCycle);
-
-             // }
-            }
+          //  if (Instruction *Inst = dyn_cast<Instruction>(U)) {
+          for (User *UI : U->users()) {
+            // if (Instruction *i = dyn_cast<Instruction>(UI)) {
+            insertInstructionValueIssueCycle(UI, InstructionIssueCycle);
+            
+            // }
+          }
           //}
         }
 #endif
@@ -4009,69 +4085,69 @@ break;
             }
           }
         }
-#else 
+#else
         // No interpreter: new way of iterating through the uses of an instruction.
         // TODO: Fix also iterating through the arguments
         for (User *U : I.users()) {
-        //  if (Instruction *i = dyn_cast<Instruction>(U)) {
-            // for(Value::use_iterator i = I.use_begin(), ie = I.use_end(); i!=ie; ++i){
-            
-            #ifdef DEBUG_DEPS_FUNCTION_CALL
-            DEBUG(dbgs() << "Setting use  "<< U << " to "<<  NewInstructionIssueCycle+Latency<<"\n");
-            #endif
-            if (dyn_cast<PHINode>(U)) {
-              insertInstructionValueIssueCycle(U, NewInstructionIssueCycle+Latency, true);
-            }else{
-              insertInstructionValueIssueCycle(U, NewInstructionIssueCycle+Latency);
+          //  if (Instruction *i = dyn_cast<Instruction>(U)) {
+          // for(Value::use_iterator i = I.use_begin(), ie = I.use_end(); i!=ie; ++i){
+          
+#ifdef DEBUG_DEPS_FUNCTION_CALL
+          DEBUG(dbgs() << "Setting use  "<< U << " to "<<  NewInstructionIssueCycle+Latency<<"\n");
+#endif
+          if (dyn_cast<PHINode>(U)) {
+            insertInstructionValueIssueCycle(U, NewInstructionIssueCycle+Latency, true);
+          }else{
+            insertInstructionValueIssueCycle(U, NewInstructionIssueCycle+Latency);
+          }
+          if(dyn_cast<CallInst>(U)){
+#ifdef DEBUG_DEPS_FUNCTION_CALL
+            DEBUG(dbgs() << "The use is a call to function\n");
+#endif
+            CS = CallSite(U);
+            F = CS.getCalledFunction();
+            // Loop over the arguments of the called function --- From Execution.cpp
+            NumArgs = CS.arg_size();
+            ArgVals.reserve(NumArgs);
+            for (CallSite::arg_iterator j = CS.arg_begin(),
+                 e = CS.arg_end(); j != e; ++j) {
+              Value *V = *j;
+              ArgVals.push_back(V);
             }
-            if(dyn_cast<CallInst>(U)){
+            
+            // Make sure it is an LLVM-well-defined funciton
+            if (static_cast<Function*>(F)) {
+              for (Function::arg_iterator AI = F->arg_begin(), E = F->arg_end();
+                   AI != E; ++AI, ++k){
 #ifdef DEBUG_DEPS_FUNCTION_CALL
-              DEBUG(dbgs() << "The use is a call to function\n");
+                DEBUG(dbgs() << "Iterate through the arguments of the call\n");
 #endif
-              CS = CallSite(U);
-              F = CS.getCalledFunction();
-              // Loop over the arguments of the called function --- From Execution.cpp
-              NumArgs = CS.arg_size();
-              ArgVals.reserve(NumArgs);
-              for (CallSite::arg_iterator j = CS.arg_begin(),
-                   e = CS.arg_end(); j != e; ++j) {
-                Value *V = *j;
-                ArgVals.push_back(V);
-              }
-              
-              // Make sure it is an LLVM-well-defined funciton
-              if (static_cast<Function*>(F)) {
-                for (Function::arg_iterator AI = F->arg_begin(), E = F->arg_end();
-                     AI != E; ++AI, ++k){
+                /*   Latency = (&AI->getOpcode() == Instruction::Load || (ArgVals[j])->getOpcode()
+                 == Instruction::Store)? MEM_LATENCY:FLOP_LATENCY;*/
 #ifdef DEBUG_DEPS_FUNCTION_CALL
-                  DEBUG(dbgs() << "Iterate through the arguments of the call\n");
+                DEBUG(dbgs() << "Argument "<< ArgVals[k] <<"\n");
 #endif
-                  /*   Latency = (&AI->getOpcode() == Instruction::Load || (ArgVals[j])->getOpcode()
-                   == Instruction::Store)? MEM_LATENCY:FLOP_LATENCY;*/
+                /* //Iterate through the uses of the argument?
+                 insertInstructionValueIssueCycle(AI, InstructionIssueCycle+1); // +1???
+                 */
 #ifdef DEBUG_DEPS_FUNCTION_CALL
-                  DEBUG(dbgs() << "Argument "<< ArgVals[k] <<"\n");
+                DEBUG(dbgs() << "Iterate through the uses of the argument\n");
 #endif
-                  /* //Iterate through the uses of the argument?
-                   insertInstructionValueIssueCycle(AI, InstructionIssueCycle+1); // +1???
-                   */
+                if( ArgVals[k] == &I){
 #ifdef DEBUG_DEPS_FUNCTION_CALL
-                  DEBUG(dbgs() << "Iterate through the uses of the argument\n");
+                  DEBUG(dbgs() << "Argument equal to current instruction\n");
 #endif
-                  if( ArgVals[k] == &I){
+                  for(Value::use_iterator vi = (*AI).use_begin(), vie = (*AI).use_end(); vi!=vie; ++vi){
 #ifdef DEBUG_DEPS_FUNCTION_CALL
-                    DEBUG(dbgs() << "Argument equal to current instruction\n");
+                    DEBUG(dbgs() << "Use of the argument "<< *vi <<"\n");
 #endif
-                    for(Value::use_iterator vi = (*AI).use_begin(), vie = (*AI).use_end(); vi!=vie; ++vi){
-#ifdef DEBUG_DEPS_FUNCTION_CALL
-                      DEBUG(dbgs() << "Use of the argument "<< *vi <<"\n");
-#endif
-                      insertInstructionValueIssueCycle(*vi,NewInstructionIssueCycle+Latency);
-                    }
+                    insertInstructionValueIssueCycle(*vi,NewInstructionIssueCycle+Latency);
                   }
                 }
               }
             }
-         // }
+          }
+          // }
         }
 #endif
       }
@@ -4266,7 +4342,7 @@ DynamicAnalysis::printHeaderStat(string Header){
 void
 DynamicAnalysis::finishAnalysis(){
   
-
+  
   
   bool PrintWarning = false;
   unsigned long long TotalSpan = 0;
@@ -4289,6 +4365,53 @@ DynamicAnalysis::finishAnalysis(){
   vector< vector<uint64_t> > ResourcesStallSpanVector(nExecutionUnits, vector<uint64_t>(nExecutionUnits));
   vector< vector<uint64_t> > StallStallSpanVector(nBuffers, vector<uint64_t>(nBuffers));
   vector< vector<uint64_t> > ResourcesIssueStallSpanVector(nExecutionUnits, vector<uint64_t>(nBuffers));
+
+#ifdef DEBUG_OOO_BUFFERS
+  DEBUG(dbgs() << "Starting while loop\n";
+  DEBUG(dbgs() << "Sise of RS "<< ReservationStationIssueCycles.size()<<"\n");
+  DEBUG(dbgs() << "Sise of ROB "<<ReorderBufferCompletionCycles.size()<<"\n");
+  DEBUG(dbgs() << "Sise of LB "<< LineFillBufferCompletionCycles.size() <<"\n");
+  DEBUG(dbgs() << "Sise of SB "<< StoreBufferCompletionCycles.size() <<"\n");
+  DEBUG(dbgs() << "Sise of LFB "<< LineFillBufferCompletionCycles.size() <<"\n");
+  DEBUG(dbgs() << "______________________________________________________\n");
+#endif
+  
+  // Increase FetchCycle until all buffers are empty
+  while (ReservationStationIssueCycles.size() != 0 || ReorderBufferCompletionCycles.size() != 0 || LoadBufferCompletionCycles.size() != 0 || StoreBufferCompletionCycles.size() != 0 || LineFillBufferCompletionCycles.size() != 0) {
+    // In IncreaseInstructionFetchCycle(), InstructionFetchCycle only increases when
+    // RS or ROB are full. But in this case, they may not get full, but we just
+    // want to empty them
+    InstructionFetchCycle++;
+    IncreaseInstructionFetchCycle();
+    
+#ifdef DEBUG_OOO_BUFFERS
+
+    PrintReservationStation();
+    PrintReorderBuffer();
+    PrintStoreBuffer();
+    PrintLoadBuffer();
+    PrintLineFillBuffer();
+    
+    DEBUG(dbgs() << "Size of RS "<< ReservationStationIssueCycles.size()<<"\n");
+    DEBUG(dbgs() << "Size of ROB "<<ReorderBufferCompletionCycles.size()<<"\n");
+    DEBUG(dbgs() << "Size of LB "<< LineFillBufferCompletionCycles.size() <<"\n");
+    DEBUG(dbgs() << "Size of SB "<< StoreBufferCompletionCycles.size() <<"\n");
+    DEBUG(dbgs() << "Size of LFB "<< LineFillBufferCompletionCycles.size() <<"\n");
+    DEBUG(dbgs() << "______________________________________________________\n");
+    #endif
+    
+  }
+#ifdef DEBUG_OOO_BUFFERS
+  
+  DEBUG(dbgs() << "Size of RS "<< ReservationStationIssueCycles.size()<<"\n");
+  DEBUG(dbgs() << "Size of ROB "<<ReorderBufferCompletionCycles.size()<<"\n");
+  DEBUG(dbgs() << "Size of LB "<< LineFillBufferCompletionCycles.size() <<"\n");
+  DEBUG(dbgs() << "Size of SB "<< StoreBufferCompletionCycles.size() <<"\n");
+  DEBUG(dbgs() << "Size of LFB "<< LineFillBufferCompletionCycles.size() <<"\n");
+#endif
+
+  
+  
   
   for (unsigned i = 0; i < nCompNodes; i++)
     compResources.push_back(i);
@@ -4296,9 +4419,12 @@ DynamicAnalysis::finishAnalysis(){
   for (unsigned i = N_MEM_NODES_START ; i <= N_MEM_NODES_END; i++)
     memResources.push_back(i);
   
-  for (unsigned j = 0; j < nExecutionUnits + nAGUs + nPorts + nBuffers; j++)
+  for (unsigned j = 0; j < nExecutionUnits + nAGUs + nPorts + nBuffers; j++){
     LastIssueCycleVector.push_back(GetLastIssueCycle(j, false));
-  
+    if (LastIssueCycleVector[j] > InstructionFetchCycle) {
+      report_fatal_error("LastIssueCycle > InstructionFetchCycle for resource\n");
+    }
+  }
   for (unsigned j=0; j< nExecutionUnits; j++) {
     TmpResourcesVector.clear();
     TmpResourcesVector.push_back(j);
@@ -4434,7 +4560,7 @@ DynamicAnalysis::finishAnalysis(){
       dbgs () << "\n";
     }
 #endif
-	dbgs() << "DATA_SET_SIZE\t" << node_size(ReuseTree) << "\n";
+    dbgs() << "DATA_SET_SIZE\t" << node_size(ReuseTree) << "\n";
     
     printHeaderStat("Statistics");
     
