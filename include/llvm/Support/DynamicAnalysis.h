@@ -556,6 +556,7 @@ public:
   
   uint64_t MinLoadBuffer;
   uint64_t MaxDispatchToLoadBufferQueueTree;
+vector<ComplexTree<uint64_t> *> PointersToRemove;
   
   //Statistics
   double AverageILP;

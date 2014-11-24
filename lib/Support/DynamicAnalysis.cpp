@@ -1704,7 +1704,7 @@ DynamicAnalysis::GetMinCompletionCycleLoadBuffer(){
 
 uint64_t
 DynamicAnalysis::GetMinCompletionCycleLoadBufferTree(){
-  dbgs() << "Minimum " << MinLoadBuffer << "\n";
+
   return MinLoadBuffer;
   //return min(LoadBufferCompletionCyclesTree);
 }
@@ -2669,92 +2669,12 @@ DynamicAnalysis::DispatchToLoadBuffer(uint64_t Cycle){
 
 
 
-/*
-// Print the tree in-order // Traverse the left sub-tree, root, right sub-tree
-ComplexTree<uint64_t> * t
-DynamicAnalysis::RemoveFromDispatchAndInsertIntoLoad(uint64_t i, ComplexTree<uint64_t> * t) {
-  
-  dbgs() << "Size of DispatchToLoadBufferQueueTree " << node_size(DispatchToLoadBufferQueueTree) << "\n";
-  if ( t ) {
-  dbgs() << "key " << t->key << "\n";
-    dbgs() << "IssueCycle " << t->IssueCycle << "\n";
-    dbgs() << "Removing left\n";
-    dbgs() << "Cycle to remove "<<i<<"\n";
-    
-    if (t->IssueCycle == i) {
-      dbgs() << "Issue Cycle equal to the cycle to remove\n";
-      if (node_size(LoadBufferCompletionCyclesTree) == 0) {
-        MinLoadBuffer = t->key;
-      }else{
-        MinLoadBuffer = min(MinLoadBuffer,t->key);
-      }
-      dbgs() << "Inserting into LB node with completion cycle "<< t->key<<"\n";
-      
-      LoadBufferCompletionCyclesTree= insert_node(t->key , LoadBufferCompletionCyclesTree);
-      dbgs() << "Deleting from DispatchToLoadBufferQueueTree node with key "<< t->key<<"\n";
-      dbgs() << "Size before deleting "<< node_size(t)<<"\n";
-
-      t = delete_node(t->key,t);
-      dbgs() << "Size after deleting "<< node_size(t)<<"\n";
-
-      dbgs() << "Key of the root after deleting "<< t->key<<"\n";
-      if (t->right!=NULL) {
-        dbgs()<<"right is not null\n";
-      }
-      dbgs() << "Updating MaxDispatchToLoadBufferQueueTree\n";
-      if (i== MaxDispatchToLoadBufferQueueTree) {
-        MaxDispatchToLoadBufferQueueTree = t->IssueCycle;
-      }
-      
-      
-    }
-    
-    
-    
-    if (t->left != NULL) {
-      t = RemoveFromDispatchAndInsertIntoLoad(i, t->left);
-
-    }
-    // cout << n->Key() << " ";
-    if (t->IssueCycle == i) {
-  dbgs() << "Issue Cycle equal to the cycle to remove\n";
-      if (node_size(LoadBufferCompletionCyclesTree) == 0) {
-        MinLoadBuffer = t->key;
-      }else{
-        MinLoadBuffer = min(MinLoadBuffer,t->key);
-      }
-      dbgs() << "Inserting into LB node with completion cycle "<< t->key<<"\n";
-
-      LoadBufferCompletionCyclesTree= insert_node(t->key , LoadBufferCompletionCyclesTree);
-      dbgs() << "Deleting from DispatchToLoadBufferQueueTree node with key "<< t->key<<"\n";
-      t = delete_node(t->key,t);
-      dbgs() << "Key of the root after deleting "<< t->key<<"\n";
-      if (t->right!=NULL) {
-        dbgs()<<"right is not null\n";
-      }
-      dbgs() << "Updating MaxDispatchToLoadBufferQueueTree\n";
-      if (i== MaxDispatchToLoadBufferQueueTree) {
-        MaxDispatchToLoadBufferQueueTree = t->IssueCycle;
-      }
-      
-      
-    }
-    dbgs() << "Removing right\n";
-
-    t = RemoveFromDispatchAndInsertIntoLoad(i, t->right);
-    
-  }
-  return t;
-  
-}
-*/
-
 
 
 void DynamicAnalysis::inOrder(uint64_t i, ComplexTree<uint64_t> * n) {
-  if ( n ) {
+ if(n == NULL) return;
     inOrder(i,n->left);
-    if (n->IssueCycle <= i) {
+    if (  n->IssueCycle <= i && n->IssueCycle != 0) {
       if (node_size(LoadBufferCompletionCyclesTree) == 0) {
         MinLoadBuffer = n->key;
       }else{
@@ -2762,11 +2682,22 @@ void DynamicAnalysis::inOrder(uint64_t i, ComplexTree<uint64_t> * n) {
       }
  
 
+//dbgs() << "Inserting into LB node with issue cycle " << n->IssueCycle << " and key " << n->key << "\n";
       DEBUG(dbgs() << "Inserting into LB node with issue cycle " << n->IssueCycle << " and key " << n->key << "\n");
       LoadBufferCompletionCyclesTree= insert_node(n->key , LoadBufferCompletionCyclesTree);
-      DEBUG(dbgs()<< "Removing from dispatch\n");
+PointersToRemove.push_back(n);
+  /*    DEBUG(dbgs()<< "Removing from dispatch\n");
       DEBUG(dbgs()<< "Size before "<<node_size(DispatchToLoadBufferQueueTree)<<"\n");
+dbgs()<< "Removing from dispatch\n";
+dbgs()<< "Size before "<<node_size(DispatchToLoadBufferQueueTree)<<"\n";
+dbgs()<< "DispatchToLoadBufferQueueTree root key "<<DispatchToLoadBufferQueueTree->key<<"\n";
+dbgs()<< "Trying to remove "<<n->key<<"\n";
       DispatchToLoadBufferQueueTree = delete_node(n->key, DispatchToLoadBufferQueueTree);
+n = DispatchToLoadBufferQueueTree;
+if(DispatchToLoadBufferQueueTree==NULL)
+dbgs()<< "DispatchToLoadBufferQueueTree is NULL\n";
+
+dbgs()<< "Size after "<<node_size(DispatchToLoadBufferQueueTree)<<"\n";
 
       DEBUG(dbgs()<< "Size after "<<node_size(DispatchToLoadBufferQueueTree)<<"\n");
 
@@ -2774,17 +2705,36 @@ void DynamicAnalysis::inOrder(uint64_t i, ComplexTree<uint64_t> * n) {
         MaxDispatchToLoadBufferQueueTree = DispatchToLoadBufferQueueTree->IssueCycle;
       }
 
-    
-    }
+  */  
+   }
+
     inOrder(i,n->right);
-  }
+  
 }
+
+
 
 
 void
 DynamicAnalysis::DispatchToLoadBufferTree(uint64_t Cycle){
-  
+
+
+
   inOrder(Cycle, DispatchToLoadBufferQueueTree);
+
+
+for(size_t i = 0; i< PointersToRemove.size(); ++i){
+
+DispatchToLoadBufferQueueTree = delete_node(PointersToRemove.at(i)->key, DispatchToLoadBufferQueueTree);
+
+}
+PointersToRemove.clear();
+
+//DispatchToLoadBufferQueueTree = remove(DispatchToLoadBufferQueueTree,Cycle);
+
+
+
+
 //  dbgs()<< "Removing from dispatch\n";
  // dbgs()<< "Size before "<<node_size(DispatchToLoadBufferQueueTree)<<"\n";
 /*
@@ -2972,7 +2922,7 @@ DynamicAnalysis::FindIssueCycleWhenLoadBufferIsFull(){
 uint64_t
 DynamicAnalysis::FindIssueCycleWhenLoadBufferTreeIsFull(){
   
-  dbgs() << "FindIssueCycleWhenLoadBufferTreeIsFull\n";
+
   // size_t BufferSize = DispatchToLoadBufferQueue.size();
   size_t BufferSize = node_size(DispatchToLoadBufferQueueTree);
   
@@ -2992,7 +2942,7 @@ DynamicAnalysis::FindIssueCycleWhenLoadBufferTreeIsFull(){
      EarliestDispatchCycle = max(EarliestDispatchCycle, (*it).IssueCycle);
      }*/
     EarliestDispatchCycle = MaxDispatchToLoadBufferQueueTree;
-    dbgs() << "EarliestDispatchCycle " << EarliestDispatchCycle << "\n";
+
     DEBUG(dbgs() << "EarliestDispatchCycle " << EarliestDispatchCycle << "\n");
     //Traverse LB and count how many elements are there smaller than EarliestDispathCycle
     uint64_t SlotsCompleteBeforeDispatch = 0;
@@ -3075,7 +3025,7 @@ DynamicAnalysis::FindIssueCycleWhenLoadBufferTreeIsFull(){
     
     AvailableSlots -= SlotsCompleteAfterDispatch;
     DEBUG(dbgs() << "AvailableSlots "<<AvailableSlots<<"\n");
-    dbgs() << "AvailableSlots "<<AvailableSlots<<"\n";
+
     //Compute how many complete before dispatch from the DispatchQueue
     
     /*
@@ -3089,7 +3039,7 @@ DynamicAnalysis::FindIssueCycleWhenLoadBufferTreeIsFull(){
     // This means that in LB, there are more loads that terminate before or in
     // my dispatch cycle -> IssueCycle is Earliest
     if (AvailableSlots > 0) {
-      dbgs() << "Seeting issue cycle to " << EarliestDispatchCycle << "\n";
+
       IssueCycle = EarliestDispatchCycle;
     }else{
       // if (counter == BufferSize) {
@@ -3435,18 +3385,22 @@ DynamicAnalysis::IncreaseInstructionFetchCycle(){
   PrintDispatchToLineFillBuffer();
 #endif
 #endif
+
   
   // Remove from Reservation Stations elements issued at fetch cycle
   if (ReservationStationSize > 0)
     RemoveFromReservationStation(InstructionFetchCycle);
-  
+
   if (ReorderBufferSize > 0)
     RemoveFromReorderBuffer(InstructionFetchCycle);
+
+
   
 #ifdef MOO_BUFFERS
   //Remove from Load, Store and Fill Line Buffers elements completed at issue cycle
   
   //RemoveFromLoadBuffer(InstructionFetchCycle);
+
   RemoveFromLoadBufferTree(InstructionFetchCycle);
   RemoveFromStoreBuffer(InstructionFetchCycle);
   RemoveFromLineFillBuffer(InstructionFetchCycle);
@@ -3474,6 +3428,7 @@ DynamicAnalysis::IncreaseInstructionFetchCycle(){
 #endif
   // If Reservation station is full
   if (ReservationStationIssueCycles.size() == ReservationStationSize && ReservationStationSize > 0) {
+
     // Advance InstructionFetchCyle untill min issue cycle
     OOOBufferFull = true;
     uint64_t CurrentInstructionFetchCycle = InstructionFetchCycle;
@@ -3501,6 +3456,7 @@ DynamicAnalysis::IncreaseInstructionFetchCycle(){
 #endif
   }
   if (ReorderBufferCompletionCycles.size() == ReorderBufferSize && ReorderBufferSize > 0) {
+dbgs() << "ROB is full\n";
     //Advance InstructionFetchCycle to the head of the buffer
     OOOBufferFull = true;
     uint64_t CurrentInstructionFetchCycle = InstructionFetchCycle;
@@ -3793,7 +3749,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
       if (RemainingInstructionsFetch == 0 || /*RemainingInstructionsFetch == INF||*/
           (ReorderBufferCompletionCycles.size() == (unsigned)ReorderBufferSize && ReorderBufferSize != 0)
           || (ReservationStationIssueCycles.size() == (unsigned)ReservationStationSize && ReservationStationSize != 0)){
-        
+
         IncreaseInstructionFetchCycle();
         
       }
@@ -4663,10 +4619,9 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
               MaxDispatchToLoadBufferQueueTree = max(MaxDispatchToLoadBufferQueueTree,CycleInsertReservationStation );
 
             }
-            dbgs() << "Inserting node into DispatchToLoadBufferQueue\n";
+
             DispatchToLoadBufferQueueTree = insert_node(NewInstructionIssueCycle+Latency,CycleInsertReservationStation, DispatchToLoadBufferQueueTree);
-                        dbgs() << "Inserted node into DispatchToLoadBufferQueue\n";
-            dbgs() << "Size after "<< node_size(DispatchToLoadBufferQueueTree)<<"\n";
+
 
             /*
             InstructionDispatchInfo DispathInfo;
@@ -4850,7 +4805,7 @@ DynamicAnalysis::finishAnalysis(){
         DEBUG(dbgs() << "______________________________________________________\n");
 #endif
   
-        dbgs() << "Increasing instruction fecth cycle\n";
+
         // Increase FetchCycle until all buffers are empty
         while (ReservationStationIssueCycles.size() != 0 || ReorderBufferCompletionCycles.size() != 0 || LoadBufferCompletionCycles.size() != 0 || StoreBufferCompletionCycles.size() != 0 || LineFillBufferCompletionCycles.size() != 0) {
           // In IncreaseInstructionFetchCycle(), InstructionFetchCycle only increases when

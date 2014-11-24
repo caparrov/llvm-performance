@@ -1428,5 +1428,96 @@ namespace ComplexSplayTree {
   }
   
 
+template <typename T>
+  ComplexTree<T> * remove(ComplexTree<T> * node, T data)
+   {
+//std::cout << "Removing elements with data " << data << "\n";
+     if(node == NULL)
+     {
+       return node;
+     }
+
+     if(data == node->IssueCycle)
+     {
+std::cout << "data == node->IssueCycle\n";
+       ComplexTree<T> *retval = NULL;
+    
+       if(node->left == NULL)
+       {
+         retval = node->right;
+         delete node;
+         return retval;
+       }
+       else if(node->right == NULL)
+       {
+         retval = node->left;
+         delete node;
+         return retval;
+       }
+       else
+       {
+          ComplexTree<T> *successor = getSuccessor(node->left);
+          node->key = successor->key;
+		node->IssueCycle = successor->IssueCycle;
+          node->left = remove(node->left, successor->IssueCycle);
+       }
+     }
+     else if(data < node->IssueCycle)
+     {
+//std::cout << "data<node->IssueCycle\n";
+       node->left = remove(node->left, data);
+     }
+     else
+     {
+//std::cout << "data< node->IssueCycle\n";
+       node->right = remove(node->right, data);
+     }
+
+     return node;
+   }
+
+   template <typename T>
+  ComplexTree<T> * getSuccessor( ComplexTree<T> *node)
+   {
+     while(node->right != NULL)
+       node = node->right;
+     return node;
+   }
+
+
+// Resmoves all nodes having value outside the given range and returns the root
+// of modified tree
+   template <typename T>
+ComplexTree<T>* removeOutsideRange(ComplexTree<T> *root, T min, T max)
+{
+   // Base Case
+   if (root == NULL)
+      return NULL;
+ 
+   // First fix the left and right subtrees of root
+   root->left =  removeOutsideRange(root->left, min, max);
+   root->right =  removeOutsideRange(root->right, min, max);
+ 
+   // Now fix the root.  There are 2 possible cases for toot
+   // 1.a) Root's key is smaller than min value (root is not in range)
+std::cout << "root->IssueCycle " << root->IssueCycle << "\n";
+   if (root->IssueCycle < min)
+   {
+std::cout << "root->IssueCycle " << root->IssueCycle << "\n";
+       ComplexTree<T> *rChild = root->right;
+       delete root;
+       return rChild;
+   }
+   // 1.b) Root's key is greater than max value (root is not in range)
+   if (root->IssueCycle > max)
+   {
+       ComplexTree<T> *lChild = root->left;
+       delete root;
+       return lChild;
+   }
+   // 2. Root is in range
+   return root;
+}
+
   
 }
