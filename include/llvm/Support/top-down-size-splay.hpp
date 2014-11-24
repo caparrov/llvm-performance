@@ -752,6 +752,7 @@ namespace SplayTreeVector{
   TreeVector<T> * insert_node(T i, TreeVector<T> * t) {
     
     
+    
     TreeVector<T> * new_node;
     
     if (t != NULL) {
@@ -801,7 +802,9 @@ namespace SplayTreeVector{
     TreeVector<T> * x;
     size_t tsize;
     
-    if (t==NULL) return NULL;
+    if (t==NULL) {
+      return NULL;}
+    
     tsize = t->size;
     t = splay(i,t);
     //if (compare(i, t->key) == 0) {               /* found it */
@@ -906,4 +909,524 @@ namespace SplayTreeVector{
 }
 
 
+namespace SimpleSplayTree {
+  
+  
+  template <typename T>
+  struct SimpleTree{
+    SimpleTree(){left = NULL; right = NULL; prev = NULL;size=1;}
+    
+    SimpleTree * left, * right, *prev;
+    T key;
+    size_t size;   /* maintained to be the number of nodes rooted here */
+    
+  };
+  
+  
+  ///////////////////////// FREE METHODS
+  
+  template <typename T>
+  inline size_t node_size(SimpleTree<T>* x){ return (x==NULL) ? 0 : x->size; }
+  
+  
+  // Splay using the key i (which may or may not be in the tree.)
+  // The starting root is t, and the tree used is defined by rat
+  // size fields are maintained */
+  //
+  template <typename T>
+  SimpleTree<T> * splay (T i, SimpleTree<T> *t)
+  {
+    SimpleTree<T> N, *l, *r, *y;
+    size_t root_size, l_size, r_size;
+    
+    if (t == NULL) return t;
+    N.left = N.right = NULL;
+    l = r = &N;
+    root_size = node_size(t);
+    l_size = r_size = 0;
+    
+    for (;;) {
+      
+      //      comp = compare(i, t->key);
+      //if (comp < 0) {
+      if (i < t->key) {
+        if (t->left == NULL) break;
+        
+        //	if (compare(i, t->left->key) < 0) {
+        if (i < t->left->key) {
+          y = t->left;                           /* rotate right */
+          t->left = y->right;
+          y->right = t;
+          t->size = node_size(t->left) + node_size(t->right) + 1;
+          t = y;
+          if (t->left == NULL) break;
+        }
+        r->left = t;                               /* link right */
+        r = t;
+        t = t->left;
+        r_size += 1+node_size(r->right);
+      } else if (i > t->key) {
+        if (t->right == NULL) break;
+        
+        //	if (compare(i, t->right->key) > 0) {
+        if (i > t->right->key) {
+          y = t->right;                          /* rotate left */
+          t->right = y->left;
+          y->left = t;
+          t->size = node_size(t->left) + node_size(t->right) + 1;
+          t = y;
+          if (t->right == NULL) break;
+        }
+        l->right = t;                              /* link left */
+        l = t;
+        t = t->right;
+        l_size += 1+node_size(l->left);
+      } else {
+        break;
+      }
+    }
+    l_size += node_size(t->left);  /* Now l_size and r_size are the sizes of */
+    r_size += node_size(t->right); /* the left and right trees we just built.*/
+    t->size = l_size + r_size + 1;
+    
+    l->right = r->left = NULL;
+    
+    /* The following two loops correct the size fields of the right path  */
+    /* from the left child of the root and the right path from the left   */
+    /* child of the root.                                                 */
+    for (y = N.right; y != NULL; y = y->right) {
+      y->size = l_size;
+      l_size -= 1+node_size(y->left);
+    }
+    for (y = N.left; y != NULL; y = y->left) {
+      y->size = r_size;
+      r_size -= 1+node_size(y->right);
+    }
+    
+    l->right = t->left;                                /* assemble */
+    r->left = t->right;
+    t->left = N.right;
+    t->right = N.left;
+    
+    return t;
+  }
+  
+  // Insert key i into the tree t, if it is not already there.
+  // Return a pointer to the resulting tree.
+  //
+  template <typename T>
+  SimpleTree<T> * insert_node(T i, SimpleTree<T> * t) {
+    
+    
+    SimpleTree<T> * new_node;
+    
+    if (t != NULL) {
+      
+      t = splay(i,t);
+      //if (compare(i, t->key)==0) {
+      /* if (i == t->key){
+       return t;  // it's already there
+       }*/
+    }
+    //new_node = (SimpleTree *) malloc (sizeof (SimpleTree));
+    //    if (new_node == NULL) {printf("Ran out of space\n"); exit(1);}
+    new_node = new SimpleTree<T>();
+    if(new_node == NULL)
+      std::cout << "Object could not be allocated!\n";
+    
+    
+    if (t == NULL) {
+      
+      new_node->left = new_node->right = NULL;
+      
+      //    } else if (compare(i, t->key) < 0) {
+    } else if (i < t->key) {
+      new_node->left = t->left;
+      new_node->right = t;
+      t->left = NULL;
+      t->size = 1+node_size(t->right);
+    } else {
+      new_node->right = t->right;
+      new_node->left = t;
+      t->right = NULL;
+      t->size = 1+node_size(t->left);
+    }
+    
+    new_node->key = i;
+    new_node->size = 1 + node_size(new_node->left) + node_size(new_node->right);
+    //New code
+    //  new_node->occupacy = occupacy;
+    return new_node;
+  }
+  
+  
+  
+  
+  // Deletes i from the SimpleTree if it's there.
+  // Return a pointer to the resulting SimpleTree.
+  //
+  template <typename T>
+  SimpleTree<T> * delete_node(T i, SimpleTree<T> *t) {
+    SimpleTree<T> * x;
+    size_t tsize;
+    
+    if (t==NULL) return NULL;
+    tsize = t->size;
+    t = splay(i,t);
+    
+    //if (compare(i, t->key) == 0) {               /* found it */
+    if (i == t->key) {               /* found it */
+      if (t->left == NULL) {
+        x = t->right;
+      } else {
+        x = splay(i, t->left);
+        x->right = t->right;
+      }
+      //free(t);
+      delete t;
+      if (x != NULL) {
+        x->size = tsize-1;
+        
+      }
+      return x;
+    } else {
+      return t;                         /* It wasn't there */
+    }
+  }
+  
+  
+  
+  //Returns a pointer to the node in the tree with the given rank.
+  // Returns NULL if there is no such node.
+  //  Does not change the tree.  To guarantee logarithmic behavior,
+  // the node found here should be splayed to the root.
+  //
+  template <typename T>
+  SimpleTree<T> *find_rank(int r, SimpleTree<T> *t) {
+    int lsize;
+    if ((r < 0) || (r >= (int) node_size(t))) return NULL;
+    for (;;) {
+      lsize = node_size(t->left);
+      if (r < lsize) {
+        t = t->left;
+      } else if (r > lsize) {
+        r = r - lsize -1;
+        t = t->right;
+      } else {
+        return t;
+      }
+    }
+  }
+  
+  
+  
+  
+  template <typename T>
+  bool find_key(T i, SimpleTree<T> *t ) {
+    
+    if (t != NULL) {
+      t = splay(i,t);
+      //if (compare(i, t->key) == 0) {               // found it
+      std::cout << "i "<< i<<std::endl;
+      if (i == t->key) {// found it
+        
+        return true;
+      }else
+        return false;
+    }
+    else{
+      return false;
+      
+    }
+  }
+  
+  template <typename T>
+  int tree_size(SimpleTree<T> * t) {
+    if (t==NULL) {
+      return(0);
+    }
+    return( tree_size(t->left) + tree_size(t->right) + 1 );
+  }
+  
+  
+  // print the tree
+  //
+  template <typename T>
+  void printtree(SimpleTree<T> * t, unsigned int d) {
+    if (t == NULL) return;
+    printtree(t->right, d+1);
+    for (unsigned int i=0; i<d; i++) std::cout << "  ";
+    std::cout << t->key <<"("<< t->size<<")"<<std::endl;
+    printtree(t->left, d+1);
+  }
+  
+  template <typename T>
+  SimpleTree<T> * delete_all (SimpleTree<T> * t )
+  {
+    if ( t != NULL ) {
+      t = delete_all ( t->left );
+      t = delete_all ( t->right );
+      delete t;
+      t = NULL;
+      return t;
+      
+    }
+    
+  }
+  
+  template <typename T>
+  T min(SimpleTree<T> * node) {
+    T minimum = 0;
+    
+    if(node->left == NULL){
+      return node->key;
+    }
+    minimum = min(node->left);
+    return minimum;
+    //return minHelper(node);
+  }
+  
+  
+}
 
+
+
+namespace ComplexSplayTree {
+  
+  
+  template <typename T>
+  struct ComplexTree{
+    ComplexTree(){left = NULL; right = NULL; prev = NULL;size=1;}
+    
+    ComplexTree * left, * right, *prev;
+    T key; // The key is CompletionCycle
+    T IssueCycle;
+    size_t size;   /* maintained to be the number of nodes rooted here */
+    
+  };
+  
+  
+  ///////////////////////// FREE METHODS
+  
+  template <typename T>
+  inline size_t node_size(ComplexTree<T>* x){ return (x==NULL) ? 0 : x->size; }
+  
+  
+  // Splay using the key i (which may or may not be in the tree.)
+  // The starting root is t, and the tree used is defined by rat
+  // size fields are maintained */
+  //
+  template <typename T>
+  ComplexTree<T> * splay (T i, ComplexTree<T> *t)
+  {
+    ComplexTree<T> N, *l, *r, *y;
+    size_t root_size, l_size, r_size;
+    
+    if (t == NULL) return t;
+    N.left = N.right = NULL;
+    l = r = &N;
+    root_size = node_size(t);
+    l_size = r_size = 0;
+    
+    for (;;) {
+      
+      //      comp = compare(i, t->key);
+      //if (comp < 0) {
+      if (i < t->key) {
+        if (t->left == NULL) break;
+        
+        //	if (compare(i, t->left->key) < 0) {
+        if (i < t->left->key) {
+          y = t->left;                           /* rotate right */
+          t->left = y->right;
+          y->right = t;
+          t->size = node_size(t->left) + node_size(t->right) + 1;
+          t = y;
+          if (t->left == NULL) break;
+        }
+        r->left = t;                               /* link right */
+        r = t;
+        t = t->left;
+        r_size += 1+node_size(r->right);
+      } else if (i > t->key) {
+        if (t->right == NULL) break;
+        
+        //	if (compare(i, t->right->key) > 0) {
+        if (i > t->right->key) {
+          y = t->right;                          /* rotate left */
+          t->right = y->left;
+          y->left = t;
+          t->size = node_size(t->left) + node_size(t->right) + 1;
+          t = y;
+          if (t->right == NULL) break;
+        }
+        l->right = t;                              /* link left */
+        l = t;
+        t = t->right;
+        l_size += 1+node_size(l->left);
+      } else {
+        break;
+      }
+    }
+    l_size += node_size(t->left);  /* Now l_size and r_size are the sizes of */
+    r_size += node_size(t->right); /* the left and right trees we just built.*/
+    t->size = l_size + r_size + 1;
+    
+    l->right = r->left = NULL;
+    
+    /* The following two loops correct the size fields of the right path  */
+    /* from the left child of the root and the right path from the left   */
+    /* child of the root.                                                 */
+    for (y = N.right; y != NULL; y = y->right) {
+      y->size = l_size;
+      l_size -= 1+node_size(y->left);
+    }
+    for (y = N.left; y != NULL; y = y->left) {
+      y->size = r_size;
+      r_size -= 1+node_size(y->right);
+    }
+    
+    l->right = t->left;                                /* assemble */
+    r->left = t->right;
+    t->left = N.right;
+    t->right = N.left;
+    
+    return t;
+  }
+  
+  // Insert key i into the tree t, if it is not already there.
+  // Return a pointer to the resulting tree.
+  //
+  template <typename T>
+  ComplexTree<T> * insert_node(T i, T j, ComplexTree<T> * t) {
+    
+    
+    ComplexTree<T> * new_node;
+    
+    if (t != NULL) {
+      
+      t = splay(i,t);
+      //if (compare(i, t->key)==0) {
+      /* if (i == t->key){
+       return t;  // it's already there
+       }*/
+    }
+    //new_node = (ComplexTree *) malloc (sizeof (ComplexTree));
+    //    if (new_node == NULL) {printf("Ran out of space\n"); exit(1);}
+    new_node = new ComplexTree<T>();
+    if(new_node == NULL)
+      std::cout << "Object could not be allocated!\n";
+    
+    
+    if (t == NULL) {
+      
+      new_node->left = new_node->right = NULL;
+      
+      //    } else if (compare(i, t->key) < 0) {
+    } else if (i < t->key) {
+      new_node->left = t->left;
+      new_node->right = t;
+      t->left = NULL;
+      t->size = 1+node_size(t->right);
+    } else {
+      new_node->right = t->right;
+      new_node->left = t;
+      t->right = NULL;
+      t->size = 1+node_size(t->left);
+    }
+    
+    new_node->key = i;
+    new_node->IssueCycle = j;
+    new_node->size = 1 + node_size(new_node->left) + node_size(new_node->right);
+    //New code
+    //  new_node->occupacy = occupacy;
+    return new_node;
+  }
+  
+  
+  
+  
+  // Deletes i from the ComplexTree if it's there.
+  // Return a pointer to the resulting ComplexTree.
+  //
+  template <typename T>
+  ComplexTree<T> * delete_node(T i, ComplexTree<T> *t) {
+
+    ComplexTree<T> * x;
+    size_t tsize;
+    
+    if (t==NULL) return NULL;
+    tsize = t->size;
+    
+
+
+    t = splay(i,t);
+  
+    
+    //if (compare(i, t->key) == 0) {               /* found it */
+    if (i == t->key) {               /* found it */
+
+      if (t->left == NULL) {
+
+        x = t->right;
+      } else {
+
+        x = splay(i, t->left);
+        x->right = t->right;
+      }
+      //free(t);
+      delete t;
+      if (x != NULL) {
+        x->size = tsize-1;
+        
+      }
+      return x;
+    } else {
+      return t;                         /* It wasn't there */
+    }
+  }
+  
+  
+  
+
+  
+  template <typename T>
+  bool find_key(T i, ComplexTree<T> *t ) {
+    
+    if (t != NULL) {
+      t = splay(i,t);
+      //if (compare(i, t->key) == 0) {               // found it
+      if (i == t->key) {// found it
+        
+        return true;
+      }else
+        return false;
+    }
+    else{
+      return false;
+      
+    }
+  }
+
+  
+  template <typename T>
+  ComplexTree<T> * delete_all (T i, ComplexTree<T> * t )
+  {
+    if ( t != NULL ) {
+      t = delete_all ( t->left );
+      t = delete_all ( t->right );
+      if (t->key==i) {
+        delete t;
+        t = NULL;
+        return t;
+      }else
+        return t;
+      
+      
+    }
+    
+  }
+  
+
+  
+}

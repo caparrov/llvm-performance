@@ -351,7 +351,8 @@ using namespace llvm;
 using namespace std;
 using namespace SplayTree;
 using namespace SplayTreeBoolean;
-
+using namespace SimpleSplayTree;
+using namespace ComplexSplayTree;
 
 
 
@@ -469,10 +470,12 @@ public:
   vector<uint64_t> ReservationStationIssueCycles;
   deque<uint64_t> ReorderBufferCompletionCycles;
   vector<uint64_t> LoadBufferCompletionCycles;
-  Tree<uint64_t> LoadBufferCompletionCycles;
+  SimpleTree<uint64_t> *LoadBufferCompletionCyclesTree;
   vector<uint64_t> StoreBufferCompletionCycles;
   vector<uint64_t> LineFillBufferCompletionCycles;
   vector<InstructionDispatchInfo> DispatchToLoadBufferQueue;
+  ComplexTree<uint64_t> *DispatchToLoadBufferQueueTree;
+
   vector<InstructionDispatchInfo> DispatchToStoreBufferQueue;
   vector<InstructionDispatchInfo> DispatchToLineFillBufferQueue;
   
@@ -550,6 +553,9 @@ public:
   
   vector <Tree<uint64_t> * > StallCycles;
   vector <uint64_t> NInstructionsStalled;
+  
+  uint64_t MinLoadBuffer;
+  uint64_t MaxDispatchToLoadBufferQueueTree;
   
   //Statistics
   double AverageILP;
@@ -659,25 +665,36 @@ public:
       
   uint64_t GetMinIssueCycleReservationStation();
   uint64_t GetMinCompletionCycleLoadBuffer();
+  uint64_t GetMinCompletionCycleLoadBufferTree();
+
   uint64_t GetMinCompletionCycleStoreBuffer();
    uint64_t GetMinCompletionCycleLineFillBuffer();
-  uint64_t GetMinCompletionCycleDispatchToLoadBufferQueue();
   
   void RemoveFromReservationStation(uint64_t Cycle);
   void RemoveFromReorderBuffer(uint64_t Cycle);
   void RemoveFromLoadBuffer(uint64_t Cycle);
+  void RemoveFromLoadBufferTree(uint64_t Cycle);
+
   void RemoveFromStoreBuffer(uint64_t Cycle);
   void RemoveFromLineFillBuffer(uint64_t Cycle);
+  
   void RemoveFromDispatchToLoadBufferQueue(uint64_t Cycle);
+    void RemoveFromDispatchToLoadBufferQueueTree(uint64_t Cycle);
   void RemoveFromDispatchToStoreBufferQueue(uint64_t Cycle);
   void RemoveFromDispatchToLineFillBufferQueue(uint64_t Cycle);
   
+  ComplexTree<uint64_t> * RemoveFromDispatchAndInsertIntoLoad(uint64_t i, ComplexTree<uint64_t> * t);
+  void inOrder(uint64_t i, ComplexTree<uint64_t> * n);
   
   void DispatchToLoadBuffer(uint64_t Cycle);
+  void DispatchToLoadBufferTree(uint64_t Cycle);
+
   void DispatchToStoreBuffer(uint64_t Cycle);
   void DispatchToLineFillBuffer(uint64_t Cycle);
   
   uint64_t FindIssueCycleWhenLoadBufferIsFull();
+  uint64_t FindIssueCycleWhenLoadBufferTreeIsFull();
+
   uint64_t FindIssueCycleWhenStoreBufferIsFull();
   uint64_t FindIssueCycleWhenLineFillBufferIsFull();
   
