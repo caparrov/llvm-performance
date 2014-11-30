@@ -38,8 +38,7 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
                                  int ReorderBufferSize,
                                  int LoadBufferSize,
                                  int StoreBufferSize,
-                                 int LineFillBufferSize,
-                                 bool WarmCache,
+                                 int LineFillBufferSize,bool WarmCache,
                                  bool x86MemoryModel,
                                  bool SpatialPrefetcher,
                                  bool ConstraintPorts,
@@ -52,13 +51,25 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
                                  unsigned PrefetchTarget){
   
 
+	if (L1CacheSize < CacheLineSize)
+    		report_fatal_error("L1 cache size < cache line size");
+if (L2CacheSize < CacheLineSize)
+    		report_fatal_error("L2 cache size < cache line size");
+if (LLCCacheSize < CacheLineSize)
+    		report_fatal_error("LLC cache size < cache line size");
   // Initialize local variables with command-line arguemtns
   this->TargetFunction = TargetFunction;
   this->MemoryWordSize = MemoryWordSize;
   this->CacheLineSize = CacheLineSize/(this->MemoryWordSize);
-  this->L1CacheSize = L1CacheSize/(this->CacheLineSize * (this->MemoryWordSize));
-  this->L2CacheSize = L2CacheSize/(this->CacheLineSize * (this->MemoryWordSize));
-  this->LLCCacheSize = LLCCacheSize/(this->CacheLineSize * (this->MemoryWordSize));
+
+	// If caches sizes are not multiple of a power of 2, force it.
+  this->L1CacheSize = roundNextPowerOfTwo(L1CacheSize);
+  this->L2CacheSize = roundNextPowerOfTwo(L2CacheSize);
+  this->LLCCacheSize = roundNextPowerOfTwo(LLCCacheSize);
+
+  this->L1CacheSize = this->L1CacheSize /(this->CacheLineSize * (this->MemoryWordSize));
+  this->L2CacheSize = this->L2CacheSize/(this->CacheLineSize * (this->MemoryWordSize));
+  this->LLCCacheSize = this->LLCCacheSize/(this->CacheLineSize * (this->MemoryWordSize));
   this->AddressGenerationUnits = AddressGenerationUnits;
   this->ReservationStationSize = ReservationStationSize;
   this->InstructionFetchBandwidth = InstructionFetchBandwidth;
@@ -83,10 +94,7 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
   
   BitsPerCacheLine = log2(this->CacheLineSize * (this->MemoryWordSize));
   
-  // If caches sizes are not multiple of a power of 2, force it.
-  this->L1CacheSize = roundNextPowerOfTwo(this->L1CacheSize);
-  this->L2CacheSize = roundNextPowerOfTwo(this->L2CacheSize);
-  this->LLCCacheSize = roundNextPowerOfTwo(this->LLCCacheSize);
+ 
   
   // In reality is if L2, but need to specify the size for the reuse disrance
   switch (PrefetchLevel) {
@@ -3456,7 +3464,6 @@ DynamicAnalysis::IncreaseInstructionFetchCycle(){
 #endif
   }
   if (ReorderBufferCompletionCycles.size() == ReorderBufferSize && ReorderBufferSize > 0) {
-dbgs() << "ROB is full\n";
     //Advance InstructionFetchCycle to the head of the buffer
     OOOBufferFull = true;
     uint64_t CurrentInstructionFetchCycle = InstructionFetchCycle;
@@ -4852,7 +4859,8 @@ DynamicAnalysis::finishAnalysis(){
         
         for (unsigned j = 0; j < nExecutionUnits + nAGUs + nPorts + nBuffers; j++){
           LastIssueCycleVector.push_back(GetLastIssueCycle(j, false));
-          if (LastIssueCycleVector[j] > InstructionFetchCycle) {
+	            
+ if (InstructionFetchCycle != 0 && LastIssueCycleVector[j] > InstructionFetchCycle) {
             report_fatal_error("LastIssueCycle > InstructionFetchCycle for resource\n");
           }
         }
@@ -5592,8 +5600,10 @@ DynamicAnalysis::finishAnalysis(){
                 if (ExecutionUnitsParallelIssue[i]==INF) {
                   if (ExecutionUnitsThroughput[i]==INF) {
                     Throughput = INF;
-                  }else
+                  }else{
                     Throughput = ExecutionUnitsThroughput[i];
+			dbgs() << "Setting thoughput to " << ExecutionUnitsThroughput[i] << "\n";
+}
                 }else{
                   if (ExecutionUnitsThroughput[i]==INF) {
                     Throughput = ExecutionUnitsParallelIssue[i];
@@ -5613,6 +5623,9 @@ DynamicAnalysis::finishAnalysis(){
                     MinExecutionTime = 1;
                   }else
                     MinExecutionTime = (unsigned)ceil(InstructionsCountExtended[i]*AccessGranularities[i]/(Throughput));
+dbgs() << "InstructionsCountExtended[i] " << InstructionsCountExtended[i] << "\n";
+				dbgs() << "Throughput " << Throughput << "\n";
+				dbgs() << "MinExecutionTime " << MinExecutionTime << "\n";
                 }
                 
                 if (Throughput==INF && IssueSpan[i]==1 ) {
