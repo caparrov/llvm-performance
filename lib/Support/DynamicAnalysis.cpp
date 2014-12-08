@@ -926,7 +926,8 @@ DynamicAnalysis::ThereIsAvailableBandwidth(unsigned NextAvailableCycle, unsigned
   unsigned IssueCycleGranularity = 0;
   unsigned TmpTreeChunk, TreeChunk;
   if (TargetLevel==true && FoundInFullOccupancyCyclesTree == false) {
-    
+
+  //  dbgs() << "Making sure there is also enough bandwidth...\n";
     
     DEBUG(dbgs() << "Making sure there is also enough bandwidth...\n");
     
@@ -954,7 +955,8 @@ DynamicAnalysis::ThereIsAvailableBandwidth(unsigned NextAvailableCycle, unsigned
       StartingCycle = 0;
     }else
       StartingCycle = NextAvailableCycle -IssueCycleGranularity+1;
-    
+   // dbgs() << "StartingCycle  "<< StartingCycle<<"\n";
+  //  dbgs() << "NextAvailableCycle  "<< NextAvailableCycle<<"\n";
     DEBUG(dbgs() << "StartingCycle  "<< StartingCycle<<"\n");
     DEBUG(dbgs() << "NextAvailableCycle  "<< NextAvailableCycle<<"\n");
     
@@ -972,6 +974,7 @@ DynamicAnalysis::ThereIsAvailableBandwidth(unsigned NextAvailableCycle, unsigned
       if ( FullOccupancyCyclesTree[TmpTreeChunk]!= NULL && FullOccupancyCyclesTree[TmpTreeChunk]->key == i	&& FullOccupancyCyclesTree[TmpTreeChunk]->BitVector[ExecutionResource]==1) {
         
         FoundInFullOccupancyCyclesTree = true;
+	//dbgs() << "Setting EnoughBW to false\n";
         EnoughBandwidth  = false;
         //Every time NextAvailableCycle changes, we need to update TreeChunk
         TreeChunk = NextAvailableCycle/SplitTreeRange;
@@ -1021,6 +1024,7 @@ DynamicAnalysis::ThereIsAvailableBandwidth(unsigned NextAvailableCycle, unsigned
     EnoughBandwidth = true;
   }
   
+//dbgs() <<  "There is available BW? " << EnoughBandwidth << "\n";
   return EnoughBandwidth;
 }
 
@@ -1038,7 +1042,8 @@ DynamicAnalysis::FindNextAvailableIssueCycleUntilNotInFullOrEnoughBandwidth(unsi
   
   //VCA-Aug next line
   NextAvailableCycle++;
-  DEBUG(dbgs() << "Searching NextAvailableCycle for " << NextAvailableCycle << "\n");
+//dbgs() << "Searching NextAvailableCycle for " << NextAvailableCycle << "\n";  
+DEBUG(dbgs() << "Searching NextAvailableCycle for " << NextAvailableCycle << "\n");
   
   OriginalCycle = NextAvailableCycle;
   
@@ -1217,6 +1222,7 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
       DEBUG(dbgs() << "nExecutionUnits "<< nExecutionUnits<<"\n");
       
       // NEW CODE INSERTED
+FoundInFullOccupancyCyclesTree = false;
       EnoughBandwidth = ThereIsAvailableBandwidth(NextAvailableCycle, ExecutionResource, FoundInFullOccupancyCyclesTree, TargetLevel);
       
       if (FoundInFullOccupancyCyclesTree == true || EnoughBandwidth == false) {
@@ -1237,8 +1243,8 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
 bool
 DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsigned ExecutionResource, uint64_t ExtendedInstructionType, unsigned NElementsVector, bool isPrefetch){
   
-  if(ExecutionResource == 0)
-	dbgs() << "Inserting  NextAvailableCycle " <<  NextAvailableCycle << "\n";
+ // if(ExecutionResource == 0)
+//	dbgs() << "Inserting  NextAvailableCycle " <<  NextAvailableCycle << "\n";
   DEBUG(dbgs() << "Inserting  NextAvailableCycle " <<  NextAvailableCycle << "\n");
   
   Tree<uint64_t> * Node = AvailableCyclesTree[ExecutionResource];
@@ -2369,9 +2375,9 @@ DynamicAnalysis::CalculateGroupSpan(vector<int> & ResourcesVector, bool WithPref
       LastCycle = max(LastCycle, ResourceLastCycle);
     }
   }
- dbgs() << "First non-empty level  " << First << "\n";
-  dbgs() << "MaxLatency  " << MaxLatency << "\n";
- dbgs() << "LastCycle  " << LastCycle << "\n";
+ //dbgs() << "First non-empty level  " << First << "\n";
+ // dbgs() << "MaxLatency  " << MaxLatency << "\n";
+ //dbgs() << "LastCycle  " << LastCycle << "\n";
   #ifdef DEBUG_SPAN_CALCULATION
   DEBUG(dbgs() << "First non-empty level  " << First << "\n");
   DEBUG(dbgs() << "MaxLatency  " << MaxLatency << "\n");
@@ -2460,7 +2466,7 @@ DynamicAnalysis::CalculateGroupSpan(vector<int> & ResourcesVector, bool WithPref
       
         }
   }
-  dbgs() << "CalculateGroupSpan returns Span =  " << Span<< "\n";
+  //dbgs() << "CalculateGroupSpan returns Span =  " << Span<< "\n";
   DEBUG(dbgs() << "CalculateGroupSpan returns Span =  " << Span<< "\n");
   
   return Span;
