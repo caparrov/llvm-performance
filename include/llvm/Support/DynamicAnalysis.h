@@ -635,6 +635,9 @@ vector<ComplexTree<uint64_t> *> PointersToRemove;
   unsigned FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned ExecutionResource, uint64_t ExtendedInstructionType,  uint8_t NElementsVector = 1, bool TargetLevel = true);
   unsigned FindNextAvailableIssueCyclePortAndThroughtput(unsigned InstructionIssueCycle, unsigned ExtendedInstructionType, unsigned NElementsVector=1);
   
+  bool ThereIsAvailableBandwidth(unsigned NextAvailableCycle, unsigned ExecutionResource, bool& FoundInFullOccupancyCyclesTree, bool TargetLevel);
+  
+  uint64_t FindNextAvailableIssueCycleUntilNotInFullOrEnoughBandwidth(unsigned NextCycle, unsigned ExecutionResource , bool& FoundInFullOccupancyCyclesTree, bool& EnoughBandwidth);
   
   bool InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsigned ExecutionResource, uint64_t ExtendedInstructionType,
                                      unsigned NElementsVector = 1, bool isPrefetch=0);

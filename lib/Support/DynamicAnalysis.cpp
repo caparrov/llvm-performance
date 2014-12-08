@@ -917,6 +917,199 @@ DynamicAnalysis::FindNextAvailableIssueCyclePortAndThroughtput(unsigned Instruct
 }
 
 
+bool
+DynamicAnalysis::ThereIsAvailableBandwidth(unsigned NextAvailableCycle, unsigned ExecutionResource, bool& FoundInFullOccupancyCyclesTree, bool TargetLevel){
+  
+  bool EnoughBandwidth;
+  float AvailableBandwidth;
+  unsigned AccessWidth;
+  unsigned IssueCycleGranularity = 0;
+  unsigned TmpTreeChunk, TreeChunk;
+  if (TargetLevel==true && FoundInFullOccupancyCyclesTree == false) {
+    
+    
+    DEBUG(dbgs() << "Making sure there is also enough bandwidth...\n");
+    
+    AccessWidth = AccessWidths[ExecutionResource];
+    AvailableBandwidth= ExecutionUnitsThroughput[ExecutionResource];
+    
+    IssueCycleGranularity = IssueCycleGranularities[ExecutionResource];
+    
+    DEBUG(dbgs() << "AccessWidth "<< AccessWidth<<"\n");
+    DEBUG(dbgs() << "AvailableBandwidth "<< AvailableBandwidth<<"\n");
+    DEBUG(dbgs() << "IssueCycleGranularity "<< IssueCycleGranularity<<"\n");
+    
+    // Assume initially that there is enough bandwidth
+    EnoughBandwidth = true;
+    
+    //There is enough bandwidth if:
+    // 1. The comp/load/store width fits within the level, or the level is empty.
+    // 2. If IssueCycleGranularity > 1, we have to make sure that there were no instructions
+    // executed with the same IssueCycleGranularity in previous cycles. We have to do this
+    // because we don't include latency cycles in AvailableCyclesTree.
+    int64_t StartingCycle = 0;
+    int64_t tmp = NextAvailableCycle -IssueCycleGranularity+1;
+    
+    if (tmp < 0) {
+      StartingCycle = 0;
+    }else
+      StartingCycle = NextAvailableCycle -IssueCycleGranularity+1;
+    
+    DEBUG(dbgs() << "StartingCycle  "<< StartingCycle<<"\n");
+    DEBUG(dbgs() << "NextAvailableCycle  "<< NextAvailableCycle<<"\n");
+    
+    for (uint64_t i = StartingCycle; i < NextAvailableCycle; i++) {
+      
+      TmpTreeChunk = i/SplitTreeRange;
+      if (TmpTreeChunk >= FullOccupancyCyclesTree.size()) {
+        for (unsigned j = FullOccupancyCyclesTree.size(); j<= TmpTreeChunk; j++) {
+          FullOccupancyCyclesTree.push_back(NULL);
+        }
+      }
+      
+      FullOccupancyCyclesTree[TmpTreeChunk] = splay(i,  FullOccupancyCyclesTree[TmpTreeChunk]);
+      
+      if ( FullOccupancyCyclesTree[TmpTreeChunk]!= NULL && FullOccupancyCyclesTree[TmpTreeChunk]->key == i	&& FullOccupancyCyclesTree[TmpTreeChunk]->BitVector[ExecutionResource]==1) {
+        
+        FoundInFullOccupancyCyclesTree = true;
+        EnoughBandwidth  = false;
+        //Every time NextAvailableCycle changes, we need to update TreeChunk
+        TreeChunk = NextAvailableCycle/SplitTreeRange;
+        if (TreeChunk >= FullOccupancyCyclesTree.size()) {
+          for (unsigned j = FullOccupancyCyclesTree.size(); j<= TreeChunk; j++) {
+            DEBUG(dbgs() << "Inserting element into FullOccupancyCyclesTree\n");
+            FullOccupancyCyclesTree.push_back(NULL);
+          }
+        }
+        DEBUG(dbgs() << "There is not enough bandwidth because of issue cycle granularity in previous cycles\n");
+        break;
+      }
+    }
+    
+    // 3. The same as 2 but for next cycles. If there were loads executed on those cycles,
+    // there would not be available bandwith for the current load.
+    for (uint64_t i = NextAvailableCycle+1; i < NextAvailableCycle +IssueCycleGranularity; i++) {
+      DEBUG(dbgs() << "Checking full occupancy in cycle "<< i<<"\n");
+      TmpTreeChunk = i/SplitTreeRange;
+      if (TmpTreeChunk >= FullOccupancyCyclesTree.size()) {
+        for (unsigned j = FullOccupancyCyclesTree.size(); j<= TmpTreeChunk; j++) {
+          FullOccupancyCyclesTree.push_back(NULL);
+        }
+      }
+      FullOccupancyCyclesTree[TmpTreeChunk] = splay(i,  FullOccupancyCyclesTree[TmpTreeChunk]);
+      
+      if ( FullOccupancyCyclesTree[TmpTreeChunk]!= NULL && FullOccupancyCyclesTree[TmpTreeChunk]->key == i	&&
+          FullOccupancyCyclesTree[TmpTreeChunk]->BitVector[ExecutionResource]==1) {
+        
+        DEBUG(dbgs() << "There is not enough bandwidth because of issue cycle granularity in later cycles\n");
+        DEBUG(dbgs() << "Cycle " << i << " is in full\n");
+        FoundInFullOccupancyCyclesTree = true;
+        EnoughBandwidth = false;
+        TreeChunk = NextAvailableCycle/SplitTreeRange;
+        
+        if (TreeChunk >= FullOccupancyCyclesTree.size()) {
+          for (unsigned j = FullOccupancyCyclesTree.size(); j<= TreeChunk; j++) {
+            DEBUG(dbgs() << "Inserting element into FullOccupancyCyclesTree\n");
+            FullOccupancyCyclesTree.push_back(NULL);
+          }
+        }
+        DEBUG(dbgs() << "NextAvailableCycle " << NextAvailableCycle << "\n");
+        break;
+      }
+    }
+  }else{
+    EnoughBandwidth = true;
+  }
+  
+  return EnoughBandwidth;
+}
+
+
+
+uint64_t
+DynamicAnalysis::FindNextAvailableIssueCycleUntilNotInFullOrEnoughBandwidth(unsigned NextCycle, unsigned ExecutionResource , bool& FoundInFullOccupancyCyclesTree, bool& EnoughBandwidth){
+  
+  
+  unsigned NextAvailableCycle = NextCycle;
+  unsigned OriginalCycle;
+  Tree<uint64_t> * Node = AvailableCyclesTree[ExecutionResource];
+  unsigned TreeChunk;
+  Tree<uint64_t> * LastNodeVisited = NULL;
+  
+  //VCA-Aug next line
+  NextAvailableCycle++;
+  DEBUG(dbgs() << "Searching NextAvailableCycle for " << NextAvailableCycle << "\n");
+  
+  OriginalCycle = NextAvailableCycle;
+  
+  // If we loop over the first while because there is not enough bandwidth,
+  // Node might be NULL because this loop has already been executed.
+  Node = AvailableCyclesTree[ExecutionResource];
+  
+  while( Node ) {
+    
+    if( Node->key > NextAvailableCycle){
+      if (NextAvailableCycle == OriginalCycle){ // i.e., it is the first iteration
+        NextAvailableCycle = Node-> key;
+        LastNodeVisited = Node;
+        
+      }
+      // Search for a smaller one
+      Node = Node->left;
+    }else if( Node->key < NextAvailableCycle){
+      // We comment this out because this will never happen in NextAvailable because
+      // for every full node we always insert the next available. The general
+      // algorithm that finds the larger, if it exist, should have this code
+      // uncommented.
+      //UNCOMMENT THIS!!
+      /*  if (NextAvailableCycle == OriginalCycle){
+       NextAvailableCycle = Node->key;
+       LastNodeVisited = Node;
+       }*/
+      if (Node->key == OriginalCycle) {
+        NextAvailableCycle = OriginalCycle;
+        LastNodeVisited = Node;
+        
+        
+        break;
+      }else if (Node->key > OriginalCycle) {
+        //Search for a even smaller one
+        NextAvailableCycle =Node-> key;
+        LastNodeVisited = Node;
+        
+        // Search for a smaller one
+        Node = Node-> left;
+      }else{ //Node->key < OriginalCycle
+        // Search for a larger one, but do not store last node visited...
+        Node = Node-> right;
+      }
+    }else{ //Node->key = NextAvailableCycle
+      NextAvailableCycle = Node->key;
+      LastNodeVisited = Node;
+      break;
+    }
+  }
+  
+  //LastNodeVisited contains the next available cycle. But we still need to check
+  //that it is available for lower and upper levels.
+  NextAvailableCycle = LastNodeVisited->key;
+  
+  TreeChunk = NextAvailableCycle/SplitTreeRange;
+  DEBUG(dbgs() << "TreeChunk = "<<TreeChunk<< "\n");
+  DEBUG(dbgs() << "FullOccupancyCyclesTree.size() = "<<FullOccupancyCyclesTree.size()<< "\n");
+  
+  if (TreeChunk >= FullOccupancyCyclesTree.size()) {
+    for (unsigned i = FullOccupancyCyclesTree.size(); i<= TreeChunk; i++) {
+      DEBUG(dbgs() << "Inserting element into FullOccupancyCyclesTree\n");
+      FullOccupancyCyclesTree.push_back(NULL);
+    }
+  }
+  DEBUG(dbgs() << "NextAvailableCycle " << NextAvailableCycle << "\n");
+  FoundInFullOccupancyCyclesTree = true;
+  EnoughBandwidth = false;
+  return NextAvailableCycle;
+  
+}
 // Find next available issue cycle depending on resource availability.
 // Returns a pointer
 unsigned
@@ -924,13 +1117,11 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
                                              bool TargetLevel){
   
   uint64_t NextAvailableCycle = OriginalCycle;
-  Tree<uint64_t> * Node = AvailableCyclesTree[ExecutionResource];
-  Tree<uint64_t> * LastNodeVisited = NULL;
-  unsigned IssueCycleGranularity = 0, AccessWidth;
-  float AvailableBandwidth;
+  
+ 
+  
   bool FoundInFullOccupancyCyclesTree = true;
   bool EnoughBandwidth = false;
-  unsigned TmpTreeChunk;
   // Get the node, if any, corresponding to this issue cycle.
   unsigned TreeChunk = NextAvailableCycle/SplitTreeRange;
   if (TreeChunk >= (unsigned)FullOccupancyCyclesTree.size()) {
@@ -978,174 +1169,13 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
         DEBUG(dbgs() << "ExecutionResource "<< ExecutionResource<<"\n");
         DEBUG(dbgs() << "nExecutionUnits "<< nExecutionUnits<<"\n");
         
-        if (TargetLevel==true && FoundInFullOccupancyCyclesTree == false) {
-          
-          
-          DEBUG(dbgs() << "Making sure there is also enough bandwidth...\n");
-          
-          AccessWidth = AccessWidths[ExecutionResource];
-          AvailableBandwidth= ExecutionUnitsThroughput[ExecutionResource];
-          
-          IssueCycleGranularity = IssueCycleGranularities[ExecutionResource];
-          
-          DEBUG(dbgs() << "AccessWidth "<< AccessWidth<<"\n");
-          DEBUG(dbgs() << "AvailableBandwidth "<< AvailableBandwidth<<"\n");
-          DEBUG(dbgs() << "IssueCycleGranularity "<< IssueCycleGranularity<<"\n");
-          
-          // Assume initially that there is enough bandwidth
-          EnoughBandwidth = true;
-          
-          //There is enough bandwidth if:
-          // 1. The comp/load/store width fits within the level, or the level is empty.
-          // 2. If IssueCycleGranularity > 1, we have to make sure that there were no instructions
-          // executed with the same IssueCycleGranularity in previous cycles. We have to do this
-          // because we don't include latency cycles in AvailableCyclesTree.
-          int64_t StartingCycle = 0;
-          int64_t tmp = NextAvailableCycle -IssueCycleGranularity+1;
-          
-          if (tmp < 0) {
-            StartingCycle = 0;
-          }else
-            StartingCycle = NextAvailableCycle -IssueCycleGranularity+1;
-          
-          DEBUG(dbgs() << "StartingCycle  "<< StartingCycle<<"\n");
-          DEBUG(dbgs() << "NextAvailableCycle  "<< NextAvailableCycle<<"\n");
-          
-          for (uint64_t i = StartingCycle; i < NextAvailableCycle; i++) {
-            
-            TmpTreeChunk = i/SplitTreeRange;
-            if (TmpTreeChunk >= FullOccupancyCyclesTree.size()) {
-              for (unsigned j = FullOccupancyCyclesTree.size(); j<= TmpTreeChunk; j++) {
-                FullOccupancyCyclesTree.push_back(NULL);
-              }
-            }
-            
-            FullOccupancyCyclesTree[TmpTreeChunk] = splay(i,  FullOccupancyCyclesTree[TmpTreeChunk]);
-            
-            if ( FullOccupancyCyclesTree[TmpTreeChunk]!= NULL && FullOccupancyCyclesTree[TmpTreeChunk]->key == i	&& FullOccupancyCyclesTree[TmpTreeChunk]->BitVector[ExecutionResource]==1) {
-              
-              FoundInFullOccupancyCyclesTree = true;
-              EnoughBandwidth  = false;
-              //Every time NextAvailableCycle changes, we need to update TreeChunk
-              TreeChunk = NextAvailableCycle/SplitTreeRange;
-              if (TreeChunk >= FullOccupancyCyclesTree.size()) {
-                for (unsigned j = FullOccupancyCyclesTree.size(); j<= TreeChunk; j++) {
-                  DEBUG(dbgs() << "Inserting element into FullOccupancyCyclesTree\n");
-                  FullOccupancyCyclesTree.push_back(NULL);
-                }
-              }
-              DEBUG(dbgs() << "There is not enough bandwidth because of issue cycle granularity in previous cycles\n");
-              break;
-            }
-          }
-          
-          // 3. The same as 2 but for next cycles. If there were loads executed on those cycles,
-          // there would not be available bandwith for the current load.
-          for (uint64_t i = NextAvailableCycle+1; i < NextAvailableCycle +IssueCycleGranularity; i++) {
-            DEBUG(dbgs() << "Checking full occupancy in cycle "<< i<<"\n");
-            TmpTreeChunk = i/SplitTreeRange;
-            if (TmpTreeChunk >= FullOccupancyCyclesTree.size()) {
-              for (unsigned j = FullOccupancyCyclesTree.size(); j<= TmpTreeChunk; j++) {
-                FullOccupancyCyclesTree.push_back(NULL);
-              }
-            }
-            FullOccupancyCyclesTree[TmpTreeChunk] = splay(i,  FullOccupancyCyclesTree[TmpTreeChunk]);
-            
-            if ( FullOccupancyCyclesTree[TmpTreeChunk]!= NULL && FullOccupancyCyclesTree[TmpTreeChunk]->key == i	&&
-                FullOccupancyCyclesTree[TmpTreeChunk]->BitVector[ExecutionResource]==1) {
-              
-              DEBUG(dbgs() << "There is not enough bandwidth because of issue cycle granularity in later cycles\n");
-              DEBUG(dbgs() << "Cycle " << i << " is in full\n");
-              FoundInFullOccupancyCyclesTree = true;
-              EnoughBandwidth = false;
-              TreeChunk = NextAvailableCycle/SplitTreeRange;
-              
-              if (TreeChunk >= FullOccupancyCyclesTree.size()) {
-                for (unsigned j = FullOccupancyCyclesTree.size(); j<= TreeChunk; j++) {
-                  DEBUG(dbgs() << "Inserting element into FullOccupancyCyclesTree\n");
-                  FullOccupancyCyclesTree.push_back(NULL);
-                }
-              }
-              DEBUG(dbgs() << "NextAvailableCycle " << NextAvailableCycle << "\n");
-              break;
-            }
-          }
-        }else{
-          EnoughBandwidth = true;
-        }
+        // NEW CODE INSERTED
+        EnoughBandwidth = ThereIsAvailableBandwidth(NextAvailableCycle, ExecutionResource, FoundInFullOccupancyCyclesTree, TargetLevel);
         
         if (FoundInFullOccupancyCyclesTree == true || EnoughBandwidth == false) {
-          //VCA-Aug next line
-          NextAvailableCycle++;
-          DEBUG(dbgs() << "Searching NextAvailableCycle for " << NextAvailableCycle << "\n");
           
-          OriginalCycle = NextAvailableCycle;
-          
-          // If we loop over the first while because there is not enough bandwidth,
-          // Node might be NULL because this loop has already been executed.
-          Node = AvailableCyclesTree[ExecutionResource];
-          
-          while( Node ) {
-            
-            if( Node->key > NextAvailableCycle){
-              if (NextAvailableCycle == OriginalCycle){ // i.e., it is the first iteration
-                NextAvailableCycle = Node-> key;
-                LastNodeVisited = Node;
-                
-              }
-              // Search for a smaller one
-              Node = Node->left;
-            }else if( Node->key < NextAvailableCycle){
-              // We comment this out because this will never happen in NextAvailable because
-              // for every full node we always insert the next available. The general
-              // algorithm that finds the larger, if it exist, should have this code
-              // uncommented.
-              //UNCOMMENT THIS!!
-              /*  if (NextAvailableCycle == OriginalCycle){
-               NextAvailableCycle = Node->key;
-               LastNodeVisited = Node;
-               }*/
-              if (Node->key == OriginalCycle) {
-                NextAvailableCycle = OriginalCycle;
-                LastNodeVisited = Node;
-                
-                
-                break;
-              }else if (Node->key > OriginalCycle) {
-                //Search for a even smaller one
-                NextAvailableCycle =Node-> key;
-                LastNodeVisited = Node;
-                
-                // Search for a smaller one
-                Node = Node-> left;
-              }else{ //Node->key < OriginalCycle
-                // Search for a larger one, but do not store last node visited...
-                Node = Node-> right;
-              }
-            }else{ //Node->key = NextAvailableCycle
-              NextAvailableCycle = Node->key;
-              LastNodeVisited = Node;
-              break;
-            }
-          }
-          
-          //LastNodeVisited contains the next available cycle. But we still need to check
-          //that it is available for lower and upper levels.
-          NextAvailableCycle = LastNodeVisited->key;
-          
-          TreeChunk = NextAvailableCycle/SplitTreeRange;
-          DEBUG(dbgs() << "TreeChunk = "<<TreeChunk<< "\n");
-          DEBUG(dbgs() << "FullOccupancyCyclesTree.size() = "<<FullOccupancyCyclesTree.size()<< "\n");
-          
-          if (TreeChunk >= FullOccupancyCyclesTree.size()) {
-            for (unsigned i = FullOccupancyCyclesTree.size(); i<= TreeChunk; i++) {
-              DEBUG(dbgs() << "Inserting element into FullOccupancyCyclesTree\n");
-              FullOccupancyCyclesTree.push_back(NULL);
-            }
-          }
-          DEBUG(dbgs() << "NextAvailableCycle " << NextAvailableCycle << "\n");
-          FoundInFullOccupancyCyclesTree = true;
-          EnoughBandwidth = false;
+          // NEW CODE
+          NextAvailableCycle = FindNextAvailableIssueCycleUntilNotInFullOrEnoughBandwidth(NextAvailableCycle, ExecutionResource , FoundInFullOccupancyCyclesTree,EnoughBandwidth);
         }
       }else{
         if (FoundInFullOccupancyCyclesTree ==true) {
@@ -1176,6 +1206,27 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
       }
       
     }
+  }else{
+    if (TreeChunk != 0) {
+
+    // Full is NULL, but check that TreeChunk is not zero. Otherwise, Full is not really NULL
+    if (ExecutionResource <= nExecutionUnits) {
+      
+      DEBUG(dbgs() << "ExecutionResource <= nExecutionUnits\n");
+      DEBUG(dbgs() << "ExecutionResource "<< ExecutionResource<<"\n");
+      DEBUG(dbgs() << "nExecutionUnits "<< nExecutionUnits<<"\n");
+      
+      // NEW CODE INSERTED
+      EnoughBandwidth = ThereIsAvailableBandwidth(NextAvailableCycle, ExecutionResource, FoundInFullOccupancyCyclesTree, TargetLevel);
+      
+      if (FoundInFullOccupancyCyclesTree == true || EnoughBandwidth == false) {
+        
+        // NEW CODE
+        NextAvailableCycle = FindNextAvailableIssueCycleUntilNotInFullOrEnoughBandwidth(NextAvailableCycle, ExecutionResource , FoundInFullOccupancyCyclesTree,EnoughBandwidth);
+      }
+    }
+    }
+    
   }
   return NextAvailableCycle;
 }
