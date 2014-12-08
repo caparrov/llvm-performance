@@ -180,11 +180,11 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
   if(!ExecutionUnitsParallelIssue.empty() && ExecutionUnitsParallelIssue.size() !=
      nExecutionUnits)
     report_fatal_error("The number of execution units parallel issue does not match the number of execution units");
-  if (L1CacheSize < CacheLineSize)
+  if (L1CacheSize != 0 && L1CacheSize < CacheLineSize)
     report_fatal_error("L1 cache size < cache line size");
-  if (L2CacheSize < CacheLineSize)
+  if (L2CacheSize!= 0 && L2CacheSize < CacheLineSize)
     report_fatal_error("L2 cache size < cache line size");
-  if (LLCCacheSize < CacheLineSize)
+  if (LLCCacheSize != 0 && LLCCacheSize < CacheLineSize)
     report_fatal_error("LLC cache size < cache line size");
   
   if (CacheLineSize % MemoryWordSize != 0)
@@ -395,12 +395,36 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
     
     if (i < nCompExecutionUnits){
       AccessWidth = VectorWidth;
+	// Computational units throughput must also be rounded
+	if(this->ExecutionUnitsThroughput[i]!= INF){	
+		if (this->ExecutionUnitsThroughput[i] >= 1){
+		this->ExecutionUnitsThroughput[i] = roundNextMultiple(this->ExecutionUnitsThroughput[i] , VectorWidth);		
+	}
+		
+		
+	}
     }else{
       if (i >= nCompExecutionUnits && i < nCompExecutionUnits + nMemExecutionUnits) {
         AccessWidth = roundNextMultiple(VectorWidth*MemoryWordSize, AccessGranularities[i]);
         // Round throughput of memory resources to the next multiple of MemoryWordSize
-        this->ExecutionUnitsThroughput[i] = roundNextMultiple(this->ExecutionUnitsThroughput[i],this->MemoryWordSize);
-      }else{
+       	if (this->ExecutionUnitsThroughput[i]!= INF){
+		if (this->ExecutionUnitsThroughput[i] < this->MemoryWordSize){
+		if (this->ExecutionUnitsThroughput[i] < 1){
+//dbgs() << "Rounding because it is <1 \n";
+///dbgs() << "Before rounding " << this->ExecutionUnitsThroughput[i]<<"\n";
+		this->ExecutionUnitsThroughput[i] = float(1)/float((roundNextPowerOfTwo(ceil(1/this->ExecutionUnitsThroughput[i]))/float(2)));
+//dbgs() << "after rounding " << this->ExecutionUnitsThroughput[i]<<"\n";
+}else{
+//dbgs() << "Rounding because is < memory size, but not < 1\n";
+//dbgs() << "Before rounding " << this->ExecutionUnitsThroughput[i]<<"\n";
+this->ExecutionUnitsThroughput[i] = roundNextPowerOfTwo(ceil(this->ExecutionUnitsThroughput[i]));
+//dbgs() << "Before after " << this->ExecutionUnitsThroughput[i]<<"\n";
+}
+		}	else
+
+		 this->ExecutionUnitsThroughput[i] = roundNextMultiple(this->ExecutionUnitsThroughput[i],this->MemoryWordSize);
+    	} 
+	 }else{
         AccessWidth = 1;
       }
     }
@@ -916,7 +940,8 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
     }
   }
   
-  // If full is null, then it is available for sure
+  // If full is null, then it is available for sure -> WRONG! It might happen that FULL is NULL because
+  // a new chunk was created.
   // If it is not NULL and there is something scheduled in this cycle..
   // (we don't include the condition FullOccupancyNode->BitVector[ExecutionResource]==1
   // here because it could happen that it cannot be executed because of throughput<1
@@ -1161,7 +1186,8 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
 bool
 DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsigned ExecutionResource, uint64_t ExtendedInstructionType, unsigned NElementsVector, bool isPrefetch){
   
-  
+  if(ExecutionResource == 0)
+	dbgs() << "Inserting  NextAvailableCycle " <<  NextAvailableCycle << "\n";
   DEBUG(dbgs() << "Inserting  NextAvailableCycle " <<  NextAvailableCycle << "\n");
   
   Tree<uint64_t> * Node = AvailableCyclesTree[ExecutionResource];
@@ -1193,7 +1219,10 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
   
   InstructionsLastIssueCycle[ExecutionResource] = max( InstructionsLastIssueCycle[ExecutionResource] ,NextAvailableCycle);
   
-  DEBUG(dbgs() << "Updating InstructionsLastIssueCycle of execution resource " << ResourcesNames[ExecutionResource] << " to " <<InstructionsLastIssueCycle[ExecutionResource]  << "\n");
+ 
+
+	
+ DEBUG(dbgs() << "Updating InstructionsLastIssueCycle of execution resource " << ResourcesNames[ExecutionResource] << " to " <<InstructionsLastIssueCycle[ExecutionResource]  << "\n");
   
   // Insert
   // If it exists already in Available... Inserting it has any effect? No, it simply returns a pointer to the node.
@@ -1357,11 +1386,11 @@ DynamicAnalysis::ReuseDistance(uint64_t Last, uint64_t Current, uint64_t address
   int PrefetchReuseTreeDistance = 0;
   if(L1CacheSize != 0){ // Otherwise, does not matter the distance, it is mem access
     
-    DEBUG(dbgs() << "Size of reuse tree " << node_size(ReuseTree) << "\n");
+  //  DEBUG(dbgs() << "Size of reuse tree " << node_size(ReuseTree) << "\n");
     
     int ReuseTreeDistance = ReuseTreeSearchDelete(Last, address, false);
     
-    DEBUG(dbgs() << "Memory op reuse distance in ReuseTree " << ReuseTreeDistance << "\n");
+   // DEBUG(dbgs() << "Memory op reuse distance in ReuseTree " << ReuseTreeDistance << "\n");
     
     if (SpatialPrefetcher == true) {
       bool IsInPrefetchReuseTree = false;
@@ -1436,7 +1465,7 @@ DynamicAnalysis::ReuseDistance(uint64_t Last, uint64_t Current, uint64_t address
     }
     
 #ifdef DEBUG_REUSE_DISTANCE
-    DEBUG(dbgs() << "Memory op reuse distance " << Distance << "\n");
+   // DEBUG(dbgs() << "Memory op reuse distance " << Distance << "\n");
 #endif
   }else{
     ReuseTree = insert_node(address,ReuseTree, address);
@@ -1537,6 +1566,11 @@ DynamicAnalysis::updateReuseDistanceDistribution(int Distance, uint64_t Instruct
   }else
     ReuseDistanceDistributionExtended[Distance][InstructionIssueCycle]=1; // First usage
 #endif
+}
+
+unsigned int
+DynamicAnalysis::DivisionRoundUp(float a, float b){
+    return (a * b + (a+b) / 2) / (a+b);
 }
 
 
@@ -2284,6 +2318,9 @@ DynamicAnalysis::CalculateGroupSpan(vector<int> & ResourcesVector, bool WithPref
       LastCycle = max(LastCycle, ResourceLastCycle);
     }
   }
+ dbgs() << "First non-empty level  " << First << "\n";
+  dbgs() << "MaxLatency  " << MaxLatency << "\n";
+ dbgs() << "LastCycle  " << LastCycle << "\n";
   #ifdef DEBUG_SPAN_CALCULATION
   DEBUG(dbgs() << "First non-empty level  " << First << "\n");
   DEBUG(dbgs() << "MaxLatency  " << MaxLatency << "\n");
@@ -2300,7 +2337,9 @@ DynamicAnalysis::CalculateGroupSpan(vector<int> & ResourcesVector, bool WithPref
 #ifdef DEBUG_SPAN_CALCULATION
       DEBUG(dbgs() << "i =   " << i << "\n");
 #endif
-      //Determine MaxLatency of Level
+//if (ResourceType == 0)
+//dbgs() << "i =   " << i << "\n";      
+//Determine MaxLatency of Level
       MaxLatencyLevel = 0;
       for(int j=0; j< NResources; j++){
         ResourceType = ResourcesVector[j];
@@ -2326,7 +2365,8 @@ DynamicAnalysis::CalculateGroupSpan(vector<int> & ResourcesVector, bool WithPref
                       }
         }
       }
-      
+//if (ResourceType == 0)
+  //    dbgs() << "MaxLatencyLevel  " << MaxLatencyLevel << "\n";
 #ifdef DEBUG_SPAN_CALCULATION
       DEBUG(dbgs() << "MaxLatencyLevel  " << MaxLatencyLevel << "\n");
 #endif
@@ -2336,6 +2376,8 @@ DynamicAnalysis::CalculateGroupSpan(vector<int> & ResourcesVector, bool WithPref
         if ( i <= DominantLevel+MaxLatency-1){
           
           if (i+MaxLatencyLevel > DominantLevel+MaxLatency && MaxLatencyLevel!=0) {
+//if (ResourceType == 0)
+//dbgs() << "Increasing Span by the difference " << ((i+MaxLatencyLevel)-max((DominantLevel+MaxLatency),(unsigned)1)) << "\n";
 #ifdef DEBUG_SPAN_CALCULATION
             DEBUG(dbgs() << "Increasing Span by the difference " << ((i+MaxLatencyLevel)-max((DominantLevel+MaxLatency),(unsigned)1)) << "\n");
 #endif
@@ -2345,6 +2387,8 @@ DynamicAnalysis::CalculateGroupSpan(vector<int> & ResourcesVector, bool WithPref
             MaxLatency = MaxLatencyLevel;
           }
         }else{
+//if (ResourceType == 0)
+//dbgs() << "Increasing Span by " << MaxLatencyLevel << "\n";
 #ifdef DEBUG_SPAN_CALCULATION
           DEBUG(dbgs() << "Increasing Span by " << MaxLatencyLevel << "\n");
 #endif
@@ -2365,7 +2409,7 @@ DynamicAnalysis::CalculateGroupSpan(vector<int> & ResourcesVector, bool WithPref
       
         }
   }
-  
+  dbgs() << "CalculateGroupSpan returns Span =  " << Span<< "\n";
   DEBUG(dbgs() << "CalculateGroupSpan returns Span =  " << Span<< "\n");
   
   return Span;
@@ -3613,8 +3657,8 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
           Info = getCacheLineInfo(CacheLine);
           
 #ifdef DEBUG_MEMORY_TRACES
-          DEBUG(dbgs() << "MemoryAddress " << MemoryAddress << "\n");
-          DEBUG(dbgs() << "CacheLine " << CacheLine << "\n");
+       //   DEBUG(dbgs() << "MemoryAddress " << MemoryAddress << "\n");
+        //  DEBUG(dbgs() << "CacheLine " << CacheLine << "\n");
 #endif
           
           //Code for reuse calculation
@@ -3640,8 +3684,8 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
           Info = getCacheLineInfo(CacheLine);
           
 #ifdef DEBUG_MEMORY_TRACES
-          DEBUG(dbgs() << "MemoryAddress " << MemoryAddress << "\n");
-          DEBUG(dbgs() << "CacheLine " << CacheLine << "\n");
+         // DEBUG(dbgs() << "MemoryAddress " << MemoryAddress << "\n");
+        //  DEBUG(dbgs() << "CacheLine " << CacheLine << "\n");
 #endif
           
           Distance = ReuseDistance(Info.LastAccess, TotalInstructions, CacheLine);
@@ -5554,7 +5598,6 @@ DynamicAnalysis::finishAnalysis(){
                     Throughput = INF;
                   }else{
                     Throughput = ExecutionUnitsThroughput[i];
-                    dbgs() << "Setting thoughput to " << ExecutionUnitsThroughput[i] << "\n";
                   }
                 }else{
                   if (ExecutionUnitsThroughput[i]==INF) {
@@ -5575,9 +5618,6 @@ DynamicAnalysis::finishAnalysis(){
                     MinExecutionTime = 1;
                   }else
                     MinExecutionTime = (unsigned)ceil(InstructionsCountExtended[i]*AccessGranularities[i]/(Throughput));
-                  dbgs() << "InstructionsCountExtended[i] " << InstructionsCountExtended[i] << "\n";
-                  dbgs() << "Throughput " << Throughput << "\n";
-                  dbgs() << "MinExecutionTime " << MinExecutionTime << "\n";
                 }
                 
                 if (Throughput==INF && IssueSpan[i]==1 ) {

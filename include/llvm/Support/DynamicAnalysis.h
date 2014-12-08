@@ -715,7 +715,7 @@ vector<ComplexTree<uint64_t> *> PointersToRemove;
   unsigned int roundNextPowerOfTwo(unsigned int v);
   unsigned int roundNextMultiple(uint64_t num, int multiple);
   unsigned int roundNextMultipleOf2(uint64_t num);
-
+unsigned int DivisionRoundUp(float a, float b);
   void finishAnalysis();
   void printHeaderStat(string Header);
   
