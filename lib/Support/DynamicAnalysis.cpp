@@ -2959,8 +2959,7 @@ DynamicAnalysis::FindIssueCycleWhenLoadBufferIsFull(){
         it != DispatchToLoadBufferQueue.end(); ++it){
       EarliestDispatchCycle = max(EarliestDispatchCycle, (*it).IssueCycle);
     }
-
-   //M EarliestDispatchCycle = MaxDispatchToLoadBufferQueueTree;
+    EarliestDispatchCycle = MaxDispatchToLoadBufferQueueTree;
     
     //Traverse LB and count how many elements are there smaller than EarliestDispathCycle
     unsigned counter = 0;
@@ -2969,14 +2968,13 @@ DynamicAnalysis::FindIssueCycleWhenLoadBufferIsFull(){
       if ((*it) <= EarliestDispatchCycle)
         counter++;
     }
-
     uint64_t IssueCycle = 0;
     // This means that in LB, there are more loads that terminate before or in
     // my dispatch cycle -> IssueCycle is Earliest
     if (counter > BufferSize) {
       IssueCycle = EarliestDispatchCycle;
     }else{
-   //   if (counter == BufferSize) {
+      if (counter == BufferSize) {
         // Iterate thtough both, DispatchBufferQueue and LB to determine the smallest
         // completion cycle which is larger than EarliestDispatchCycle.
         // Initialize with the Completion cycle of the last element of the
@@ -3003,10 +3001,10 @@ DynamicAnalysis::FindIssueCycleWhenLoadBufferIsFull(){
             IssueCycle = min(IssueCycle,*it);
         }
         
-    //  }else{
-     //   report_fatal_error("Error in Dispatch to Load Buffer Queue");
+      }else{
+        report_fatal_error("Error in Dispatch to Load Buffer Queue");
         
-      //}
+      }
     }
     
     
@@ -3014,7 +3012,7 @@ DynamicAnalysis::FindIssueCycleWhenLoadBufferIsFull(){
     // The idea before was that the lower "BufferSize" elements of the sorted
     // LB are associated to the dipatch cycles of the elements in the DispatchQueue.
     // But this sorting is very exepensive.
-    
+    /*
      if (BufferSize >= (unsigned)LoadBufferSize) {
      // Iterate from end-LineFillBufferSize
      uint64_t EarliestCompletion = DispatchToLoadBufferQueue.back().CompletionCycle;
@@ -3028,7 +3026,7 @@ DynamicAnalysis::FindIssueCycleWhenLoadBufferIsFull(){
      }else{
      sort(LoadBufferCompletionCycles.begin(), LoadBufferCompletionCycles.end());
      return LoadBufferCompletionCycles[BufferSize];
-     }
+     }*/
     return IssueCycle;
     
   }
