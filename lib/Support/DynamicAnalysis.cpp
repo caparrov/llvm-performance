@@ -2,7 +2,7 @@
 //
 //                     The LLVM Compiler Infrastructure
 //
-//  Vtetoria Caparros Cabezas <caparrov@inf.ethz.ch>
+//  Victoria Caparros Cabezas <caparrov@inf.ethz.ch>
 //===----------------------------------------------------------------------===//
 
 #define INTERPRETER
@@ -1825,7 +1825,6 @@ DynamicAnalysis::GetMinCompletionCycleLoadBuffer(){
 
 uint64_t
 DynamicAnalysis::GetMinCompletionCycleLoadBufferTree(){
-  
   return MinLoadBuffer;
   //return min(LoadBufferCompletionCyclesTree);
 }
@@ -2702,25 +2701,35 @@ DynamicAnalysis::RemoveFromLoadBuffer(uint64_t Cycle){
 void
 DynamicAnalysis::RemoveFromLoadBufferTree(uint64_t Cycle){
   
-  
+  bool CycleFound = true;
+  while (CycleFound == true) {
+    
+
   if (LoadBufferCompletionCyclesTree != NULL) {
     
     LoadBufferCompletionCyclesTree = splay(Cycle, LoadBufferCompletionCyclesTree);
     
+
     if (LoadBufferCompletionCyclesTree->key == Cycle) { // If Cycle found
       LoadBufferCompletionCyclesTree->left = NULL;
       LoadBufferCompletionCyclesTree = delete_node(Cycle,LoadBufferCompletionCyclesTree);
       // If we remove the minimum, the resulting tree has as node the
-      // successor of the minimum, which is the next minimum
+      // successor of the minimum, which is the next minimum -> This is not
+      // true after we have splayed and the minimum is in the root.
       if (Cycle == MinLoadBuffer && LoadBufferCompletionCyclesTree != NULL) {
-        MinLoadBuffer = LoadBufferCompletionCyclesTree->key;
+        MinLoadBuffer = min(LoadBufferCompletionCyclesTree);
+        // MinLoadBuffer = LoadBufferCompletionCyclesTree->key;
       }
+    }else{
+      CycleFound = false;
     }
     
     
+  }else{
+    CycleFound = false;
   }
   
-  
+  }
   
 }
 
@@ -3361,6 +3370,45 @@ DynamicAnalysis::PrintLoadBuffer(){
   DEBUG(dbgs() << "\n");
 }
 
+void
+DynamicAnalysis::PrintLoadBufferTreeRecursive(SimpleTree<uint64_t> * p){
+  
+  if(p != NULL)
+  {
+    if(p->left) PrintLoadBufferTreeRecursive(p->left);
+    if(p->right) PrintLoadBufferTreeRecursive(p->right);
+   DEBUG(dbgs() <<" "<<p->key);
+  }
+  else return;
+}
+
+
+void
+DynamicAnalysis::PrintDispatchToLoadBufferTreeRecursive(ComplexTree<uint64_t> * p, bool key){
+   if(p != NULL)
+  {
+    if(p->left) PrintDispatchToLoadBufferTreeRecursive(p->left, key);
+    if(p->right) PrintDispatchToLoadBufferTreeRecursive(p->right, key);
+    if (key) {
+      DEBUG(dbgs() <<" "<<p->key);
+    }else
+      DEBUG(dbgs() <<" "<<p->IssueCycle);
+    
+  }
+  else return;
+
+}
+
+
+
+void
+DynamicAnalysis::PrintLoadBufferTree(){
+  
+  DEBUG(dbgs() << "Load Buffer Tree:\n");
+  PrintLoadBufferTreeRecursive(LoadBufferCompletionCyclesTree);
+  DEBUG(dbgs() << "\n");
+}
+
 
 
 void
@@ -3402,6 +3450,19 @@ DynamicAnalysis::PrintDispatchToLoadBuffer(){
   DEBUG(dbgs() << "\n");
 }
 
+
+void
+DynamicAnalysis::PrintDispatchToLoadBufferTree(){
+  
+ // dbgs() << "Size of DispatchToLoadBufferTree " << node_size(DispatchToLoadBufferQueueTree)<< "\n";
+
+  DEBUG(dbgs() << "Dispatch to Load Buffer Issue Cycles:\n");
+  PrintDispatchToLoadBufferTreeRecursive(DispatchToLoadBufferQueueTree, false);
+  DEBUG(dbgs() << "\n");
+  DEBUG(dbgs() << "Dispatch to Load Buffer Completion Cycles:\n");
+  PrintDispatchToLoadBufferTreeRecursive(DispatchToLoadBufferQueueTree, true);
+  DEBUG(dbgs() << "\n");
+}
 
 
 void
@@ -3445,48 +3506,8 @@ DynamicAnalysis::IncreaseInstructionFetchCycle(){
   
   bool OOOBufferFull = false;
   unsigned TreeChunk = 0;
-  
-  if (DispatchToLineFillBufferQueue.empty() == false) {
-    if (InstructionsCountExtended[LFB_STALL]==0)
-      FirstIssue[LFB_STALL] = true;
-    if (FirstIssue[LFB_STALL]==true) {
-      FirstNonEmptyLevel[LFB_STALL] = InstructionFetchCycle;
-      FirstIssue[LFB_STALL] = false;
-    }
-    
-    //FirstNonEmptyLevel[LFB_STALL] = (FirstNonEmptyLevel[LFB_STALL]==0)?InstructionFetchCycle:FirstNonEmptyLevel[LFB_STALL];
-    InstructionsLastIssueCycle[LFB_STALL] =InstructionFetchCycle;
-    FullOccupancyCyclesTree[InstructionFetchCycle/SplitTreeRange] = insert_node(InstructionFetchCycle, LFB_STALL, FullOccupancyCyclesTree[InstructionFetchCycle/SplitTreeRange]);
-    InstructionsCountExtended[LFB_STALL]++;
-  }
-  
-  if (node_size(DispatchToLoadBufferQueueTree) != 0) {
-    //if (DispatchToLoadBufferQueue.empty() == false) {
-    if (InstructionsCountExtended[LB_STALL]==0)
-      FirstIssue[LB_STALL] = true;
-    if (FirstIssue[LB_STALL]==true) {
-      FirstNonEmptyLevel[LB_STALL] = InstructionFetchCycle;
-      FirstIssue[LB_STALL] = false;
-    }
-    //FirstNonEmptyLevel[LB_STALL] = (FirstNonEmptyLevel[LB_STALL]==0)?InstructionFetchCycle:FirstNonEmptyLevel[LB_STALL];
-    InstructionsLastIssueCycle[LB_STALL] =InstructionFetchCycle;
-    FullOccupancyCyclesTree[InstructionFetchCycle/SplitTreeRange] = insert_node(InstructionFetchCycle, LB_STALL, FullOccupancyCyclesTree[InstructionFetchCycle/SplitTreeRange]);
-    InstructionsCountExtended[LB_STALL]++;
-  }
-  
-  if (DispatchToStoreBufferQueue.empty() == false) {
-    if (InstructionsCountExtended[SB_STALL]==0)
-      FirstIssue[SB_STALL] = true;
-    if (FirstIssue[SB_STALL]==true) {
-      FirstNonEmptyLevel[SB_STALL] = InstructionFetchCycle;
-      FirstIssue[SB_STALL] = false;
-    }
-    
-    //FirstNonEmptyLevel[SB_STALL] = (FirstNonEmptyLevel[SB_STALL]==0)?InstructionFetchCycle:FirstNonEmptyLevel[SB_STALL];
-    InstructionsLastIssueCycle[SB_STALL] =InstructionFetchCycle;
-    FullOccupancyCyclesTree[InstructionFetchCycle/SplitTreeRange] = insert_node(InstructionFetchCycle, SB_STALL,FullOccupancyCyclesTree[InstructionFetchCycle/SplitTreeRange]);
-    InstructionsCountExtended[SB_STALL]++;
-  }
+  uint64_t OriginalInstructionFetchCycle = InstructionFetchCycle;
+ 
   
   DEBUG(dbgs() << "_____________________ InstructionFetchCycle "<<InstructionFetchCycle<<"_____________________\n");
   
@@ -3495,10 +3516,12 @@ DynamicAnalysis::IncreaseInstructionFetchCycle(){
   PrintReservationStation();
   PrintReorderBuffer();
   PrintStoreBuffer();
-  PrintLoadBuffer();
+  PrintLoadBufferTree();
+  // PrintLoadBuffer();
   PrintLineFillBuffer();
   PrintDispatchToStoreBuffer();
-  PrintDispatchToLoadBuffer();
+//  PrintDispatchToLoadBuffer();
+    PrintDispatchToLoadBufferTree();
   PrintDispatchToLineFillBuffer();
 #endif
 #endif
@@ -3536,10 +3559,12 @@ DynamicAnalysis::IncreaseInstructionFetchCycle(){
   PrintReservationStation();
   PrintReorderBuffer();
   PrintStoreBuffer();
-  PrintLoadBuffer();
+  PrintLoadBufferTree();
+  //PrintLoadBuffer();
   PrintLineFillBuffer();
   PrintDispatchToStoreBuffer();
-  PrintDispatchToLoadBuffer();
+ // PrintDispatchToLoadBuffer();
+  PrintDispatchToLoadBufferTree();
   PrintDispatchToLineFillBuffer();
 #endif
 #endif
@@ -3611,10 +3636,12 @@ DynamicAnalysis::IncreaseInstructionFetchCycle(){
     PrintReorderBuffer();
 #ifdef MOO_BUFFERS
     PrintStoreBuffer();
-    PrintLoadBuffer();
+//    PrintLoadBuffer();
+    PrintLoadBufferTree();
     PrintLineFillBuffer();
     PrintDispatchToStoreBuffer();
-    PrintDispatchToLoadBuffer();
+    //PrintDispatchToLoadBuffer();
+     PrintDispatchToLoadBufferTree();
     PrintDispatchToLineFillBuffer();
 #endif
 #endif
@@ -3643,24 +3670,87 @@ DynamicAnalysis::IncreaseInstructionFetchCycle(){
     PrintReorderBuffer();
 #ifdef MOO_BUFFERS
     PrintStoreBuffer();
-    PrintLoadBuffer();
+   // PrintLoadBuffer();
+     PrintLoadBufferTree();
     PrintLineFillBuffer();
     PrintDispatchToStoreBuffer();
-    PrintDispatchToLoadBuffer();
+   // PrintDispatchToLoadBuffer();
+     PrintDispatchToLoadBufferTree();
     PrintDispatchToLineFillBuffer();
 #endif
 #endif
   }
+  
+  // When we are at this point, either we have removed from RS or ROB the
+  // instructions issued at this cycle, and they left some empty slots
+  // so that the buffers are not full anymore, or we have advanced
+  // InstructionFetchCycle to the cycle at which any of the buffers
+  // gets empty. In this case, we also have to set Remaining instructions
+  // to fetch to Fetchbanwidth, because we have modified fetch cycle
+  // and we start fetching again.
+  if (OOOBufferFull == true) {
+    RemainingInstructionsFetch = InstructionFetchBandwidth;
+  }
+  if(RemainingInstructionsFetch == 0 && InstructionFetchBandwidth != INF){
+  InstructionFetchCycle++;
+    RemainingInstructionsFetch = InstructionFetchBandwidth;
+  }
+  /*
   RemainingInstructionsFetch = InstructionFetchBandwidth;
   if (OOOBufferFull==false && InstructionFetchBandwidth != INF)
     InstructionFetchCycle++;
-  
+  */
   BuffersOccupancy[RS_STALL-RS_STALL] += ReservationStationIssueCycles.size();
   BuffersOccupancy[ROB_STALL-RS_STALL] += ReorderBufferCompletionCycles.size();
   //BuffersOccupancy[LB_STALL-RS_STALL] += LoadBufferCompletionCycles.size();
   BuffersOccupancy[LB_STALL-RS_STALL] += node_size(LoadBufferCompletionCyclesTree);
   BuffersOccupancy[SB_STALL-RS_STALL] += StoreBufferCompletionCycles.size();
   BuffersOccupancy[LFB_STALL-RS_STALL] += LineFillBufferCompletionCycles.size();
+  
+  if (OriginalInstructionFetchCycle != InstructionFetchCycle) {
+    if (DispatchToLineFillBufferQueue.empty() == false) {
+      if (InstructionsCountExtended[LFB_STALL]==0)
+        FirstIssue[LFB_STALL] = true;
+      if (FirstIssue[LFB_STALL]==true) {
+        FirstNonEmptyLevel[LFB_STALL] = InstructionFetchCycle;
+        FirstIssue[LFB_STALL] = false;
+      }
+      
+      //FirstNonEmptyLevel[LFB_STALL] = (FirstNonEmptyLevel[LFB_STALL]==0)?InstructionFetchCycle:FirstNonEmptyLevel[LFB_STALL];
+      InstructionsLastIssueCycle[LFB_STALL] =InstructionFetchCycle;
+      FullOccupancyCyclesTree[InstructionFetchCycle/SplitTreeRange] = insert_node(InstructionFetchCycle, LFB_STALL, FullOccupancyCyclesTree[InstructionFetchCycle/SplitTreeRange]);
+      InstructionsCountExtended[LFB_STALL]++;
+    }
+    
+    if (node_size(DispatchToLoadBufferQueueTree) != 0) {
+      //if (DispatchToLoadBufferQueue.empty() == false) {
+      if (InstructionsCountExtended[LB_STALL]==0)
+        FirstIssue[LB_STALL] = true;
+      if (FirstIssue[LB_STALL]==true) {
+        FirstNonEmptyLevel[LB_STALL] = InstructionFetchCycle;
+        FirstIssue[LB_STALL] = false;
+      }
+      //FirstNonEmptyLevel[LB_STALL] = (FirstNonEmptyLevel[LB_STALL]==0)?InstructionFetchCycle:FirstNonEmptyLevel[LB_STALL];
+      InstructionsLastIssueCycle[LB_STALL] =InstructionFetchCycle;
+      FullOccupancyCyclesTree[InstructionFetchCycle/SplitTreeRange] = insert_node(InstructionFetchCycle, LB_STALL, FullOccupancyCyclesTree[InstructionFetchCycle/SplitTreeRange]);
+      InstructionsCountExtended[LB_STALL]++;
+    }
+    
+    if (DispatchToStoreBufferQueue.empty() == false) {
+      if (InstructionsCountExtended[SB_STALL]==0)
+        FirstIssue[SB_STALL] = true;
+      if (FirstIssue[SB_STALL]==true) {
+        FirstNonEmptyLevel[SB_STALL] = InstructionFetchCycle;
+        FirstIssue[SB_STALL] = false;
+      }
+      
+      //FirstNonEmptyLevel[SB_STALL] = (FirstNonEmptyLevel[SB_STALL]==0)?InstructionFetchCycle:FirstNonEmptyLevel[SB_STALL];
+      InstructionsLastIssueCycle[SB_STALL] =InstructionFetchCycle;
+      FullOccupancyCyclesTree[InstructionFetchCycle/SplitTreeRange] = insert_node(InstructionFetchCycle, SB_STALL,FullOccupancyCyclesTree[InstructionFetchCycle/SplitTreeRange]);
+      InstructionsCountExtended[SB_STALL]++;
+    }
+  }
+  
   
   
 }
@@ -4962,7 +5052,8 @@ DynamicAnalysis::finishAnalysis(){
           PrintReservationStation();
           PrintReorderBuffer();
           PrintStoreBuffer();
-          PrintLoadBuffer();
+          PrintLoadBufferTree();
+          // PrintLoadBuffer();
           PrintLineFillBuffer();
           
           DEBUG(dbgs() << "Size of RS "<< ReservationStationIssueCycles.size()<<"\n");

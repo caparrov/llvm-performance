@@ -37,7 +37,7 @@
 //#define DEBUG_REUSE_DISTANCE
 
 //#define DEBUG_DEPS_FUNCTION_CALL
-//#define DEBUG_SPAN_CALCULATION
+#define DEBUG_SPAN_CALCULATION
 //#define DEBUG_AGU
 #define DEBUG_OOO_BUFFERS
 #define DEBUG_ISSUE_CYCLE
@@ -705,6 +705,11 @@ vector<ComplexTree<uint64_t> *> PointersToRemove;
   void PrintReorderBuffer();
   void PrintReservationStation();
   void PrintLoadBuffer();
+  void PrintLoadBufferTreeRecursive(SimpleTree<uint64_t> * p);
+  void PrintDispatchToLoadBufferTreeRecursive(ComplexTree<uint64_t> * p, bool key);
+  void PrintDispatchToLoadBufferTree();
+
+  void PrintLoadBufferTree();
   void PrintStoreBuffer();
   void PrintLineFillBuffer();
   void PrintDispatchToStoreBuffer();

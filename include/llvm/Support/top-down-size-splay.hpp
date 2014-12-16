@@ -1149,6 +1149,20 @@ namespace SimpleSplayTree {
   }
   
   
+   template <typename T>
+  void printPostOrder(SimpleTree<T> * p)
+  {
+    if(p != NULL)
+    {
+      if(p->left) printPostOrder(p->left);
+      if(p->right) printPostOrder(p->right);
+      std::cout <<" "<<p->key<<" ";
+    }
+    else return;
+  }
+  
+  
+  
   // print the tree
   //
   template <typename T>
