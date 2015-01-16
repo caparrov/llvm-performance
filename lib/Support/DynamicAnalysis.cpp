@@ -166,7 +166,6 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
     nStoreAGUs = ATOM_STORE_AGUS;
   }
   
-  
   // =================== Some general checkings ================================//
   
   if(!ExecutionUnitsLatency.empty() && ExecutionUnitsLatency.size() !=
@@ -228,7 +227,6 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
   BitsPerCacheLine = log2(this->CacheLineSize * (this->MemoryWordSize));
   
   
-  
   // In reality is if L2, but need to specify the size for the reuse disrance
   switch (PrefetchLevel) {
     case 1:
@@ -286,9 +284,13 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
   SourceCodeLine = 0;
   
   
-  
   // Make sure that there are no more parallel execution units that dispatch ports associated
   // to these units
+  if (ExecutionUnitsParallelIssue.empty() == true) {
+    for (unsigned i = 0; i < nCompNodes +nMemNodes; i++) { // Dispatch ports are associated to nodes
+      ExecutionUnitsParallelIssue.push_back(-1);
+    }
+  }
   for (unsigned i = 0; i < nCompNodes +nMemNodes; i++) { // Dispatch ports are associated to nodes
     if (ExecutionUnitsParallelIssue[ExecutionUnit[i]] > 0 && DispatchPort[i].size() < (unsigned)ExecutionUnitsParallelIssue[ExecutionUnit[i]]) {
       DEBUG(dbgs() << "ExecutionUnit " << i << "\n");
@@ -297,7 +299,6 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
       report_fatal_error("There are more execution units that ports that can dispatch them\n");
     }
   }
-  
   if (!MemAccessGranularity.empty() && MemAccessGranularity.size() != nMemExecutionUnits)
     report_fatal_error("Mem access granularities do not match the number of memory execution units");
   
@@ -315,6 +316,7 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
     }
   }
   
+
   if (!ExecutionUnitsLatency.empty()){
     for (unsigned i = 0; i< nExecutionUnits; i++)
       this->ExecutionUnitsLatency[i] = ceil(ExecutionUnitsLatency[i]);
@@ -334,6 +336,7 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
     for (unsigned i = 0; i< nMemExecutionUnits; i++)
       AccessGranularities[i+nCompExecutionUnits] = MemAccessGranularity[i];
   
+
   // Latency and throughput of AGUs
   if (nAGUs > 0) {
     this->ExecutionUnitsLatency.push_back(1);
@@ -360,7 +363,7 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
     this->ExecutionUnitsParallelIssue.push_back(nStoreAGUs);
     AccessGranularities.push_back(1);
   }
-  
+
   // Latency and throughput of ports
   for (unsigned i = 0; i< nPorts; i++) {
     this->ExecutionUnitsLatency.push_back(1); //Default value for latency
@@ -433,6 +436,8 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
     DEBUG(dbgs() << "IssueCycleGranularities["<<i<<"]=" << IssueCycleGranularities[i] << "\n");
   }
   
+  
+
   DEBUG(dbgs() << "Number of resources " << nExecutionUnits + nPorts + nAGUs + nLoadAGUs + nStoreAGUs + nBuffers << "\n");
   
   ResourcesNames.push_back("FP_ADDER");
@@ -1275,7 +1280,7 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
   
   AvailableCyclesTree[ExecutionResource] = insert_node(NextAvailableCycle,  AvailableCyclesTree[ExecutionResource]);
 #ifdef SOURCE_CODE_ANALYSIS
-  dbgs() << "Inserting source code line " << SourceCodeLine << "for cycle " << NextAvailableCycle << " in AvailableCyclesTree due to resource "<<ResourcesNames[ExecutionResource] <<"\n";
+  DEBUG(dbgs() << "Inserting source code line " << SourceCodeLine << "for cycle " << NextAvailableCycle << " in AvailableCyclesTree due to resource "<<ResourcesNames[ExecutionResource] <<"\n");
   AvailableCyclesTree[ExecutionResource]->SourceCodeLines.insert(SourceCodeLine);
 #endif
   Node = AvailableCyclesTree[ExecutionResource];
@@ -4128,7 +4133,10 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
         DILocation Loc(N);                      // DILocation is in DebugInfo.h
         SourceCodeLine = Loc.getLineNumber();
       }
-      assert(SourceCodeLine!=0);
+      if (SourceCodeLine == 0) {
+        report_fatal_error("Source code analysis requires the applicaiton to be compiled with -g flag");
+      }
+      
 #endif
       
       //   if (ReservationStationIssueCycles.size() == (unsigned)ReservationStationSize) {
@@ -5231,8 +5239,6 @@ DynamicAnalysis::printHeaderStat(string Header){
 void
 DynamicAnalysis::finishAnalysis(){
   
-  
-  dbgs() << "Finishing analysis\n";
   
   
   bool PrintWarning = false;

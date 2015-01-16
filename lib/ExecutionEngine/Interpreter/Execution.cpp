@@ -53,7 +53,7 @@ static cl::opt<string> TargetFunction("function", cl::desc("Name of the function
 
 static cl::opt <unsigned> MemoryWordSize("memory-word-size", cl::desc("Specify the size in bytes of a data item. Default value is 8 (double precision)"),cl::init(8));
 
-static cl::opt <unsigned> CacheLineSize("cache-line-size", cl::desc("Specify the cache line size (B). Default value is 64 B"),cl::init(64));
+static cl::opt <unsigned> CacheLineSize("cache-line-size", cl::desc("Specify the cache line size (B). Default value is 8 B"),cl::init(8));
 
 static cl::opt <unsigned> L1CacheSize("l1-cache-size", cl::desc("Specify the size of the L1 cache (in bytes). Default value is 32 KB"),cl::init(32768));
 
@@ -2341,42 +2341,31 @@ void Interpreter::run() {
   bool TargetFunctionCalled = false;
   bool TargetFunctionExecuted = false;
   
-  //VCA
+  //================== Code inserted into the interpreter ================
   clock_t tStart, tEnd, tStartPostProcessing, tEndPostProcessing;
   float Cycles, ExecutionTime, CyclesPostProcessing, ExecutionTimePostProcessing;
   
 
-  
   Analyzer = new DynamicAnalysis(TargetFunction, Microarchitecture, MemoryWordSize, CacheLineSize, L1CacheSize, L2CacheSize, LLCCacheSize, ExecutionUnitsLatency, ExecutionUnitsThroughput, ExecutionUnitsParallelIssue, MemAccessGranularity, AddressGenerationUnits, IFB, ReservationStation, ReorderBuffer, LoadBuffer, StoreBuffer, LineFillBuffer, WarmCache, x86MemoryModel, SpatialPrefetcher, ConstraintPorts, ConstraintAGUs, 0, InOrderExecution,ReportOnlyPerformance,PrefetchLevel, PrefetchDispatch, PrefetchTarget);
-  
    tStart = clock();
   bool startAnalysis = false;
-  // END VCA
-    
+  
     vector<ExecutionContext> ECStack2 = ECStack;
   
   if (WarmCache && TargetFunction.compare("main") == 0) {
     report_fatal_error("Warm cache scenario for main function requires two executions.\n");
 
   }
-  
+  //====================================================================
+
   while (!ECStack.empty()) {
    
     ExecutionContext &SF = ECStack.back();  // Current stack frame
     Instruction &I = *SF.CurInst++;         // Increment before execute
   
-      
-    // Interpret a single instruction & increment the "PC".
-  //  ExecutionContext &SF = ECStack.back();  // Current stack frame
-  //  Instruction &I = *SF.CurInst++;         // Increment before execute
-  
     // Track the number of dynamic instructions executed.
     ++NumDynamicInsts;
-      
- //   DEBUG(dbgs()<<  I<< "\n");
-//	dbgs() << "Parent name " << I.getParent()->getParent()->getName() << "\n";
     
-    //VCA
     // Check for conditions of execution. It is doing before visiting the instruction
     // because lowering some instructions may cause a segmentation fault when
     // accessing instruction properties.
@@ -2407,13 +2396,7 @@ void Interpreter::run() {
     
     
     if(!isDebugInstruction && (isTargetFunction || isCalledFromTarget)){
-   /*
-      if (MDNode *N = I.getMetadata("dbg")) {  // Here I is an LLVM instruction
-        DILocation Loc(N);                      // DILocation is in DebugInfo.h
-        unsigned SourceCodeLine = Loc.getLineNumber();
-        DEBUG(dbgs() << "Source code line " << SourceCodeLine << "\n");
-      }
-    */
+
       if (isCallInstruction) {
         
         // Make sure it is not a C++ built-in function (check llvm-nm.cpp to see how
@@ -2437,7 +2420,7 @@ void Interpreter::run() {
         }
         }
       Analyzer->TotalInstructions++;
-    //  DEBUG(dbgs() << "Instruction count: " << Analyzer->TotalInstructions << "\n");
+
       Analyzer->analyzeInstruction(I, SF, visitResult);
 
    if (isTargetFunction==true && TargetFunctionCalled==false) {
@@ -2452,7 +2435,6 @@ void Interpreter::run() {
           if (!(WarmCache && Analyzer->rep == 0)) {
 
              tStartPostProcessing = clock();
-            dbgs() << "Calling finishAnalysis from Execution\n";
             Analyzer->finishAnalysis();
             tEndPostProcessing = clock();
             CyclesPostProcessing = ((float)tEndPostProcessing - (float)tStartPostProcessing);
@@ -2478,11 +2460,6 @@ void Interpreter::run() {
     }
     
     
-
-    
-// END VCA
-    
-    
   
 #if 0
     // This is not safe, as visiting the instruction could lower it and free I.
@@ -2506,7 +2483,6 @@ DEBUG(
       }
     });
 #endif
- // }
   }
   
   delete(Analyzer);
