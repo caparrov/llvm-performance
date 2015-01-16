@@ -45,18 +45,21 @@
   [2] "Self-adjusting Binary Search Trees" Sleator and Tarjan,
        JACM Volume 32, No 3, July 1985, pp 652-686.
   [3] "Data Structure and Algorithm Analysis", Mark Weiss,
-       Benjamin Cummins, 1992, pp 119-130.
+       Benjamin Cummins, 1992, pp 119-  130.
   [4] "Data Structures, Algorithms, and Performance", Derick Wood,
        Addison-Wesley, 1993, pp 367-375
 */
 
 #include <iostream>
+#include <set>
 #include <boost/dynamic_bitset.hpp>
 
+#define SOURCE_CODE_ANALYSIS
 
 // Needed to use report_fatal_error
 using namespace llvm;
 using namespace boost;
+using namespace std;
 
 
 
@@ -86,12 +89,13 @@ namespace SplayTree{
     Tree * left, * right, *prev;
     T key;
     size_t size;   /* maintained to be the number of nodes rooted here */
-  //  int capacity;
-  //  int last_record;
     int32_t issueOccupancy;
     int32_t widthOccupancy;
     int32_t occupancyPrefetch;
     uint64_t address;
+#ifdef SOURCE_CODE_ANALYSIS
+    set<uint64_t> SourceCodeLines;
+#endif
     
   };
 
@@ -370,6 +374,11 @@ namespace SplayTreeBoolean{
     size_t size;   /* maintained to be the number of nodes rooted here */
 
     dynamic_bitset<> BitVector; // all 0's by default
+
+#ifdef SOURCE_CODE_ANALYSIS
+    set<uint64_t> SourceCodeLines;
+#endif
+    
   };
   
   

@@ -2407,11 +2407,13 @@ void Interpreter::run() {
     
     
     if(!isDebugInstruction && (isTargetFunction || isCalledFromTarget)){
+   /*
       if (MDNode *N = I.getMetadata("dbg")) {  // Here I is an LLVM instruction
         DILocation Loc(N);                      // DILocation is in DebugInfo.h
         unsigned SourceCodeLine = Loc.getLineNumber();
-        //DEBUG(dbgs() << "Source code line " << SourceCodeLine << "\n");
+        DEBUG(dbgs() << "Source code line " << SourceCodeLine << "\n");
       }
+    */
       if (isCallInstruction) {
         
         // Make sure it is not a C++ built-in function (check llvm-nm.cpp to see how
@@ -2450,6 +2452,7 @@ void Interpreter::run() {
           if (!(WarmCache && Analyzer->rep == 0)) {
 
              tStartPostProcessing = clock();
+            dbgs() << "Calling finishAnalysis from Execution\n";
             Analyzer->finishAnalysis();
             tEndPostProcessing = clock();
             CyclesPostProcessing = ((float)tEndPostProcessing - (float)tStartPostProcessing);

@@ -26,13 +26,14 @@
 #include <map>
 #include <stdarg.h>
 #include <stdio.h>
+#include <unordered_map>
 
 #define ROUND_REUSE_DISTANCE
 #define REDUCED_INST_TYPES
 #define NORMAL_REUSE_DISTRIBUTION
 
 
-
+//#define DEBUG_SOURCE_CODE_LINE_ANALYSIS
 //#define DEBUG_MEMORY_TRACES
 //#define DEBUG_REUSE_DISTANCE
 
@@ -507,6 +508,7 @@ public:
   
   uint8_t uarch;
   
+  unsigned SourceCodeLine;
   
   int rep;
   
@@ -575,6 +577,11 @@ vector<ComplexTree<uint64_t> *> PointersToRemove;
   map<int,int> ReuseDistanceDistribution;
   map<int,map<uint64_t,uint> > ReuseDistanceDistributionExtended;
   
+  unordered_map<uint64_t,set<uint64_t> > SourceCodeLineOperations;
+  unordered_map<uint64_t,set<uint64_t> > SourceCodeLineInfo;
+  unordered_map<uint64_t,vector<uint64_t> > SourceCodeLineInfoBreakdown;
+  
+  
   //Constructor
   DynamicAnalysis(string TargetFunction,
                   string Microarchitecture,
@@ -630,7 +637,8 @@ vector<ComplexTree<uint64_t> *> PointersToRemove;
   
   uint64_t GetLastIssueCycle(unsigned ExecutionResource, bool WithPrefetch = false);
     
-
+  uint64_t GetTreeChunk(uint64_t i);
+  
   //Returns the DAG level occupancy after the insertion
   unsigned FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned ExecutionResource, uint64_t ExtendedInstructionType,  uint8_t NElementsVector = 1, bool TargetLevel = true);
   unsigned FindNextAvailableIssueCyclePortAndThroughtput(unsigned InstructionIssueCycle, unsigned ExtendedInstructionType, unsigned NElementsVector=1);
@@ -639,10 +647,9 @@ vector<ComplexTree<uint64_t> *> PointersToRemove;
   
   uint64_t FindNextAvailableIssueCycleUntilNotInFullOrEnoughBandwidth(unsigned NextCycle, unsigned ExecutionResource , bool& FoundInFullOccupancyCyclesTree, bool& EnoughBandwidth);
   
-  bool InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsigned ExecutionResource, uint64_t ExtendedInstructionType,
-                                     unsigned NElementsVector = 1, bool isPrefetch=0);
+  bool InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsigned ExecutionResource, uint64_t ExtendedInstructionType, unsigned NElementsVector = 1, bool isPrefetch=0);
   
-  void IncreaseInstructionFetchCycle();
+  void IncreaseInstructionFetchCycle(bool EmptyBuffers = false);
   
   unsigned CalculateIssueCycleGranularity(unsigned ExecutionResource, unsigned NElementsVector=1);
   
@@ -659,13 +666,18 @@ vector<ComplexTree<uint64_t> *> PointersToRemove;
   unsigned CalculateResourceStallSpan(int resource, int stall);
   void CalculateResourceStallOverlapCycles(Tree<uint64_t> * n, int resource, uint64_t & OverlapCycles);
 
-  bool IsEmptyLevel(unsigned ExecutionResource, uint64_t Level, bool WithPrefetch = false);
+  
+  void CollectSourceCodeLineStatistics(uint64_t ResourceType, uint64_t Cycle,  uint64_t MaxLatencyLevel, uint64_t SpanIncrease, bool IsInFullOccupancyCyclesTree, bool IsInAvailableCyclesTree);
+  
+  bool IsEmptyLevel(unsigned ExecutionResource, uint64_t Level, bool& IsInAvailableCyclesTree,
+                    bool& IsInFullOccupancyCyclesTree , bool WithPrefetch = false);
   uint64_t FindNextNonEmptyLevel(unsigned ExecutionResource, uint64_t Level);
   bool isStallCycle(int ResourceType, uint64_t Level);
 
 
   unsigned GetMemoryInstructionType(int ReuseDistance, uint64_t MemoryAddress,bool isLoad=true);
     unsigned GetExtendedInstructionType(int OpCode, int ReuseDistance=0);
+  unsigned GetPositionSourceCodeLineInfoVector(uint64_t Resource);
       
   uint64_t GetMinIssueCycleReservationStation();
   uint64_t GetMinCompletionCycleLoadBuffer();
