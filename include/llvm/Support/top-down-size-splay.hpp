@@ -54,7 +54,7 @@
 #include <set>
 #include <boost/dynamic_bitset.hpp>
 
-#define SOURCE_CODE_ANALYSIS
+//#define SOURCE_CODE_ANALYSIS
 
 // Needed to use report_fatal_error
 using namespace llvm;

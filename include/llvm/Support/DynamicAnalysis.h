@@ -16,10 +16,16 @@
 #include "llvm/DebugInfo.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/Support/top-down-size-splay.hpp"
+//#include "llvm/Support/top-down-size-splay.hpp"
 #include "llvm/Support/InstIterator.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
 
+
+#ifdef INTERPRETER
+#include "llvm/Support/top-down-size-splay.hpp"
+#else
+#include "top-down-size-splay.hpp"
+#endif
 
 
 #include <iostream>
@@ -27,7 +33,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <unordered_map>
-
+#include <deque>
 #define ROUND_REUSE_DISTANCE
 #define REDUCED_INST_TYPES
 #define NORMAL_REUSE_DISTRIBUTION
@@ -619,7 +625,11 @@ vector<ComplexTree<uint64_t> *> PointersToRemove;
   
   
   void analyze();
-  void analyzeInstruction(Instruction &I, ExecutionContext &SF, GenericValue * visitResult);
+#ifdef INTERPRETER
+void analyzeInstruction(Instruction &I, ExecutionContext &SF,  GenericValue * visitResult);
+#else
+void analyzeInstruction (Instruction &I, uint64_t addr);
+#endif  
   
   void insertInstructionValueIssueCycle(Value* v,uint64_t InstructionIssueCycle, bool isPHINode = 0 );
   void insertCacheLineLastAccess(uint64_t v,uint64_t LastAccess );
