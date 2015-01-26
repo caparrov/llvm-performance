@@ -5,7 +5,7 @@
 //  Victoria Caparros Cabezas <caparrov@inf.ethz.ch>
 //===----------------------------------------------------------------------===//
 
-//#define INTERPRETER
+#define INTERPRETER
 
 #ifdef INTERPRETER
 #include "llvm/Support/DynamicAnalysis.h"

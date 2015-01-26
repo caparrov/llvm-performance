@@ -20,6 +20,7 @@
 #include "llvm/Support/InstIterator.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
 
+#define INTERPRETER
 
 #ifdef INTERPRETER
 #include "llvm/Support/top-down-size-splay.hpp"
