@@ -33,7 +33,10 @@
 #include <map>
 #include <stdarg.h>
 #include <stdio.h>
+
+#ifdef SOURCE_CODE_ANALYSIS
 #include <unordered_map>
+#endif
 #include <deque>
 #define ROUND_REUSE_DISTANCE
 #define REDUCED_INST_TYPES
@@ -43,7 +46,7 @@
 //#define DEBUG_SOURCE_CODE_LINE_ANALYSIS
 //#define DEBUG_MEMORY_TRACES
 //#define DEBUG_REUSE_DISTANCE
-
+#define DEBUG_GENERIC
 //#define DEBUG_DEPS_FUNCTION_CALL
 #define DEBUG_SPAN_CALCULATION
 //#define DEBUG_AGU
@@ -584,10 +587,11 @@ vector<ComplexTree<uint64_t> *> PointersToRemove;
   map<int,int> ReuseDistanceDistribution;
   map<int,map<uint64_t,uint> > ReuseDistanceDistributionExtended;
   
+#ifdef SOURCE_CODE_ANALYSIS
   unordered_map<uint64_t,set<uint64_t> > SourceCodeLineOperations;
   unordered_map<uint64_t,set<uint64_t> > SourceCodeLineInfo;
   unordered_map<uint64_t,vector<uint64_t> > SourceCodeLineInfoBreakdown;
-  
+#endif
   
   //Constructor
   DynamicAnalysis(string TargetFunction,

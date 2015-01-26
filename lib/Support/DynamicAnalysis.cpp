@@ -565,7 +565,6 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
     AvailableCyclesTree.push_back(NULL);
   
   
-  
 }
 
 
@@ -4744,9 +4743,9 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
     
     
     if (InstructionType >= 0) {
-      
+#ifdef SOURCE_CODE_ANALYSIS      
       SourceCodeLineOperations[SourceCodeLine].insert(ExecutionUnit[ExtendedInstructionType]);
-      
+      #endif
       uint64_t NewInstructionIssueCycle = InstructionIssueCycle;
       
       
