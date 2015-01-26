@@ -5,7 +5,7 @@
 //  Victoria Caparros Cabezas <caparrov@inf.ethz.ch>
 //===----------------------------------------------------------------------===//
 
-//#define INTERPRETER
+#define INTERPRETER
 
 #ifdef INTERPRETER
 #include "llvm/Support/DynamicAnalysis.h"
@@ -563,7 +563,6 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
   
   for (unsigned i = 0; i< nExecutionUnits + nPorts + nAGUs + nLoadAGUs + nStoreAGUs; i++)
     AvailableCyclesTree.push_back(NULL);
-  
   
   
 }
@@ -4744,9 +4743,9 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
     
     
     if (InstructionType >= 0) {
-      
+#ifdef SOURCE_CODE_ANALYSIS      
       SourceCodeLineOperations[SourceCodeLine].insert(ExecutionUnit[ExtendedInstructionType]);
-      
+      #endif
       uint64_t NewInstructionIssueCycle = InstructionIssueCycle;
       
       
