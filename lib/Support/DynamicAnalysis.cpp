@@ -4347,7 +4347,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
         F = CS.getCalledFunction();
         // Loop over the arguments of the called function --- From Execution.cpp
         NumArgs = CS.arg_size();
-        ArgVals.reserve(NumArgs);`
+        ArgVals.reserve(NumArgs);
         for (CallSite::arg_iterator i = CS.arg_begin(),
              e = CS.arg_end(); i != e; ++i) {
           Value *V = *i;
