@@ -6258,8 +6258,8 @@ DynamicAnalysis::finishAnalysis(){
           {
             dbgs() << "\t"<<ResourcesNames[j];
           }
-        dbgs() << "\n";
       }
+      dbgs() << "\n";
       
       for(unsigned j=0; j< nExecutionUnits; j++){
 #ifdef INT_FP_OPS
