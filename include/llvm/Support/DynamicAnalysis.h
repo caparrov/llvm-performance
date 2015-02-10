@@ -659,7 +659,7 @@ public:
   
   int rep;
  
-
+#ifdef INT_FP_OPS
 // Begin new
   // Number of bytes transferred from/to L1, L2, LLC, Mem, Total respectively
   // Depends on program
@@ -671,7 +671,7 @@ public:
   // Computation throughput bound (ops/second)
   float Pi;
 // End new
-
+#endif
  
   // Variables to track instructions count
   uint64_t TotalInstructions;

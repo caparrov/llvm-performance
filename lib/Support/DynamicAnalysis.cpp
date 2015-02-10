@@ -75,12 +75,13 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
     for (unsigned i = 0; i < nNodes; i++)
       ExecutionUnit.push_back(0);
     
+#ifdef INT_FP_OPS
     for (unsigned i = 0; i < 4; i++) {
       Beta.push_back(-1);
       Q.push_back(0);
     }
     Q.push_back(0);
-    
+#endif
 #ifdef INT_FP_OPS
     ExecutionUnit[INT_ADD_NODE] = INT_ADDER;
     ExecutionUnit[INT_MUL_NODE] = INT_MULTIPLIER;
@@ -4346,7 +4347,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
         F = CS.getCalledFunction();
         // Loop over the arguments of the called function --- From Execution.cpp
         NumArgs = CS.arg_size();
-        ArgVals.reserve(NumArgs);
+        ArgVals.reserve(NumArgs);`
         for (CallSite::arg_iterator i = CS.arg_begin(),
              e = CS.arg_end(); i != e; ++i) {
           Value *V = *i;
@@ -4391,6 +4392,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
           //ExtendedInstructionType = GetMemoryInstructionType(Distance, MemoryAddress);
           ExtendedInstructionType = GetExtendedInstructionType(Instruction::Load, Distance);
           
+#ifdef INT_FP_OPS
           if (ExtendedInstructionType == L1_LOAD_NODE) {
             Q[0] += AccessGranularities[nCompExecutionUnits + 0];
             Q[4] += AccessGranularities[nCompExecutionUnits + 0];
@@ -4410,6 +4412,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
           } else {
             report_fatal_error("Load Mem op has nowhere to live");
           }
+#endif
           
           ExecutionResource = ExecutionUnit[ExtendedInstructionType];
           Latency =ExecutionUnitsLatency[ExecutionResource];
@@ -4629,6 +4632,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
           Distance = ReuseDistance(LastAccess, TotalInstructions, CacheLine);
           ExtendedInstructionType = GetExtendedInstructionType(Instruction::Store, Distance);
           
+#ifdef INT_FP_OPS
           if (ExtendedInstructionType == L1_STORE_NODE) {
             Q[0] += AccessGranularities[nCompExecutionUnits + 1];
             Q[4] += AccessGranularities[nCompExecutionUnits + 1];
@@ -4648,7 +4652,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
           } else {
             report_fatal_error("Store Mem op has nowhere to live");
           }
-          
+#endif
           
           ExecutionResource = ExecutionUnit[ExtendedInstructionType];
           Latency =ExecutionUnitsLatency[ExecutionResource];
