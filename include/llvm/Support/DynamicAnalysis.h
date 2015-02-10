@@ -28,6 +28,7 @@
 #include "top-down-size-splay.hpp"
 #endif
 
+//#define INT_FP_OPS
 
 #include <iostream>
 #include <map>
@@ -81,11 +82,20 @@
 
 #ifdef REDUCED_INST_TYPES
 
+#ifdef INT_FP_OPS
 #define INT_ADD          0
 #define INT_SUB          0
 #define INT_MUL          0
 #define INT_DIV          0
+#else
+#define INT_ADD          -1
+#define INT_SUB          -1
+#define INT_MUL          -1
+#define INT_DIV          -1
+#endif
+
 #define INT_REM         -1
+#ifdef INT_FP_OPS
 #define INT_LD_4_BITS    1
 #define INT_LD_8_BITS    1
 #define INT_LD_16_BITS   1
@@ -100,6 +110,25 @@
 #define INT_ST_64_BITS   1
 #define INT_ST_80_BITS   1
 #define INT_ST_128_BITS  1
+
+#else
+#define INT_LD_4_BITS    -1
+#define INT_LD_8_BITS    -1
+#define INT_LD_16_BITS   -1
+#define INT_LD_32_BITS   -1
+#define INT_LD_64_BITS   -1
+#define INT_LD_80_BITS   -1
+#define INT_LD_128_BITS  -1
+#define INT_ST_4_BITS    -1
+#define INT_ST_8_BITS    -1
+#define INT_ST_16_BITS   -1
+#define INT_ST_32_BITS   -1
+#define INT_ST_64_BITS   -1
+#define INT_ST_80_BITS   -1
+#define INT_ST_128_BITS  -1
+
+#endif
+
 #define FP_ADD           0
 #define FP_SUB           0
 #define FP_MUL           0
@@ -235,21 +264,28 @@
 
 // These are execution units, o resources -> there is an available and
 // and full occupancy tree from them
+#ifdef INT_FP_OPS
 #define SANDY_BRIDGE_EXECUTION_UNITS 13 //9
+#define SANDY_BRIDGE_NODES 28 //23
+#define SANDY_BRIDGE_COMP_EXECUTION_UNITS 8 //4
+#else
+#define SANDY_BRIDGE_EXECUTION_UNITS 9
+#define SANDY_BRIDGE_NODES 23
+#define SANDY_BRIDGE_COMP_EXECUTION_UNITS 4
+#endif
+
 #define SANDY_BRIDGE_DISPATCH_PORTS 5
 #define SANDY_BRIDGE_BUFFERS 5
 #define SANDY_BRIDGE_AGUS 2
 #define SANDY_BRIDGE_LOAD_AGUS 0
 #define SANDY_BRIDGE_STORE_AGUS 0
 #define SANDY_BRIDGE_PREFETCH_NODES 3
-#define SANDY_BRIDGE_NODES 28 //23
 
-
-
-#define SANDY_BRIDGE_COMP_EXECUTION_UNITS 8 //4
 #define SANDY_BRIDGE_MEM_EXECUTION_UNITS 5
 #define SANDY_BRIDGE_AGU 1
 
+
+#ifdef INT_FP_OPS
 #define INT_ADDER 0
 #define INT_MULTIPLIER 1
 #define INT_DIVIDER 2
@@ -280,12 +316,41 @@
 #define SB_STALL 22 //18
 #define LFB_STALL 23 //19
 
+#else
+#define FP_ADDER  0
+#define FP_MULTIPLIER 1
+#define FP_DIVIDER  2
+#define FP_SHUFFLE  3
+#define L1_LOAD_CHANNEL 4
+#define L1_STORE_CHANNEL  5
+#define L2_LOAD_CHANNEL 6
+#define L2_STORE_CHANNEL  6
+#define L3_LOAD_CHANNEL 7
+#define L3_STORE_CHANNEL  7
+#define MEM_LOAD_CHANNEL 8
+#define MEM_STORE_CHANNEL  8
+#define ADDRESS_GENERATION_UNIT 9
+#define STORE_ADDRESS_GENERATION_UNIT -1
+#define LOAD_ADDRESS_GENERATION_UNIT -1
+#define PORT_0  10
+#define PORT_1  11
+#define PORT_2  12
+#define PORT_3  13
+#define PORT_4  14
+#define RS_STALL  15
+#define ROB_STALL 16
+#define LB_STALL 17
+#define SB_STALL 18
+#define LFB_STALL 19
 
+#endif
 
 
 
 // Nodes for SANDY BRIDGE. Set to -1 those that
 // do not exists
+
+#ifdef INT_FP_OPS
 #define SANDY_BRIDGE_COMP_NODES 8 //4
 #define N_COMP_NODES_START 0
 #define N_COMP_NODES_END 7 //3
@@ -350,6 +415,71 @@
 #define N_PREFETCH_RESOURCES_END 34 //31
 
 
+#else
+
+#define SANDY_BRIDGE_COMP_NODES 4
+#define N_COMP_NODES_START 0
+#define N_COMP_NODES_END 3
+
+#define FP_ADD_NODE      0
+#define FP_MUL_NODE      1
+#define FP_DIV_NODE      2
+#define VECTOR_SHUFFLE_NODE 3
+
+
+#define SANDY_BRIDGE_MEM_NODES 8
+#define L1_LOAD_NODE     4
+#define L1_STORE_NODE      5
+#define L2_LOAD_NODE     6
+#define L2_STORE_NODE      7
+#define L3_LOAD_NODE     8
+#define L3_STORE_NODE      9
+#define MEM_LOAD_NODE    10
+#define MEM_STORE_NODE     11
+
+#define N_MEM_NODES_START 4
+#define N_MEM_NODES_END 11
+
+
+#define N_MISC_RESOURCES 7
+#define N_AGU_NODES     1
+#define N_PORT_NODES  5
+#define AGU_NODE           12
+#define STORE_AGU_NODE     -1
+#define LOAD_AGU_NODE      -1
+#define PORT_0_NODE        13
+#define PORT_1_NODE        14
+#define PORT_2_NODE        15
+#define PORT_3_NODE        16
+#define PORT_4_NODE        17
+#define N_MISC_RESOURCES_START 12
+#define N_MISC_RESOURCES_END 17
+
+
+#define N_BUFFER_NODES 5
+#define RS_STALL_NODE  21
+#define ROB_STALL_NODE 22
+#define LB_STALL_NODE 23
+#define SB_STALL_NODE 24
+#define LFB_STALL_NODE 25
+#define N_BUFFER_NODES_START 21
+#define N_BUFFER_NODES_END 25
+
+#define N_PREFETCH_RESOURCES 6
+#define FIRST_PREFETCH_LEVEL L2_LOAD_NODE
+#define L2_LOAD_PREFETCH_NODE  26
+#define L2_STORE_PREFETCH_NODE 27
+#define L3_LOAD_PREFETCH_NODE 28
+#define L3_STORE_PREFETCH_NODE 29
+#define MEM_LOAD_PREFETCH_NODE 30
+#define MEM_STORE_PREFETCH_NODE 31
+#define N_PREFETCH_RESOURCES_START 26
+#define N_PREFETCH_RESOURCES_END 31
+
+
+
+
+#endif
 
 // ====================================================================//
 
