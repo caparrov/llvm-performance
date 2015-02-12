@@ -366,6 +366,8 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
       AccessGranularities[i+nCompExecutionUnits] = MemAccessGranularity[i];
   
   
+  
+  
   // Latency and throughput of AGUs
   if (nAGUs > 0) {
     this->ExecutionUnitsLatency.push_back(1);
@@ -5917,8 +5919,16 @@ DynamicAnalysis::finishAnalysis(){
             for(uint j=RS_STALL; j <= LFB_STALL; j++){
               if (InstructionsCountExtended[i]!=0 && InstructionsCountExtended[j]!=0){
                 Total = ResourcesStallSpanVector[i][j-RS_STALL];
-                T1 = ResourcesSpan[i];
-                T2 = ResourcesSpan[j];
+                // When latency is zero, ResourcesSpan is zero. However, IssueSpan
+                // might not be zero.
+                if (ResourcesSpan[i]== 0) {
+                  T1 = max(ResourcesTotalStallSpanVector[i], IssueSpan[i]);
+                }else
+                  T1 = ResourcesSpan[i];
+                if (ResourcesSpan[j]==0) {
+                  T2 = max(ResourcesTotalStallSpanVector[j], IssueSpan[j]);
+                }else
+                  T2 = ResourcesSpan[j];
                 assert(Total <= T1+T2);
                 OverlapCycles =  T1+T2-Total;
                 OverlapPercetage = (float)OverlapCycles/(float(min(T1, T2)));
@@ -6148,6 +6158,15 @@ DynamicAnalysis::finishAnalysis(){
                 {
                   if (InstructionsCountExtended[i]!= 0 && InstructionsCountExtended[j]!=0) {
                     Total = ResourcesResourcesNoStallSpanVector[j][i];
+                    if (ResourcesSpan[i]== 0) {
+                      T1 = max(ResourcesTotalStallSpanVector[i], IssueSpan[i]);
+                    }else
+                      T1 = ResourcesSpan[i];
+                    if (ResourcesSpan[j]==0) {
+                      T2 = max(ResourcesTotalStallSpanVector[j], IssueSpan[j]);
+                    }else
+                      T2 = ResourcesSpan[j];
+                    
                     T1 = ResourcesSpan[j];
                     T2 = ResourcesSpan[i];
                     assert(Total <= T1+T2);
