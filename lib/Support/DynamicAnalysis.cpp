@@ -2370,7 +2370,7 @@ DynamicAnalysis::CalculateSpan(int ResourceType){
       IsInAvailableCyclesTree = false;
       IsInFullOccupancyCyclesTree = false;
       if (IsEmptyLevel( ResourceType,i, IsInAvailableCyclesTree, IsInFullOccupancyCyclesTree)==false) {
-        if ( i <= DominantLevel+Latency-1){
+        if ( DominantLevel+Latency!= 0 && i <= DominantLevel+Latency-1){
           if (i+Latency > DominantLevel+Latency && Latency!=0) {
 #ifdef DEBUG_SPAN_CALCULATION
             DEBUG(dbgs() << "Increasing Span by the difference " << ((i+Latency)-max((DominantLevel+Latency),(uint64_t)1)) << "\n");
@@ -2716,7 +2716,10 @@ DynamicAnalysis::CalculateGroupSpan(vector<int> & ResourcesVector, bool WithPref
       //That is, only if there are instructions scheduled in this cycle
       if(MaxLatencyLevel !=0){
         
-        if ( i <= DominantLevel+MaxLatency-1){
+        // Add the first condition because if Latency=0 is allowed, it can happen
+        // that DominantLevel+MaxLatency-1 is a negative number, so the loop
+        // is entered incorrectly.
+        if ( DominantLevel+MaxLatency!= 0 &&  i <= DominantLevel+MaxLatency-1){
           
           if (i+MaxLatencyLevel > DominantLevel+MaxLatency && MaxLatencyLevel!=0) {
             
@@ -5921,6 +5924,7 @@ DynamicAnalysis::finishAnalysis(){
                 Total = ResourcesStallSpanVector[i][j-RS_STALL];
                 // When latency is zero, ResourcesSpan is zero. However, IssueSpan
                 // might not be zero.
+                /*
                 if (ResourcesSpan[i]== 0) {
                   T1 = max(ResourcesTotalStallSpanVector[i], IssueSpan[i]);
                 }else
@@ -5929,7 +5933,10 @@ DynamicAnalysis::finishAnalysis(){
                   T2 = max(ResourcesTotalStallSpanVector[j], IssueSpan[j]);
                 }else
                   T2 = ResourcesSpan[j];
-                assert(Total <= T1+T2);
+                */
+                T1 = ResourcesSpan[i];
+                T2 = ResourcesSpan[j];
+                 assert(Total <= T1+T2);
                 OverlapCycles =  T1+T2-Total;
                 OverlapPercetage = (float)OverlapCycles/(float(min(T1, T2)));
                 if (OverlapPercetage > 1.0) {
@@ -6158,7 +6165,7 @@ DynamicAnalysis::finishAnalysis(){
                 {
                   if (InstructionsCountExtended[i]!= 0 && InstructionsCountExtended[j]!=0) {
                     Total = ResourcesResourcesNoStallSpanVector[j][i];
-                    if (ResourcesSpan[i]== 0) {
+                    /*if (ResourcesSpan[i]== 0) {
                       T1 = max(ResourcesTotalStallSpanVector[i], IssueSpan[i]);
                     }else
                       T1 = ResourcesSpan[i];
@@ -6166,7 +6173,7 @@ DynamicAnalysis::finishAnalysis(){
                       T2 = max(ResourcesTotalStallSpanVector[j], IssueSpan[j]);
                     }else
                       T2 = ResourcesSpan[j];
-                    
+                    */
                     T1 = ResourcesSpan[j];
                     T2 = ResourcesSpan[i];
                     assert(Total <= T1+T2);
