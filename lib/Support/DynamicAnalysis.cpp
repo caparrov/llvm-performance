@@ -5920,7 +5920,7 @@ DynamicAnalysis::finishAnalysis(){
           {
             dbgs() << ResourcesNames[i]<< "\t\t";
             for(uint j=RS_STALL; j <= LFB_STALL; j++){
-              if (InstructionsCountExtended[i]!=0 && InstructionsCountExtended[j]!=0){
+              if (InstructionsCountExtended[i]!=0 && InstructionsCountExtended[j]!=0 && ResourcesSpan[i]!= 0 && ResourcesSpan[j]!= 0){
                 Total = ResourcesStallSpanVector[i][j-RS_STALL];
                 // When latency is zero, ResourcesSpan is zero. However, IssueSpan
                 // might not be zero.
@@ -6163,7 +6163,7 @@ DynamicAnalysis::finishAnalysis(){
 #endif
                   
                 {
-                  if (InstructionsCountExtended[i]!= 0 && InstructionsCountExtended[j]!=0) {
+                  if (InstructionsCountExtended[i]!= 0 && InstructionsCountExtended[j]!=0 && ResourcesSpan[j]!= 0 && ResourcesSpan[j]!= 0) {
                     Total = ResourcesResourcesNoStallSpanVector[j][i];
                     /*if (ResourcesSpan[i]== 0) {
                       T1 = max(ResourcesTotalStallSpanVector[i], IssueSpan[i]);
@@ -6178,6 +6178,7 @@ DynamicAnalysis::finishAnalysis(){
                     T2 = ResourcesSpan[i];
                     assert(Total <= T1+T2);
                     OverlapCycles =  T1+T2-Total;
+                    
                     OverlapPercetage = (float)OverlapCycles/(float(min(T1, T2)));
                     if (OverlapPercetage > 1.0) {
                       report_fatal_error("Overlap > 1.0");
@@ -6494,7 +6495,10 @@ DynamicAnalysis::finishAnalysis(){
                 }
                 IssueEffects = IssueSpan[i] - MinExecutionTime;
               }
-              LatencyEffects = ResourcesSpan[i] - IssueSpan[i];
+              if (ResourcesSpan[i]!=0) {
+                LatencyEffects = ResourcesSpan[i] - IssueSpan[i];
+              }
+              
               StallEffects = ResourcesTotalStallSpanVector[i] - ResourcesSpan[i];
               
             }
