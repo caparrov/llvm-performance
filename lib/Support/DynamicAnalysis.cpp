@@ -6163,7 +6163,7 @@ DynamicAnalysis::finishAnalysis(){
 #endif
                   
                 {
-                  if (InstructionsCountExtended[i]!= 0 && InstructionsCountExtended[j]!=0 && ResourcesSpan[j]!= 0 && ResourcesSpan[j]!= 0) {
+                  if (InstructionsCountExtended[i]!= 0 && InstructionsCountExtended[j]!=0 && ResourcesSpan[i]!= 0 && ResourcesSpan[j]!= 0) {
                     Total = ResourcesResourcesNoStallSpanVector[j][i];
                     /*if (ResourcesSpan[i]== 0) {
                       T1 = max(ResourcesTotalStallSpanVector[i], IssueSpan[i]);
@@ -6303,7 +6303,7 @@ DynamicAnalysis::finishAnalysis(){
                 if (!(MergeArithmeticOps &&  i==FP_MULTIPLIER) && !(MergeArithmeticOps && i==FP_DIVIDER))
 #endif
                 {
-                  if (InstructionsCountExtended[i]!= 0 && InstructionsCountExtended[j]!=0) {
+                  if (InstructionsCountExtended[i]!= 0 && InstructionsCountExtended[j]!=0 && ResourcesTotalStallSpanVector[j] != 0 && ResourcesTotalStallSpanVector[i]!= 0) {
                     Total = ResourcesResourcesSpanVector[j][i];
                     T1 = ResourcesTotalStallSpanVector[j];
                     T2 = ResourcesTotalStallSpanVector[i];
@@ -6471,6 +6471,9 @@ DynamicAnalysis::finishAnalysis(){
                 }
               }
               
+			if(ExecutionUnitsLatency[i]==0 && Throughput == INF){
+		MinExecutionTime = 0;
+}else{
               if (i < nCompExecutionUnits) {
                 if (Throughput == INF) {
                   MinExecutionTime = 1;
@@ -6483,18 +6486,22 @@ DynamicAnalysis::finishAnalysis(){
                 }else
                   MinExecutionTime = (unsigned)ceil(InstructionsCountExtended[i]*AccessGranularities[i]/(Throughput));
               }
-              
-              if (Throughput==INF && IssueSpan[i]==1 ) {
+      }        
+/*  
+            if (Throughput==INF && IssueSpan[i]==1 ) {
                 IssueEffects = 0;
                 
               }else{
-                if (IssueSpan[i] < MinExecutionTime) {
+*/  
+              if (IssueSpan[i] < MinExecutionTime) {
                   PrintWarning = true;
                   IssueSpan[i] = MinExecutionTime;
                   //report_fatal_error("IssueSpan < Min execution time");
                 }
                 IssueEffects = IssueSpan[i] - MinExecutionTime;
-              }
+//              }
+
+
               if (ResourcesSpan[i]!=0) {
                 LatencyEffects = ResourcesSpan[i] - IssueSpan[i];
               }
@@ -6515,7 +6522,7 @@ DynamicAnalysis::finishAnalysis(){
             dbgs() << "\t";
             dbgs() << " " << StallEffects;
             // fprintf(stderr, " %1.3f ", StallEffects);
-            if (MinExecutionTime + IssueEffects + LatencyEffects +  StallEffects != ResourcesTotalStallSpanVector[i]) {
+            if (MinExecutionTime + IssueEffects + LatencyEffects +  StallEffects != ResourcesTotalStallSpanVector[i] && MinExecutionTime!= 0) {
               report_fatal_error("Breakdown of execution time does not match total execution time\n");
               
             }else{
