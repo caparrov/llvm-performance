@@ -1299,7 +1299,7 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
   if (NElementsVector > 1 && ExecutionResource!= FP_SHUFFLE){
     InstructionsCountExtended[ExecutionResource]=InstructionsCountExtended[ExecutionResource]+NElementsVector;
   }else{
-    InstructionsCountExtended[ExecutionResource]++;
+    InstructionsCountExtended[ExecutionResource]++; 
   }
   
   unsigned AccessWidth = AccessWidths[ExecutionResource];
@@ -4581,7 +4581,9 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
 #ifdef DEBUG_GENERIC
             DEBUG(dbgs() << "*********** Checking availability in Resource *******************\n");
 #endif
+
             InstructionIssueThroughputAvailable = FindNextAvailableIssueCycle(InstructionIssueCycle, ExecutionResource, ExtendedInstructionType);
+
             InsertNextAvailableIssueCycle(InstructionIssueThroughputAvailable, ExecutionResource,ExtendedInstructionType);
             
           }else{
@@ -4593,7 +4595,9 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
               // and the resource
               InstructionIssueThroughputAvailable = FindNextAvailableIssueCyclePortAndThroughtput(InstructionIssueCycle,ExtendedInstructionType, NElementsVector);
             }else{
+
               InstructionIssueThroughputAvailable = FindNextAvailableIssueCycle(InstructionIssueCycle,ExtendedInstructionType, NElementsVector);
+
               InsertNextAvailableIssueCycle(InstructionIssueThroughputAvailable, ExecutionResource, ExtendedInstructionType);
               
             }
@@ -4774,8 +4778,6 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
           DEBUG(dbgs() << "CacheLine " << CacheLine << "\n");
           DEBUG(dbgs() << "StoreCacheLine " << StoreCacheLine << "\n");
           
-          
-          DEBUG(dbgs() << "*********** Checking availability in Ports *******************\n");
 #endif
           
           // If there is a store buffer, the dipatch cycle might be different from
@@ -4835,9 +4837,12 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
             
           }else{
             if (ConstraintPorts) {
+
               InstructionIssueThroughputAvailable= FindNextAvailableIssueCyclePortAndThroughtput(InstructionIssueCycle,ExtendedInstructionType, NElementsVector);
             }else{
-              InstructionIssueThroughputAvailable= FindNextAvailableIssueCyclePortAndThroughtput(InstructionIssueCycle,ExtendedInstructionType, NElementsVector);
+
+              InstructionIssueThroughputAvailable= FindNextAvailableIssueCycle(InstructionIssueCycle,ExtendedInstructionType, NElementsVector);
+
               InsertNextAvailableIssueCycle(InstructionIssueThroughputAvailable, ExecutionResource,ExtendedInstructionType);
               
             }
