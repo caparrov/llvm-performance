@@ -1185,6 +1185,10 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
     FullOccupancyCyclesTree[TreeChunk] = splay(NextAvailableCycle, FullOccupancyCyclesTree[TreeChunk]);
 #ifdef DEBUG_GENERIC
     DEBUG(dbgs() << "Full is not NULL \n");
+	DEBUG(dbgs() << "Size of fulloccupacy " << FullOccupancyCyclesTree.size() << "\n");
+		DEBUG(dbgs() << "key of fulloccupacy " << FullOccupancyCyclesTree[TreeChunk]->key << "\n");
+	DEBUG(dbgs() << "ExecutionResource " <<ExecutionResource << "\n");
+	DEBUG(dbgs() << "bitvector of fulloccupacy " <<FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource] << "\n");
 #endif
     while( FoundInFullOccupancyCyclesTree == true && EnoughBandwidth ==false){
       // Check if it is in full, but firs make sure full is not NULL (it could happen it is NULL after
@@ -1431,6 +1435,7 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
     
 #endif
 #ifdef DEBUG_GENERIC
+    DEBUG(dbgs() <<"ExecutionResource = " << ExecutionResource << "\n");
     DEBUG(dbgs() <<"FullOccupancyCyclesTree->BitVector[ExecutionResource] = " << FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource] << "\n");
     
     // We don't need to do this anymore because it will be larger than LastIssueCycle - TODO
@@ -4596,7 +4601,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
               InstructionIssueThroughputAvailable = FindNextAvailableIssueCyclePortAndThroughtput(InstructionIssueCycle,ExtendedInstructionType, NElementsVector);
             }else{
 
-              InstructionIssueThroughputAvailable = FindNextAvailableIssueCycle(InstructionIssueCycle,ExtendedInstructionType, NElementsVector);
+              InstructionIssueThroughputAvailable = FindNextAvailableIssueCycle(InstructionIssueCycle,ExecutionResource, ExtendedInstructionType);
 
               InsertNextAvailableIssueCycle(InstructionIssueThroughputAvailable, ExecutionResource, ExtendedInstructionType);
               
@@ -4841,7 +4846,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
               InstructionIssueThroughputAvailable= FindNextAvailableIssueCyclePortAndThroughtput(InstructionIssueCycle,ExtendedInstructionType, NElementsVector);
             }else{
 
-              InstructionIssueThroughputAvailable= FindNextAvailableIssueCycle(InstructionIssueCycle,ExtendedInstructionType, NElementsVector);
+              InstructionIssueThroughputAvailable= FindNextAvailableIssueCycle(InstructionIssueCycle,ExecutionResource, ExtendedInstructionType);
 
               InsertNextAvailableIssueCycle(InstructionIssueThroughputAvailable, ExecutionResource,ExtendedInstructionType);
               
