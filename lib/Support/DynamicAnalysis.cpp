@@ -5501,7 +5501,12 @@ DynamicAnalysis::finishAnalysis(){
   for (unsigned j = 0; j < nExecutionUnits + nAGUs + nPorts + nBuffers; j++){
     LastIssueCycleVector.push_back(GetLastIssueCycle(j, false));
     
-    if (InstructionFetchCycle != 0 && LastIssueCycleVector[j] > InstructionFetchCycle) {
+    // If all buffers sizes are infinity, or a buffer does not get full, we don't
+    // increment in the previous while loop InstructionFetchCycle. So this check
+    // only makes sense when RS or ROB have limited size (because they hold
+    // all type of instructions until they are issued)
+    if (InstructionFetchCycle != 0 && LastIssueCycleVector[j] > InstructionFetchCycle
+        && ReservationStationIssueCycles.size() != 0 && ReorderBufferCompletionCycles.size() != 0) {
       report_fatal_error("LastIssueCycle > InstructionFetchCycle for resource\n");
     }
   }
