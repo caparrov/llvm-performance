@@ -1010,8 +1010,9 @@ DynamicAnalysis::ThereIsAvailableBandwidth(unsigned NextAvailableCycle, unsigned
     // executed with the same IssueCycleGranularity in previous cycles. We have to do this
     // because we don't include latency cycles in AvailableCyclesTree.
     int64_t StartingCycle = 0;
-    int64_t tmp = NextAvailableCycle -IssueCycleGranularity+1;
     
+    int64_t tmp = (int64_t)NextAvailableCycle -(int64_t)IssueCycleGranularity+(int64_t)1;
+   
     if (tmp < 0) {
       StartingCycle = 0;
     }else
@@ -1020,6 +1021,7 @@ DynamicAnalysis::ThereIsAvailableBandwidth(unsigned NextAvailableCycle, unsigned
 #ifdef DEBUG_GENERIC
     DEBUG(dbgs() << "StartingCycle  "<< StartingCycle<<"\n");
     DEBUG(dbgs() << "NextAvailableCycle  "<< NextAvailableCycle<<"\n");
+	DEBUG(dbgs() << "tmp  "<< tmp<<"\n");
 #endif
     for (uint64_t i = StartingCycle; i < NextAvailableCycle; i++) {
       
