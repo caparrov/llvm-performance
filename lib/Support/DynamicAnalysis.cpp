@@ -438,9 +438,11 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
     }else{
       if (i >= nCompExecutionUnits && i < nCompExecutionUnits + nMemExecutionUnits) {
         AccessWidth = roundNextMultiple(VectorWidth*MemoryWordSize, AccessGranularities[i]);
-        // Round throughput of memory resources to the next multiple of MemoryWordSize
+        // Round throughput of memory resources to the next multiple of AccessWidth
+        // (before it was MemoryWordSize)
        	if (this->ExecutionUnitsThroughput[i]!= INF){
-          if (this->ExecutionUnitsThroughput[i] < this->MemoryWordSize){
+          if (this->ExecutionUnitsThroughput[i] < AccessWidth){
+          // if (this->ExecutionUnitsThroughput[i] < this->MemoryWordSize){
             if (this->ExecutionUnitsThroughput[i] < 1){
               float Inverse =ceil(1/this->ExecutionUnitsThroughput[i]);
               float Rounded =roundNextPowerOfTwo(Inverse);
@@ -456,9 +458,11 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
             }else{
               this->ExecutionUnitsThroughput[i] = roundNextPowerOfTwo(ceil(this->ExecutionUnitsThroughput[i]));
             }
-          }	else
-            
-            this->ExecutionUnitsThroughput[i] = roundNextMultiple(this->ExecutionUnitsThroughput[i],this->MemoryWordSize);
+          }	else{
+            // Round to the next multiple of AccessGranularities...
+            //          this->ExecutionUnitsThroughput[i] = roundNextMultiple(this->ExecutionUnitsThroughput[i],this->MemoryWordSize);
+            this->ExecutionUnitsThroughput[i] = roundNextMultiple(this->ExecutionUnitsThroughput[i],AccessGranularities[i]);
+          }
         }
       }else{
         AccessWidth = 1;
@@ -1012,7 +1016,7 @@ DynamicAnalysis::ThereIsAvailableBandwidth(unsigned NextAvailableCycle, unsigned
     int64_t StartingCycle = 0;
     
     int64_t tmp = (int64_t)NextAvailableCycle -(int64_t)IssueCycleGranularity+(int64_t)1;
-   
+    
     if (tmp < 0) {
       StartingCycle = 0;
     }else
@@ -1021,7 +1025,7 @@ DynamicAnalysis::ThereIsAvailableBandwidth(unsigned NextAvailableCycle, unsigned
 #ifdef DEBUG_GENERIC
     DEBUG(dbgs() << "StartingCycle  "<< StartingCycle<<"\n");
     DEBUG(dbgs() << "NextAvailableCycle  "<< NextAvailableCycle<<"\n");
-	DEBUG(dbgs() << "tmp  "<< tmp<<"\n");
+    DEBUG(dbgs() << "tmp  "<< tmp<<"\n");
 #endif
     for (uint64_t i = StartingCycle; i < NextAvailableCycle; i++) {
       
@@ -1187,10 +1191,10 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
     FullOccupancyCyclesTree[TreeChunk] = splay(NextAvailableCycle, FullOccupancyCyclesTree[TreeChunk]);
 #ifdef DEBUG_GENERIC
     DEBUG(dbgs() << "Full is not NULL \n");
-	DEBUG(dbgs() << "Size of fulloccupacy " << FullOccupancyCyclesTree.size() << "\n");
-		DEBUG(dbgs() << "key of fulloccupacy " << FullOccupancyCyclesTree[TreeChunk]->key << "\n");
-	DEBUG(dbgs() << "ExecutionResource " <<ExecutionResource << "\n");
-	DEBUG(dbgs() << "bitvector of fulloccupacy " <<FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource] << "\n");
+    DEBUG(dbgs() << "Size of fulloccupacy " << FullOccupancyCyclesTree.size() << "\n");
+    DEBUG(dbgs() << "key of fulloccupacy " << FullOccupancyCyclesTree[TreeChunk]->key << "\n");
+    DEBUG(dbgs() << "ExecutionResource " <<ExecutionResource << "\n");
+    DEBUG(dbgs() << "bitvector of fulloccupacy " <<FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource] << "\n");
 #endif
     while( FoundInFullOccupancyCyclesTree == true && EnoughBandwidth ==false){
       // Check if it is in full, but firs make sure full is not NULL (it could happen it is NULL after
@@ -1305,7 +1309,7 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
   if (NElementsVector > 1 && ExecutionResource!= FP_SHUFFLE){
     InstructionsCountExtended[ExecutionResource]=InstructionsCountExtended[ExecutionResource]+NElementsVector;
   }else{
-    InstructionsCountExtended[ExecutionResource]++; 
+    InstructionsCountExtended[ExecutionResource]++;
   }
   
   unsigned AccessWidth = AccessWidths[ExecutionResource];
@@ -4588,9 +4592,9 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
 #ifdef DEBUG_GENERIC
             DEBUG(dbgs() << "*********** Checking availability in Resource *******************\n");
 #endif
-
+            
             InstructionIssueThroughputAvailable = FindNextAvailableIssueCycle(InstructionIssueCycle, ExecutionResource, ExtendedInstructionType);
-
+            
             InsertNextAvailableIssueCycle(InstructionIssueThroughputAvailable, ExecutionResource,ExtendedInstructionType);
             
           }else{
@@ -4602,9 +4606,9 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
               // and the resource
               InstructionIssueThroughputAvailable = FindNextAvailableIssueCyclePortAndThroughtput(InstructionIssueCycle,ExtendedInstructionType, NElementsVector);
             }else{
-
+              
               InstructionIssueThroughputAvailable = FindNextAvailableIssueCycle(InstructionIssueCycle,ExecutionResource, ExtendedInstructionType);
-
+              
               InsertNextAvailableIssueCycle(InstructionIssueThroughputAvailable, ExecutionResource, ExtendedInstructionType);
               
             }
@@ -4844,12 +4848,12 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
             
           }else{
             if (ConstraintPorts) {
-
+              
               InstructionIssueThroughputAvailable= FindNextAvailableIssueCyclePortAndThroughtput(InstructionIssueCycle,ExtendedInstructionType, NElementsVector);
             }else{
-
+              
               InstructionIssueThroughputAvailable= FindNextAvailableIssueCycle(InstructionIssueCycle,ExecutionResource, ExtendedInstructionType);
-
+              
               InsertNextAvailableIssueCycle(InstructionIssueThroughputAvailable, ExecutionResource,ExtendedInstructionType);
               
             }
@@ -5942,18 +5946,18 @@ DynamicAnalysis::finishAnalysis(){
                 // When latency is zero, ResourcesSpan is zero. However, IssueSpan
                 // might not be zero.
                 /*
-                if (ResourcesSpan[i]== 0) {
-                  T1 = max(ResourcesTotalStallSpanVector[i], IssueSpan[i]);
-                }else
-                  T1 = ResourcesSpan[i];
-                if (ResourcesSpan[j]==0) {
-                  T2 = max(ResourcesTotalStallSpanVector[j], IssueSpan[j]);
-                }else
-                  T2 = ResourcesSpan[j];
-                */
+                 if (ResourcesSpan[i]== 0) {
+                 T1 = max(ResourcesTotalStallSpanVector[i], IssueSpan[i]);
+                 }else
+                 T1 = ResourcesSpan[i];
+                 if (ResourcesSpan[j]==0) {
+                 T2 = max(ResourcesTotalStallSpanVector[j], IssueSpan[j]);
+                 }else
+                 T2 = ResourcesSpan[j];
+                 */
                 T1 = ResourcesSpan[i];
                 T2 = ResourcesSpan[j];
-                 assert(Total <= T1+T2);
+                assert(Total <= T1+T2);
                 OverlapCycles =  T1+T2-Total;
                 OverlapPercetage = (float)OverlapCycles/(float(min(T1, T2)));
                 if (OverlapPercetage > 1.0) {
@@ -6183,14 +6187,14 @@ DynamicAnalysis::finishAnalysis(){
                   if (InstructionsCountExtended[i]!= 0 && InstructionsCountExtended[j]!=0 && ResourcesSpan[i]!= 0 && ResourcesSpan[j]!= 0) {
                     Total = ResourcesResourcesNoStallSpanVector[j][i];
                     /*if (ResourcesSpan[i]== 0) {
-                      T1 = max(ResourcesTotalStallSpanVector[i], IssueSpan[i]);
-                    }else
-                      T1 = ResourcesSpan[i];
-                    if (ResourcesSpan[j]==0) {
-                      T2 = max(ResourcesTotalStallSpanVector[j], IssueSpan[j]);
-                    }else
-                      T2 = ResourcesSpan[j];
-                    */
+                     T1 = max(ResourcesTotalStallSpanVector[i], IssueSpan[i]);
+                     }else
+                     T1 = ResourcesSpan[i];
+                     if (ResourcesSpan[j]==0) {
+                     T2 = max(ResourcesTotalStallSpanVector[j], IssueSpan[j]);
+                     }else
+                     T2 = ResourcesSpan[j];
+                     */
                     T1 = ResourcesSpan[j];
                     T2 = ResourcesSpan[i];
                     assert(Total <= T1+T2);
@@ -6488,37 +6492,38 @@ DynamicAnalysis::finishAnalysis(){
                 }
               }
               
-			if(ExecutionUnitsLatency[i]==0 && Throughput == INF){
-		MinExecutionTime = 0;
-}else{
-              if (i < nCompExecutionUnits) {
-                if (Throughput == INF) {
-                  MinExecutionTime = 1;
+              if(ExecutionUnitsLatency[i]==0 && Throughput == INF){
+                MinExecutionTime = 0;
+              }else{
+                if (i < nCompExecutionUnits) {
+                  if (Throughput == INF) {
+                    MinExecutionTime = 1;
+                  }else{
+                    MinExecutionTime = (unsigned)ceil(InstructionsCountExtended[i]/Throughput);
+                  }
                 }else{
-                  MinExecutionTime = (unsigned)ceil(InstructionsCountExtended[i]/Throughput);
+                  if (Throughput == INF) {
+                    MinExecutionTime = 1;
+                  }else{
+                    MinExecutionTime = (unsigned)ceil(InstructionsCountExtended[i]*AccessGranularities[i]/(Throughput));
+                  }
                 }
-              }else{
-                if (Throughput == INF) {
-                  MinExecutionTime = 1;
-                }else
-                  MinExecutionTime = (unsigned)ceil(InstructionsCountExtended[i]*AccessGranularities[i]/(Throughput));
               }
-      }        
-/*  
-            if (Throughput==INF && IssueSpan[i]==1 ) {
-                IssueEffects = 0;
-                
-              }else{
-*/  
+              /*
+               if (Throughput==INF && IssueSpan[i]==1 ) {
+               IssueEffects = 0;
+               
+               }else{
+               */
               if (IssueSpan[i] < MinExecutionTime) {
-                  PrintWarning = true;
-                  IssueSpan[i] = MinExecutionTime;
-                  //report_fatal_error("IssueSpan < Min execution time");
-                }
-                IssueEffects = IssueSpan[i] - MinExecutionTime;
-//              }
-
-
+                PrintWarning = true;
+                IssueSpan[i] = MinExecutionTime;
+                //report_fatal_error("IssueSpan < Min execution time");
+              }
+              IssueEffects = IssueSpan[i] - MinExecutionTime;
+              //              }
+              
+              
               if (ResourcesSpan[i]!=0) {
                 LatencyEffects = ResourcesSpan[i] - IssueSpan[i];
               }
