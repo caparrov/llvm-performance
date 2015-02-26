@@ -502,6 +502,10 @@ using namespace SplayTreeBoolean;
 using namespace SimpleSplayTree;
 using namespace ComplexSplayTree;
 
+  // For FullOccupancyCyles, the vector has a different meaning that for AvailableCycles.
+  // Each element of the vector contains the elements of the tree in a corresponding
+  // rage.
+  static const int SplitTreeRange = 131072;
 
 
 struct CacheLineInfo{
@@ -537,6 +541,30 @@ struct LessThanOrEqualValuePred
       }
     };
     
+class TBV {
+    class TBV_node {
+        public:
+        TBV_node():BitVector(20) {
+            
+        }
+        //vector<bool> BitVector;
+        dynamic_bitset<> BitVector; // from boost
+    };
+    
+    private:
+        vector<TBV_node> tbv_map;
+        bool e;
+    
+  public:
+    TBV();
+    bool get_node(uint64_t key, unsigned bitPosition);
+    bool get_node_nb(uint64_t key, unsigned bitPosition);
+    void insert_node(uint64_t key, unsigned bitPosition);
+    void delete_node(uint64_t key, unsigned bitPosition);
+    bool empty();
+};
+
+uint64_t BitScan(vector< TBV> &FullOccupancyCyclesTree, uint64_t key, unsigned bitPosition);
     
 class DynamicAnalysis {
   
@@ -707,11 +735,8 @@ public:
   
   
   vector< Tree<uint64_t> * > AvailableCyclesTree;
-  // For FullOccupancyCyles, the vector has a different meaning that for AvailableCycles.
-  // Each element of the vector contains the elements of the tree in a corresponding
-  // rage.
-  int SplitTreeRange;
-  vector< TreeBitVector<uint64_t> * > FullOccupancyCyclesTree;
+
+  vector< TBV> FullOccupancyCyclesTree;
   
   
   vector <Tree<uint64_t> * > StallCycles;

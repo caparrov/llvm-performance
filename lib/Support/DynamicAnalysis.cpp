@@ -614,14 +614,12 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
     BuffersOccupancy.push_back(0);
   
   //Initially, FullOccupancyCyclesTree has one element
-  FullOccupancyCyclesTree.push_back(NULL);
+  //FullOccupancyCyclesTree.push_back(NULL);
   
-  SplitTreeRange = 100000;
+  //SplitTreeRange = 65536;
   
   for (unsigned i = 0; i< nExecutionUnits + nPorts + nAGUs + nLoadAGUs + nStoreAGUs; i++)
-    AvailableCyclesTree.push_back(NULL);
-  
-  
+    AvailableCyclesTree.push_back(NULL);  
 }
 
 
@@ -912,10 +910,13 @@ DynamicAnalysis::GetTreeChunk(uint64_t i){
   
   uint64_t TreeChunk = i/SplitTreeRange;
   if (TreeChunk >= FullOccupancyCyclesTree.size()) {
+    FullOccupancyCyclesTree.resize(TreeChunk+1);
+  }
+  /*if (TreeChunk >= FullOccupancyCyclesTree.size()) {
     for (unsigned j = FullOccupancyCyclesTree.size(); j<= TreeChunk; j++) {
       FullOccupancyCyclesTree.push_back(NULL);
     }
-  }
+  }*/
   return TreeChunk;
 }
 
@@ -1031,9 +1032,13 @@ DynamicAnalysis::ThereIsAvailableBandwidth(unsigned NextAvailableCycle, unsigned
       
       TmpTreeChunk = GetTreeChunk(i);
       
-      FullOccupancyCyclesTree[TmpTreeChunk] = splay(i,  FullOccupancyCyclesTree[TmpTreeChunk]);
+      //FullOccupancyCyclesTree[TmpTreeChunk] = splay(i,  FullOccupancyCyclesTree[TmpTreeChunk]);
       
-      if ( FullOccupancyCyclesTree[TmpTreeChunk]!= NULL && FullOccupancyCyclesTree[TmpTreeChunk]->key == i	&& FullOccupancyCyclesTree[TmpTreeChunk]->BitVector[ExecutionResource]==1) {
+      /*if ( FullOccupancyCyclesTree[TmpTreeChunk] != NULL && 
+           FullOccupancyCyclesTree[TmpTreeChunk]->key == i	&& 
+           FullOccupancyCyclesTree[TmpTreeChunk]->BitVector[ExecutionResource]==1) {*/
+      if (FullOccupancyCyclesTree[TmpTreeChunk].get_node(i, ExecutionResource))
+      {
         
         FoundInFullOccupancyCyclesTree = true;
         EnoughBandwidth  = false;
@@ -1057,10 +1062,13 @@ DynamicAnalysis::ThereIsAvailableBandwidth(unsigned NextAvailableCycle, unsigned
 #endif
       TmpTreeChunk = GetTreeChunk(i);
       
-      FullOccupancyCyclesTree[TmpTreeChunk] = splay(i,  FullOccupancyCyclesTree[TmpTreeChunk]);
+      //FullOccupancyCyclesTree[TmpTreeChunk] = splay(i,  FullOccupancyCyclesTree[TmpTreeChunk]);
       
-      if ( FullOccupancyCyclesTree[TmpTreeChunk]!= NULL && FullOccupancyCyclesTree[TmpTreeChunk]->key == i	&&
-          FullOccupancyCyclesTree[TmpTreeChunk]->BitVector[ExecutionResource]==1) {
+      /*if ( FullOccupancyCyclesTree[TmpTreeChunk]!= NULL && 
+           FullOccupancyCyclesTree[TmpTreeChunk]->key == i	&&
+           FullOccupancyCyclesTree[TmpTreeChunk]->BitVector[ExecutionResource]==1) {*/
+      if (FullOccupancyCyclesTree[TmpTreeChunk].get_node(i, ExecutionResource))
+      {
 #ifdef DEBUG_GENERIC
         DEBUG(dbgs() << "There is not enough bandwidth because of issue cycle granularity in later cycles\n");
         DEBUG(dbgs() << "Cycle " << i << " is in full\n");
@@ -1186,21 +1194,27 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
   // (we don't include the condition FullOccupancyNode->BitVector[ExecutionResource]==1
   // here because it could happen that it cannot be executed because of throughput<1
   // and something executed in earlier or later cycles.
-  if (FullOccupancyCyclesTree[TreeChunk] != NULL) {
+  //if (FullOccupancyCyclesTree[TreeChunk] != NULL) {
+  if (!FullOccupancyCyclesTree[TreeChunk].empty())
+  {
     
-    FullOccupancyCyclesTree[TreeChunk] = splay(NextAvailableCycle, FullOccupancyCyclesTree[TreeChunk]);
+    //FullOccupancyCyclesTree[TreeChunk] = splay(NextAvailableCycle, FullOccupancyCyclesTree[TreeChunk]);
 #ifdef DEBUG_GENERIC
     DEBUG(dbgs() << "Full is not NULL \n");
-    DEBUG(dbgs() << "Size of fulloccupacy " << FullOccupancyCyclesTree.size() << "\n");
-    DEBUG(dbgs() << "key of fulloccupacy " << FullOccupancyCyclesTree[TreeChunk]->key << "\n");
-    DEBUG(dbgs() << "ExecutionResource " <<ExecutionResource << "\n");
-    DEBUG(dbgs() << "bitvector of fulloccupacy " <<FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource] << "\n");
+  //  DEBUG(dbgs() << "Size of fulloccupacy " << FullOccupancyCyclesTree.size() << "\n");
+   // DEBUG(dbgs() << "key of fulloccupacy " << FullOccupancyCyclesTree[TreeChunk]->key << "\n");
+    //DEBUG(dbgs() << "ExecutionResource " <<ExecutionResource << "\n");
+    //DEBUG(dbgs() << "bitvector of fulloccupacy " <<FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource] << "\n");
 #endif
     while( FoundInFullOccupancyCyclesTree == true && EnoughBandwidth ==false){
-      // Check if it is in full, but firs make sure full is not NULL (it could happen it is NULL after
+      // Check if it is in full, but first make sure full is not NULL (it could happen it is NULL after
       // changing the NextAvailableCycle).
+      
+      
+      #if 0
       if (FullOccupancyCyclesTree[TreeChunk] !=NULL) {
-        if ( FullOccupancyCyclesTree[TreeChunk]->key == NextAvailableCycle && FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource]==1) {
+        if ( FullOccupancyCyclesTree[TreeChunk]->key == NextAvailableCycle && 
+             FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource]==1) {
 #ifdef DEBUG_GENERIC
           DEBUG(dbgs() << "Cycle " << NextAvailableCycle << " found in FullOccupancyCyclesTree\n");
           
@@ -1216,6 +1230,15 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
       }else{
         // It is not in Full for sure
         FoundInFullOccupancyCyclesTree = false;
+      }
+      #endif
+      if (FullOccupancyCyclesTree[TreeChunk].get_node(NextAvailableCycle, ExecutionResource))
+      {
+          FoundInFullOccupancyCyclesTree = true;
+      }
+      else
+      {
+          FoundInFullOccupancyCyclesTree = false;
       }
       
       
@@ -1235,14 +1258,21 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
           
           // NEW CODE
           NextAvailableCycle = FindNextAvailableIssueCycleUntilNotInFullOrEnoughBandwidth(NextAvailableCycle, ExecutionResource , FoundInFullOccupancyCyclesTree,EnoughBandwidth);
+          
+          // NextAvailableCycle has changed, possibly moving to a different chunk
+          TreeChunk = GetTreeChunk(NextAvailableCycle);
         }
       }else{
         if (FoundInFullOccupancyCyclesTree ==true) {
           
           while (FoundInFullOccupancyCyclesTree) {
-            FullOccupancyCyclesTree[TreeChunk] = splay(NextAvailableCycle, FullOccupancyCyclesTree[TreeChunk]);
+            //FullOccupancyCyclesTree[TreeChunk] = splay(NextAvailableCycle, FullOccupancyCyclesTree[TreeChunk]);
             //Check if it is in full
-            if ( FullOccupancyCyclesTree[TreeChunk] != NULL && FullOccupancyCyclesTree[TreeChunk]->key == NextAvailableCycle && FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource]==1) {
+            /*if ( FullOccupancyCyclesTree[TreeChunk] != NULL && 
+                 FullOccupancyCyclesTree[TreeChunk]->key == NextAvailableCycle && 
+                 FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource]==1) {*/
+            if (FullOccupancyCyclesTree[TreeChunk].get_node(NextAvailableCycle, ExecutionResource))
+            {
 #ifdef DEBUG_GENERIC
               DEBUG(dbgs() << "Cycle " << NextAvailableCycle << " found in Full OccupancyCyclesTree\n");
 #endif
@@ -1432,7 +1462,8 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
 #endif
     unsigned TreeChunk = GetTreeChunk(NextAvailableCycle);
     
-    FullOccupancyCyclesTree[TreeChunk] =insert_node(NextAvailableCycle, ExecutionResource, FullOccupancyCyclesTree[TreeChunk]);
+    FullOccupancyCyclesTree[TreeChunk].insert_node(NextAvailableCycle, ExecutionResource);
+    //FullOccupancyCyclesTree[TreeChunk] =insert_node(NextAvailableCycle, ExecutionResource, FullOccupancyCyclesTree[TreeChunk]);
 #ifdef SOURCE_CODE_ANALYSIS
 #ifdef DEBUG_SOURCE_CODE_ANALYSIS
     DEBUG(dbgs() << "Inserting source code line " << SourceCodeLine << " for cycle " << NextAvailableCycle << " in FullOccupancyTree due to resource "<<ResourcesNames[ExecutionResource] <<"\n");
@@ -1442,7 +1473,7 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
 #endif
 #ifdef DEBUG_GENERIC
     DEBUG(dbgs() <<"ExecutionResource = " << ExecutionResource << "\n");
-    DEBUG(dbgs() <<"FullOccupancyCyclesTree->BitVector[ExecutionResource] = " << FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource] << "\n");
+  //  DEBUG(dbgs() <<"FullOccupancyCyclesTree->BitVector[ExecutionResource] = " << FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource] << "\n");
     
     // We don't need to do this anymore because it will be larger than LastIssueCycle - TODO
     // Do it only if NextAvailableCycle+1 == InstructionsLastIssueCycle
@@ -1457,13 +1488,18 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
     DEBUG(dbgs() << "TreeChunk "<< TreeChunk <<"\n");
 #endif
     // Instead of splay, we need insert_node
-    FullOccupancyCyclesTree[TreeChunk] = splay(NextAvailableCycle+NextCycle/*1*/,  FullOccupancyCyclesTree[TreeChunk]);
+    //FullOccupancyCyclesTree[TreeChunk] = splay(NextAvailableCycle+NextCycle/*1*/,  FullOccupancyCyclesTree[TreeChunk]);
 #ifdef DEBUG_GENERIC
-    if (FullOccupancyCyclesTree[TreeChunk] == NULL)
-      DEBUG(dbgs() << "FullOccupancyCyclesTree[TreeChunk] == NULL\n");
+ //   if (FullOccupancyCyclesTree[TreeChunk] == NULL)
+  //    DEBUG(dbgs() << "FullOccupancyCyclesTree[TreeChunk] == NULL\n");
 #endif
-    if (FullOccupancyCyclesTree[TreeChunk] == NULL || (FullOccupancyCyclesTree[TreeChunk]!=NULL && !(FullOccupancyCyclesTree[TreeChunk]->key == NextAvailableCycle+NextCycle &&
-                                                                                                     FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource] ==1) )) {
+    /*if (FullOccupancyCyclesTree[TreeChunk] == NULL || 
+        (FullOccupancyCyclesTree[TreeChunk] != NULL && 
+        !(FullOccupancyCyclesTree[TreeChunk]->key == NextAvailableCycle+NextCycle &&
+          FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource] == 1) )) {*/
+    if (//FullOccupancyCyclesTree[TreeChunk].empty() || // get_node also checks for empty
+        !FullOccupancyCyclesTree[TreeChunk].get_node((NextAvailableCycle+NextCycle), ExecutionResource))
+    {
 #ifdef DEBUG_GENERIC
       DEBUG(dbgs() << "The next node was not in full, so insert in available " << NextAvailableCycle+NextCycle << "\n");
 #endif
@@ -1978,6 +2014,7 @@ DynamicAnalysis::IsEmptyLevel(unsigned ExecutionResource, uint64_t Level, bool& 
       if (Level == AvailableCyclesTree[ExecutionResource]->key){
         if( AvailableCyclesTree[ExecutionResource]->issueOccupancy != 0 || (WithPrefetch && AvailableCyclesTree[ExecutionResource]->occupancyPrefetch != 0)){
           IsInAvailableCyclesTree = true;
+          return false;
         }
       }
     }
@@ -1985,15 +2022,16 @@ DynamicAnalysis::IsEmptyLevel(unsigned ExecutionResource, uint64_t Level, bool& 
     IsInAvailableCyclesTree = false;
   
   
-  int TreeChunk = Level/SplitTreeRange;
-  if (FullOccupancyCyclesTree[TreeChunk]!= NULL) {
+
+  /*if (FullOccupancyCyclesTree[TreeChunk]!= NULL) {
     FullOccupancyCyclesTree[TreeChunk] = splay(Level, FullOccupancyCyclesTree[TreeChunk]);
     if (Level == FullOccupancyCyclesTree[TreeChunk]->key &&
-        FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource]==1 ){
+        FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource] == 1 ){
       IsInFullOccupancyCyclesTree = true;
     }
-  }
-  
+  }*/
+  int TreeChunk = Level/SplitTreeRange;
+  IsInFullOccupancyCyclesTree = FullOccupancyCyclesTree[TreeChunk].get_node(Level, ExecutionResource);
   
   if (IsInFullOccupancyCyclesTree == false && IsInAvailableCyclesTree == false) {
     return true;
@@ -2178,8 +2216,11 @@ DynamicAnalysis::FindNextNonEmptyLevel(unsigned ExecutionResource, uint64_t Leve
   Original = Level+1;
   Closest = Original;
   TreeChunk = Original/SplitTreeRange;
-  Node = FullOccupancyCyclesTree[TreeChunk];
+  //Node = FullOccupancyCyclesTree[TreeChunk];
+  // Scan for next cycle where ExecutionResource == 1
   
+  
+  #if 0
   while (IsInFullOccupancyCyclesTree == true) {
     dbgs() << "Starting the search for level " << Original << "\n";
     
@@ -2324,9 +2365,13 @@ DynamicAnalysis::FindNextNonEmptyLevel(unsigned ExecutionResource, uint64_t Leve
     
     
   }
+  #endif
   
   if (IsInFullOccupancyCyclesTree == false) { // i.e., there are no non-empty level
-    NextNonEmptyLevelFullOccupancyCyclesTree = LastNodeVisited->key;
+    //NextNonEmptyLevelFullOccupancyCyclesTree = LastNodeVisited->key;
+    // Scan for bit set in FullOccupancyCyclesTree
+    //   N.B. This may span different tree chunks
+    NextNonEmptyLevelFullOccupancyCyclesTree = BitScan(FullOccupancyCyclesTree, Level + 1, ExecutionResource);
   }
   
   
@@ -2421,11 +2466,13 @@ DynamicAnalysis::GetLastIssueCycle(unsigned ExecutionResource, bool WithPrefetch
     NodeAvailable =AvailableCyclesTree[ExecutionResource];
     
     int TreeChunk = LastCycle/SplitTreeRange;
-    FullOccupancyCyclesTree[TreeChunk] = splay(LastCycle,FullOccupancyCyclesTree[TreeChunk]);
-    NodeFull = FullOccupancyCyclesTree[TreeChunk];
+    //FullOccupancyCyclesTree[TreeChunk] = splay(LastCycle,FullOccupancyCyclesTree[TreeChunk]);
+    //NodeFull = FullOccupancyCyclesTree[TreeChunk];
     if (isPrefetchType) {
       if (( NodeAvailable != NULL && NodeAvailable->key== LastCycle && NodeAvailable->occupancyPrefetch == 0 ) ||
-          ( NodeFull != NULL && NodeFull->key== LastCycle && NodeFull->BitVector[ExecutionResource]==0 ) ) {
+          (FullOccupancyCyclesTree[TreeChunk].get_node_nb(LastCycle, ExecutionResource)))
+      {
+          //( NodeFull != NULL && NodeFull->key== LastCycle && NodeFull->BitVector[ExecutionResource]==0 ) ) {
 #ifdef DEBUG_GENERIC
         DEBUG(dbgs() << "Reducing last cycle " << LastCycle << " by issuegranularity\n");
 #endif
@@ -3833,7 +3880,8 @@ DynamicAnalysis::IncreaseInstructionFetchCycle(bool EmptyBuffers){
     for (uint64_t i = CurrentInstructionFetchCycle+1; i< InstructionFetchCycle; i++) {
       TreeChunk = GetTreeChunk(i);
       
-      FullOccupancyCyclesTree[TreeChunk] = insert_node(i, RS_STALL,FullOccupancyCyclesTree[TreeChunk]);
+      //FullOccupancyCyclesTree[TreeChunk] = insert_node(i, RS_STALL,FullOccupancyCyclesTree[TreeChunk]);
+      FullOccupancyCyclesTree[TreeChunk].insert_node(i, RS_STALL);
 #ifdef SOURCE_CODE_ANALYSIS
       
       FullOccupancyCyclesTree[TreeChunk]->SourceCodeLines.insert(SourceCodeLine);
@@ -3860,7 +3908,8 @@ DynamicAnalysis::IncreaseInstructionFetchCycle(bool EmptyBuffers){
       // Get the node, if any, corresponding to this issue cycle.
       TreeChunk = GetTreeChunk(i);
       
-      FullOccupancyCyclesTree[TreeChunk] = insert_node(i, ROB_STALL, FullOccupancyCyclesTree[TreeChunk] );
+      //FullOccupancyCyclesTree[TreeChunk] = insert_node(i, ROB_STALL, FullOccupancyCyclesTree[TreeChunk] );
+      FullOccupancyCyclesTree[TreeChunk].insert_node(i, ROB_STALL);
 #ifdef SOURCE_CODE_ANALYSIS
       FullOccupancyCyclesTree[TreeChunk]->SourceCodeLines.insert(SourceCodeLine);
 #endif
@@ -3968,7 +4017,8 @@ DynamicAnalysis::IncreaseInstructionFetchCycle(bool EmptyBuffers){
       
       //FirstNonEmptyLevel[LFB_STALL] = (FirstNonEmptyLevel[LFB_STALL]==0)?InstructionFetchCycle:FirstNonEmptyLevel[LFB_STALL];
       InstructionsLastIssueCycle[LFB_STALL] =PrevInstructionFetchCycle;
-      FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange] = insert_node(PrevInstructionFetchCycle, LFB_STALL, FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange]);
+      //FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange] = insert_node(PrevInstructionFetchCycle, LFB_STALL, FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange]);
+      FullOccupancyCyclesTree[(PrevInstructionFetchCycle/SplitTreeRange)].insert_node(PrevInstructionFetchCycle, LFB_STALL);
       // We do it when an instruction is inserted. Otherwise, SourceCodeLine has the value
       // of the last instruction analyzed from the instruction fetch window, which
       // might not be the instruction that was stalled.
@@ -3990,7 +4040,8 @@ DynamicAnalysis::IncreaseInstructionFetchCycle(bool EmptyBuffers){
       }
       //FirstNonEmptyLevel[LB_STALL] = (FirstNonEmptyLevel[LB_STALL]==0)?InstructionFetchCycle:FirstNonEmptyLevel[LB_STALL];
       InstructionsLastIssueCycle[LB_STALL] =PrevInstructionFetchCycle;
-      FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange] = insert_node(PrevInstructionFetchCycle, LB_STALL, FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange]);
+      //FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange] = insert_node(PrevInstructionFetchCycle, LB_STALL, FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange]);
+      FullOccupancyCyclesTree[(PrevInstructionFetchCycle/SplitTreeRange)].insert_node(PrevInstructionFetchCycle, LB_STALL);
       /*
        #ifdef SOURCE_CODE_ANALYSIS
        FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange]->SourceCodeLines.insert(SourceCodeLine);
@@ -4012,7 +4063,8 @@ DynamicAnalysis::IncreaseInstructionFetchCycle(bool EmptyBuffers){
 #ifdef DEBUG_SOURCE_CODE_ANALYSIS
       DEBUG(dbgs()<< "Inserting SB_STALL when instruction fetch cycle changes for cycle "<< PrevInstructionFetchCycle<<"\n");
 #endif
-      FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange] = insert_node(PrevInstructionFetchCycle, SB_STALL,FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange]);
+      //FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange] = insert_node(PrevInstructionFetchCycle, SB_STALL,FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange]);
+      FullOccupancyCyclesTree[(PrevInstructionFetchCycle/SplitTreeRange)].insert_node(PrevInstructionFetchCycle, SB_STALL);
       
       InstructionsCountExtended[SB_STALL]++;
     }
