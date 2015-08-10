@@ -68,7 +68,7 @@ static cl::opt<string> Microarchitecture("uarch", cl::desc("Name of the microarc
 static cl::list <float> ExecutionUnitsLatency("execution-units-latency",  cl::CommaSeparated, cl::desc("Specify the execution latency of the nodes(cycles). Default value is 1 cycle"));
 
 
-static cl::list <float> ExecutionUnitsThroughput("execution-units-throughput",  cl::CommaSeparated, cl::desc("Specify the execution bandwidth of the nodes(ops executed/cycles). Default value is -1 cycle"));
+static cl::list <double> ExecutionUnitsThroughput("execution-units-throughput",  cl::CommaSeparated, cl::desc("Specify the execution bandwidth of the nodes(ops executed/cycles). Default value is -1 cycle"));
 
 static cl::list <int> ExecutionUnitsParallelIssue("execution-units-parallel-issue",  cl::CommaSeparated, cl::desc("Specify the number of nodes that can be executed in parallel based on ports execution. Default value is -1 cycle"));
 
@@ -94,6 +94,9 @@ static cl::opt < bool > WarmCache("warm-cache", cl::Hidden, cl::desc("Enable ana
 static cl::opt < bool > x86MemoryModel("x86-memory-model", cl::Hidden, cl::desc("Implement x86 memory model. Default value is FALSE"),cl::init(false));
 
 static cl::opt < bool > ConstraintPorts("constraint-ports", cl::Hidden, cl::desc("Constraint ports dispatch according to specified architecture. Default value is FALSE"),cl::init(false));
+
+static cl::opt < bool > BlockPorts("block-ports", cl::Hidden, cl::desc("Block the ports while the instruction is being issued according to the corresponding throughput. Default value is FALSE"),cl::init(false));
+
 
 static cl::opt < bool > ConstraintAGUs("constraint-agus", cl::Hidden, cl::desc("Constraint agus according to specified architecture. Default value is FALSE"),cl::init(false));
 
@@ -2346,7 +2349,7 @@ void Interpreter::run() {
   float Cycles, ExecutionTime, CyclesPostProcessing, ExecutionTimePostProcessing;
   
 
-  Analyzer = new DynamicAnalysis(TargetFunction, Microarchitecture, MemoryWordSize, CacheLineSize, L1CacheSize, L2CacheSize, LLCCacheSize, ExecutionUnitsLatency, ExecutionUnitsThroughput, ExecutionUnitsParallelIssue, MemAccessGranularity, AddressGenerationUnits, IFB, ReservationStation, ReorderBuffer, LoadBuffer, StoreBuffer, LineFillBuffer, WarmCache, x86MemoryModel, SpatialPrefetcher, ConstraintPorts, ConstraintAGUs, 0, InOrderExecution,ReportOnlyPerformance,PrefetchLevel, PrefetchDispatch, PrefetchTarget);
+  Analyzer = new DynamicAnalysis(TargetFunction, Microarchitecture, MemoryWordSize, CacheLineSize, L1CacheSize, L2CacheSize, LLCCacheSize, ExecutionUnitsLatency, ExecutionUnitsThroughput, ExecutionUnitsParallelIssue, MemAccessGranularity, AddressGenerationUnits, IFB, ReservationStation, ReorderBuffer, LoadBuffer, StoreBuffer, LineFillBuffer, WarmCache, x86MemoryModel, SpatialPrefetcher, ConstraintPorts, BlockPorts, ConstraintAGUs, 0, InOrderExecution,ReportOnlyPerformance,PrefetchLevel, PrefetchDispatch, PrefetchTarget);
    tStart = clock();
   bool startAnalysis = false;
   

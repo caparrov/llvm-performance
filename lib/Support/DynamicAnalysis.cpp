@@ -29,7 +29,7 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
                                  unsigned L2CacheSize,
                                  unsigned LLCCacheSize,
                                  vector<float> ExecutionUnitsLatency,
-                                 vector<float> ExecutionUnitsThroughput,
+                                 vector<double> ExecutionUnitsThroughput,
                                  vector<int> ExecutionUnitsParallelIssue,
                                  vector<unsigned>  MemAccessGranularity,
                                  int AddressGenerationUnits,
@@ -42,6 +42,7 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
                                  bool x86MemoryModel,
                                  bool SpatialPrefetcher,
                                  bool ConstraintPorts,
+						   bool BlockPorts,
                                  bool ConstraintAGUs,
                                  int rep,
                                  bool InOrderExecution,
@@ -223,12 +224,12 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
   this->CacheLineSize = CacheLineSize/(this->MemoryWordSize);
   
   // If caches sizes are not multiple of a power of 2, force it.
-  this->L1CacheSize = roundNextPowerOfTwo(L1CacheSize);
-  this->L2CacheSize = roundNextPowerOfTwo(L2CacheSize);
-  this->LLCCacheSize = roundNextPowerOfTwo(LLCCacheSize);
-  this->L1CacheSize = this->L1CacheSize /CacheLineSize;
-  this->L2CacheSize = this->L2CacheSize/CacheLineSize;
-  this->LLCCacheSize = this->LLCCacheSize/CacheLineSize;
+  //this->L1CacheSize = roundNextPowerOfTwo(L1CacheSize);
+  //this->L2CacheSize = roundNextPowerOfTwo(L2CacheSize);
+  //this->LLCCacheSize = roundNextPowerOfTwo(LLCCacheSize);
+  this->L1CacheSize = L1CacheSize /CacheLineSize;
+  this->L2CacheSize = L2CacheSize/CacheLineSize;
+  this->LLCCacheSize = LLCCacheSize/CacheLineSize;
   
   
   this->AddressGenerationUnits = AddressGenerationUnits;
@@ -242,6 +243,7 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
   this->x86MemoryModel = x86MemoryModel;
   this->SpatialPrefetcher = SpatialPrefetcher;
   this->ConstraintPorts = ConstraintPorts;
+  this->BlockPorts = BlockPorts;
   this->ConstraintAGUs = ConstraintAGUs;
   this->InOrderExecution = InOrderExecution;
   this->ReportOnlyPerformance = ReportOnlyPerformance;
@@ -735,7 +737,7 @@ DynamicAnalysis::getInstructionType(Instruction &I){
       
       // Other instructions...
     case Instruction::ICmp:           return CTRL;
-    case Instruction::FCmp:           return CTRL;
+    case Instruction::FCmp:           return FP_ADD;
     case Instruction::PHI:            return CTRL;
     case Instruction::Select:         return CTRL;
     case Instruction::Call:           return CTRL;
@@ -1840,6 +1842,8 @@ DynamicAnalysis::GetExtendedInstructionType(int OpCode, int ReuseDistance){
   
   unsigned InstructionType = 0;
   
+
+
   switch (OpCode) {
     case Instruction::Add:
 #ifdef INT_FP_OPS
@@ -1872,6 +1876,9 @@ DynamicAnalysis::GetExtendedInstructionType(int OpCode, int ReuseDistance){
       
     case Instruction::FSub:
       return FP_ADD_NODE;
+
+	case Instruction::FCmp:
+		return FP_ADD_NODE;
       
     case  Instruction::FMul:
       return FP_MUL_NODE;
@@ -6508,12 +6515,13 @@ DynamicAnalysis::finishAnalysis(){
           }
       }
       
+}
       printHeaderStat("Execution Times Breakdowns");
       unsigned MinExecutionTime;
       unsigned IssueEffects;
       unsigned LatencyEffects;
       unsigned StallEffects;
-      float Throughput = 0;
+      double Throughput = 0;
       dbgs() << "RESOURCE\tMIN-EXEC-TIME\tISSUE-EFFECTS\tLATENCY-EFFECTS\tSTALL-EFFECTS\tTOTAL\n";
       
       for(unsigned i=0; i< nExecutionUnits; i++){
@@ -6557,6 +6565,12 @@ DynamicAnalysis::finishAnalysis(){
                   if (Throughput == INF) {
                     MinExecutionTime = 1;
                   }else{
+				/*dbgs() << "InstructionsCountExtended[i] " << InstructionsCountExtended[i] << "\n";
+				dbgs() << "AccessGranularities[i] " << AccessGranularities[i]<< "\n";
+				dbgs() << "Throughput " << Throughput<< "\n";
+				dbgs() << "InstructionsCountExtended[i]*AccessGranularities[i] " << InstructionsCountExtended[i]*AccessGranularities[i] << "\n";
+				dbgs() << "InstructionsCountExtended[i]*AccessGranularities[i]/(Throughput) " << InstructionsCountExtended[i]*AccessGranularities[i]/(Throughput) << "\n";
+				dbgs() << "ceil(InstructionsCountExtended[i]*AccessGranularities[i]/(Throughput)) "<< ceil(InstructionsCountExtended[i]*AccessGranularities[i]/(Throughput))<< "\n";*/
                     MinExecutionTime = (unsigned)ceil(InstructionsCountExtended[i]*AccessGranularities[i]/(Throughput));
                   }
                 }
@@ -6605,7 +6619,7 @@ DynamicAnalysis::finishAnalysis(){
           }
       }
       
-      
+  // }   
       
       
       printHeaderStat("TOTAL");
@@ -6632,7 +6646,7 @@ DynamicAnalysis::finishAnalysis(){
       
 #endif
       
-    }
+   
     
     // TODO: I should really try to clean up all memory
     // Deallocate memory

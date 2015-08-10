@@ -39,7 +39,7 @@
 #include <unordered_map>
 #endif
 #include <deque>
-#define ROUND_REUSE_DISTANCE
+//#define ROUND_REUSE_DISTANCE
 #define REDUCED_INST_TYPES
 #define NORMAL_REUSE_DISTRIBUTION
 
@@ -606,7 +606,7 @@ public:
   vector<vector<unsigned> > DispatchPort;
   
   vector<unsigned> ExecutionUnitsLatency;
-  vector<float> ExecutionUnitsThroughput;
+  vector<double> ExecutionUnitsThroughput;
   vector<int> ExecutionUnitsParallelIssue;
   vector<unsigned> PortsWidth;
   
@@ -660,6 +660,7 @@ public:
   bool x86MemoryModel;
   bool SpatialPrefetcher;
   bool ConstraintPorts;
+  bool BlockPorts;
   bool ConstraintAGUs;
   unsigned PrefetchLevel;
   unsigned PrefetchDispatch;
@@ -778,7 +779,7 @@ vector<ComplexTree<uint64_t> *> PointersToRemove;
                   unsigned L2CacheSize,
                   unsigned LLCCacheSize,
                   vector<float> ExecutionUnitsLatency,
-                  vector<float> ExecutionUnitsThroughput,
+                  vector<double> ExecutionUnitsThroughput,
                   vector<int> ExecutionUnitsParallelIssue,
                   vector<unsigned>  MemAccessGranularity,
                   int AddressGenerationUnits,
@@ -792,6 +793,7 @@ vector<ComplexTree<uint64_t> *> PointersToRemove;
                   bool x86MemoryModel,
                   bool SpatialPrefetcher,
                   bool ConstraintPorts,
+		        bool BlockPorts,
                   bool ConstraintAGUs,
                   int rep,
                   bool InOrderExecution,
