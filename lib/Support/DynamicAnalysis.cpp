@@ -5,7 +5,7 @@
 //  Victoria Caparros Cabezas <caparrov@inf.ethz.ch>
 //===----------------------------------------------------------------------===//
 
-#define INTERPRETER
+//#define INTERPRETER
 
 #ifdef INTERPRETER
 #include "llvm/Support/DynamicAnalysis.h"
@@ -1121,7 +1121,7 @@ DynamicAnalysis::ThereIsAvailableBandwidth(unsigned NextAvailableCycle, unsigned
     
     if(AvailableCyclesTree[ExecutionResource]!=NULL){
       Tree<uint64_t> * Node = AvailableCyclesTree[ExecutionResource];
-    if (Node!=NULL & Node->key >= NextAvailableCycle) {
+    if (Node!=NULL && Node->key >= NextAvailableCycle) {
     LevelOccupancy =Node->widthOccupancy;
 
     if (LevelOccupancy > 0 && ExecutionUnitsThroughput[ExecutionResource] >= 1) {
@@ -1797,7 +1797,6 @@ DynamicAnalysis::ReuseTreeSearchDelete(uint64_t Original, uint64_t address, bool
     while (true) {
       // This is the mechanism used in the original algorithm to delete the host
       // node,  decrementing the last_record attribute of the host node, and
-      // the size attribute of all parents nodes.
       // Node->size = Node->size-1;
       if (Original < Node->key) {
         if (Node->right != NULL)
@@ -4252,7 +4251,7 @@ void
 DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  GenericValue * visitResult)
 #else
 void
-DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
+DynamicAnalysis::analyzeInstruction(Instruction &I, unsigned OpCode, uint64_t addr)
 #endif
 {
   
@@ -4425,7 +4424,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
   }else{
     
     DEBUG(dbgs()<<  I<< " ("<< &I <<")\n");
-    
+    DEBUG(dbgs()<< " Instruction Opcode "<< OpCode <<"\n");
     // Determine instruction width
     int NumOperands = I.getNumOperands();
     
@@ -4555,7 +4554,8 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
         InstructionIssueCycle = max(max(InstructionFetchCycle,BasicBlockBarrier),getInstructionValueIssueCycle(&I)); // This is the branch instrucion
         
         //Iterate over the uses of the generated value
-#ifdef INTERPRETER
+//#ifdef INTERPRETER
+#if LLVM_VERSION_MINOR<5
         for(Value::use_iterator i = I.use_begin(), ie = I.use_end(); i!=ie; ++i){
           insertInstructionValueIssueCycle(*i, InstructionIssueCycle+1/*???*/);
         }
@@ -4575,19 +4575,25 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
         DEBUG(dbgs() << "Executing PHI Node. Iterate over it uses.\n");
 #endif
         // Iterate through the uses of the PHI node
-        for (User *U : I.users()) {
-#ifdef DEBUG_PHI_NODE
-          DEBUG(dbgs() << "Use of the PHI node " << U << "\n");
-#endif
-          if (dyn_cast<PHINode>(U)) {
-            insertInstructionValueIssueCycle(U, InstructionIssueCycle, true);
-          }else{
-            insertInstructionValueIssueCycle(U, InstructionIssueCycle);
-          }
-          
-          
-        }
-        
+      //         for (User *U : I.users()) {
+                 for(Value::use_iterator i = I.use_begin(), ie = I.use_end(); i!=ie; ++i){
+       
+                 #ifdef DEBUG_PHI_NODE
+                           DEBUG(dbgs() << "Use of the PHI node " << U << "\n");
+                           #endif
+                               //      if (dyn_cast<PHINode>(U)) {
+                               if (dyn_cast<PHINode>(*i)) {
+                               insertInstructionValueIssueCycle(*i, InstructionIssueCycle, true);
+       
+                              //            insertInstructionValueIssueCycle(U, InstructionIssueCycle, true);
+                                         }else{
+                                                 //    insertInstructionValueIssueCycle(U, InstructionIssueCycle);
+                                                 insertInstructionValueIssueCycle(*i, InstructionIssueCycle);
+                                                          
+                                                           }
+                                                                     
+                                                                               
+                                                                                       } 
 #endif
         break;
         // Dependences through the arguments of a method call
@@ -4603,7 +4609,22 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
           ArgVals.push_back(V);
         }
         InstructionIssueCycle =max(max(InstructionFetchCycle,BasicBlockBarrier),getInstructionValueIssueCycle(&I));
-        
+
+		if(F->getName().find("llvm.x86.avx") != string::npos){
+		dbgs() << "Call to broadcast\n";
+	dbgs() << "Iterate through the uses of the broadcast\n";	
+	dbgs() << I << "\n";
+#if LLVM_VERSION_MINOR<5
+        for(Value::use_iterator i = I.use_begin(), ie = I.use_end(); i!=ie; ++i){
+          dbgs() << &i <<"\n";
+        }
+#else
+        for (User *U : I.users()) {
+ dbgs() << *i <<"\n";
+        }
+#endif
+
+}
         break;
         
         //-------------------- Memory Dependences -------------------------------//
@@ -5112,7 +5133,8 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
         // of info about how iterate through functions, bbs, etc.
         F = I.getParent()->getParent();
         InstructionIssueCycle = max(max(InstructionFetchCycle,BasicBlockBarrier),getInstructionValueIssueCycle(&I));
-#ifdef INTERPRETER
+//#ifdef INTERPRETER
+#if LLVM_VERSION_MINOR<5
         for (Value::use_iterator IT = F->use_begin(), ET = F->use_end(); IT != ET; ++IT) {
           // Iterate over the users of the uses of the function
           for(Value::use_iterator it = (*IT)->use_begin(), ite = (*IT)->use_end(); it!=ite; ++it){
@@ -5280,7 +5302,8 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, uint64_t addr)
       
       //Iterate over the uses of the generated value (except for GetElementPtr)
       if(I.getOpcode() != Instruction::GetElementPtr){
-#ifdef INTERPRETER
+//#ifdef INTERPRETER
+#if LLVM_VERSION_MINOR<5
         for(Value::use_iterator i = I.use_begin(), ie = I.use_end(); i!=ie; ++i){
 #ifdef DEBUG_DEPS_FUNCTION_CALL
           DEBUG(dbgs() << "Setting use  "<< *i << " to "<<  NewInstructionIssueCycle+Latency<<"\n");

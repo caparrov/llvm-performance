@@ -20,7 +20,7 @@
 #include "llvm/Support/InstIterator.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
 
-#define INTERPRETER
+//#define INTERPRETER
 
 #ifdef INTERPRETER
 #include "llvm/Support/top-down-size-splay.hpp"
@@ -650,7 +650,7 @@ public:
 #ifdef INTERPRETER
   void analyzeInstruction(Instruction &I, ExecutionContext &SF,  GenericValue * visitResult);
 #else
-  void analyzeInstruction (Instruction &I, uint64_t addr);
+  void analyzeInstruction (Instruction &I, unsigned OpCode, uint64_t addr);
 #endif
   
   void insertInstructionValueIssueCycle(Value* v,uint64_t InstructionIssueCycle, bool isPHINode = 0 );
