@@ -547,6 +547,9 @@ public:
   uint64_t NFirstAccesses;
   vector<uint64_t> InstructionsCount;
   vector<uint64_t> InstructionsCountExtended;
+  vector<uint64_t> ScalarInstructionsCountExtended;
+  vector<uint64_t> VectorInstructionsCountExtended;
+  vector<bool> InstructionsScalarVectorMixed;
   vector<uint64_t> InstructionsSpan;
   vector<uint64_t> InstructionsLastIssueCycle;
   vector<uint64_t> IssueSpan;

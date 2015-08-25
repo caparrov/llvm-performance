@@ -561,6 +561,8 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
   for (unsigned i = 0; i< nExecutionUnits + nPorts + nAGUs + nLoadAGUs + nStoreAGUs + nBuffers; i++) {
     InstructionsCount.push_back(0);
     InstructionsCountExtended.push_back(0);
+    ScalarInstructionsCountExtended.push_back(0);
+    VectorInstructionsCountExtended.push_back(0);
     InstructionsSpan.push_back(0);
     InstructionsLastIssueCycle.push_back(0);
     IssueSpan.push_back(0);
@@ -571,6 +573,12 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
     NInstructionsStalled.push_back(0);
     FirstIssue.push_back(false);
   }
+  
+  
+  for (unsigned i = 0; i< nExecutionUnits; i++) {
+    InstructionsScalarVectorMixed.push_back(false);
+  }
+  
   
   for (unsigned i = 0; i <nBuffers; i++)
     BuffersOccupancy.push_back(0);
@@ -1529,9 +1537,13 @@ DynamicAnalysis::InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsi
   if (NElementsVector > 1){
     DEBUG(dbgs() << "Increasing instruction count of resource " << GetResourceName(ExecutionResource) << " by " << NElementsVector << "\n");
     InstructionsCountExtended[ExecutionResource]=InstructionsCountExtended[ExecutionResource]+NElementsVector;
+    VectorInstructionsCountExtended[ExecutionResource]++;
+
   }else{
     DEBUG(dbgs() << "Increasing instruction count of resource " << GetResourceName(ExecutionResource) << " by 1\n");
     InstructionsCountExtended[ExecutionResource]++;
+    ScalarInstructionsCountExtended[ExecutionResource]++;
+
   }
   
   unsigned AccessWidth = AccessWidths[ExecutionResource];
@@ -3103,7 +3115,7 @@ DynamicAnalysis::CalculateIssueSpan(vector<int> & ResourcesVector){
   unsigned TmpLatency = 0;
   bool IsInAvailableCyclesTree = false;
   bool IsInFullOccupancyCyclesTree = false;
-  
+  unsigned IssueGranularity;
   
 #ifdef DEBUG_SPAN_CALCULATION
   DEBUG(dbgs() << "Resources that contribute to Span:\n");
@@ -3221,6 +3233,33 @@ DynamicAnalysis::CalculateIssueSpan(vector<int> & ResourcesVector){
           MaxLatency = MaxLatencyLevel;
         }
       }
+    }
+  }
+  
+  for (int j= 0; j< NResources; j++) {
+    ResourceType = ResourcesVector[j];
+    if (InstructionsScalarVectorMixed[ResourceType]==true) {
+      if (ParallelIssue[ResourceType!= INF]) {
+        if (Throughput[ResourceType]!= INF) {
+          if (AccessWidth[ResourceType]*VectorWidth > (Throughput[ResourceType]*ParallelIssue[ResourceType])) {
+            // Issue Span calculated as before needs correction.
+            IssueGranularity= ceil(AccessWidth[ResourceType]*VectorWidth/(Throughput[ResourceType]*ParallelIssue[ResourceType]));
+            Span = Span + VectorInstructionsCountExtended[ResourceType]*(IssueGranularity-1); // Becuase span already includes the firs issue cycle.
+          }
+        }else{ // If Throughout and ParallelIssue are INF, don't have to adjust anything from issue span
+          
+        }
+      }else{// If ParallelIssue in INF but Thoroughput no
+        if (Throughput[ResourceType]!= INF) {
+          if (AccessWidth[ResourceType]*VectorWidth > (Throughput[ResourceType])) {
+            // Issue Span calculated as before needs correction.
+            IssueGranularity= ceil(AccessWidth[ResourceType]*VectorWidth/(Throughput[ResourceType]));
+            Span = Span + VectorInstructionsCountExtended[ResourceType]*(IssueGranularity-1); // Becuase span already includes the firs issue cycle.
+          }
+        }
+        
+      }
+      
     }
   }
 #ifdef DEBUG_SPAN_CALCULATION
@@ -5415,6 +5454,10 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
             DEBUG(dbgs() << "Inserting issue cycle " <<  NextCacheLineIssueCycle+LatencyPrefetch << " for cache line " << NextCacheLine << "\n");
 #endif
           }
+        }
+        
+        if (IsVectorInstruction) {
+          InstructionsScalarVectorMixed[ExecutionResource] = true;
         }
         //======================= END NEW CODE ==========================================//
         
