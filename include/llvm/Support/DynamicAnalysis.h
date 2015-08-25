@@ -519,6 +519,8 @@ public:
   
   string TargetFunction;
   uint8_t FunctionCallStack;
+
+bool VectorCode;
   
   
   uint8_t uarch;
@@ -650,7 +652,7 @@ public:
 #ifdef INTERPRETER
   void analyzeInstruction(Instruction &I, ExecutionContext &SF,  GenericValue * visitResult);
 #else
-  void analyzeInstruction (Instruction &I, unsigned OpCode, uint64_t addr);
+  void analyzeInstruction (Instruction &I, unsigned OpCode, uint64_t addr, bool forceAnalyze = false);
 #endif
   
   void insertInstructionValueIssueCycle(Value* v,uint64_t InstructionIssueCycle, bool isPHINode = 0 );
@@ -671,6 +673,8 @@ public:
   
   uint64_t GetTreeChunk(uint64_t i);
   
+  vector<unsigned> IssuePorts;
+
   //Returns the DAG level occupancy after the insertion
   unsigned FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned ExecutionResource, uint8_t NElementsVector = 1, bool TargetLevel = true);
   unsigned FindNextAvailableIssueCyclePortAndThroughtput(unsigned InstructionIssueCycle, unsigned ExtendedInstructionType, unsigned NElementsVector=1);
@@ -679,7 +683,7 @@ public:
   
   uint64_t FindNextAvailableIssueCycleUntilNotInFullOrEnoughBandwidth(unsigned NextCycle, unsigned ExecutionResource , bool& FoundInFullOccupancyCyclesTree, bool& EnoughBandwidth);
   
-  bool InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsigned ExecutionResource, unsigned NElementsVector = 1, bool isPrefetch=0);
+  bool InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsigned ExecutionResource, unsigned NElementsVector = 1, unsigned IssuePort = 0, bool isPrefetch=0);
   
   void IncreaseInstructionFetchCycle(bool EmptyBuffers = false);
   
