@@ -584,6 +584,8 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
     AvailableCyclesTree.push_back(NULL);
   
   IssuePorts = vector<unsigned>();
+
+VectorCode = false;
   
 }
 
@@ -1433,9 +1435,9 @@ DynamicAnalysis::FindNextAvailableIssueCycle(unsigned OriginalCycle, unsigned Ex
         if (FoundInFullOccupancyCyclesTree == true) {
           NextAvailableCycle = FindNextAvailableIssueCycleUntilNotInFullOrEnoughBandwidth(NextAvailableCycle, ExecutionResource , FoundInFullOccupancyCyclesTree,EnoughBandwidth);
           // Just as a sanity check
-          if (ThereIsAvailableBandwidth(NextAvailableCycle, ExecutionResource, NElementsVector, FoundInFullOccupancyCyclesTree, TargetLevel)==false) {
-            report_fatal_error("Next cycle found in available, but there is not enough bandwidth");
-          }
+        //  if (ThereIsAvailableBandwidth(NextAvailableCycle, ExecutionResource, NElementsVector, FoundInFullOccupancyCyclesTree, TargetLevel)==false) {
+         //   report_fatal_error("Next cycle found in available, but there is not enough bandwidth");
+         // }
 
         }else{
           DEBUG(dbgs() << "ExecutionResource < nExecutionUnits, searching available BW \n");
@@ -4544,7 +4546,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
             
             if (PT->getElementType()->getTypeID()== Type::VectorTyID){
               DEBUG(dbgs() << "The type of the operand is a vector\n");
-              
+              VectorCode = true;
               IsVectorInstruction = true;
               NElementsVector = PT->getElementType()->getVectorNumElements();
             }
@@ -4554,6 +4556,7 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
           // If arithmetic instruction, we can get the vector type directly
           
           if (Ty->getTypeID()==Type::VectorTyID) {
+			VectorCode = true;
             IsVectorInstruction = true;
             NElementsVector = Ty->getVectorNumElements();
             //TODO: Dont' make it dependt on the opcode, but on the node type
@@ -6927,11 +6930,19 @@ DynamicAnalysis::analyzeInstruction(Instruction &I, ExecutionContext &SF,  Gener
                */
               DEBUG(dbgs() << "IssueSpan[i] " <<IssueSpan[i]<<"\n");
               DEBUG(dbgs() << "MinExecutionTime " <<MinExecutionTime<<"\n");
-              if (IssueSpan[i] < MinExecutionTime) {
+		if(VectorCode){
+		if (IssueSpan[i] < InstructionsCountExtended[i]/) {
                 PrintWarning = true;
                 IssueSpan[i] = MinExecutionTime;
                 //report_fatal_error("IssueSpan < Min execution time");
               }
+}else{              
+		if (IssueSpan[i] < MinExecutionTime) {
+                PrintWarning = true;
+                IssueSpan[i] = MinExecutionTime;
+                //report_fatal_error("IssueSpan < Min execution time");
+              }
+}
               IssueEffects = IssueSpan[i] - MinExecutionTime;
               //              }
               
