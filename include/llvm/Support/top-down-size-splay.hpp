@@ -54,7 +54,7 @@
 #include <set>
 #include <boost/dynamic_bitset.hpp>
 
-//#define SOURCE_CODE_ANALYSIS
+#define SOURCE_CODE_ANALYSIS
 
 // Needed to use report_fatal_error
 using namespace llvm;
@@ -93,8 +93,10 @@ namespace SplayTree{
     int32_t widthOccupancy;
     int32_t occupancyPrefetch;
     uint64_t address;
+    vector<unsigned> issuePorts;
 #ifdef SOURCE_CODE_ANALYSIS
-    set<uint64_t> SourceCodeLines;
+//    set<uint64_t> SourceCodeLines;
+    vector<pair<unsigned,unsigned>> SourceCodeLinesOperationPair;
 #endif
     
   };

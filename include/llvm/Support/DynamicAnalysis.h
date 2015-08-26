@@ -30,6 +30,8 @@
 
 //#define INT_FP_OPS
 
+//#define  SOURCE_CODE_ANALYSIS
+
 #include <iostream>
 #include <map>
 #include <stdarg.h>
@@ -43,7 +45,7 @@
 #define NORMAL_REUSE_DISTRIBUTION
 
 
-//#define DEBUG_SOURCE_CODE_LINE_ANALYSIS
+#define DEBUG_SOURCE_CODE_LINE_ANALYSIS
 #define DEBUG_MEMORY_TRACES
 #define DEBUG_REUSE_DISTANCE
 #define DEBUG_GENERIC
@@ -59,7 +61,7 @@
 //#define ILP_DISTRIBUTION
 //#define MICROSCHEDULING
 
-#define ASSERT
+//#define ASSERT
 
 #define MOO_BUFFERS
 
@@ -387,6 +389,12 @@ class TBV {
     }
     //vector<bool> BitVector;
     dynamic_bitset<> BitVector; // from boost
+#ifdef SOURCE_CODE_ANALYSIS
+//    set<uint64_t> SourceCodeLines;
+    vector<pair<unsigned,unsigned>> SourceCodeLinesOperationPair;
+#endif
+    
+
   };
   
 private:
@@ -395,6 +403,8 @@ private:
   
 public:
   TBV();
+  void insert_source_code_line(uint64_t key, unsigned SourceCodeLine, unsigned Resource);
+vector<pair<unsigned,unsigned>>  get_source_code_lines(uint64_t key);
   bool get_node(uint64_t key, unsigned bitPosition);
   bool get_node_nb(uint64_t key, unsigned bitPosition);
   void insert_node(uint64_t key, unsigned bitPosition);
@@ -655,7 +665,7 @@ bool VectorCode;
 #ifdef INTERPRETER
   void analyzeInstruction(Instruction &I, ExecutionContext &SF,  GenericValue * visitResult);
 #else
-  void analyzeInstruction (Instruction &I, unsigned OpCode, uint64_t addr, bool forceAnalyze = false);
+  void analyzeInstruction (Instruction &I, unsigned OpCode, uint64_t addr, unsigned SourceCodeLine, bool forceAnalyze = false);
 #endif
   
   void insertInstructionValueIssueCycle(Value* v,uint64_t InstructionIssueCycle, bool isPHINode = 0 );

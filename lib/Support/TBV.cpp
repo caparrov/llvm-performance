@@ -1,5 +1,5 @@
 
-#define INTERPRETER
+//#define INTERPRETER
 
 #ifdef INTERPRETER
 #include "llvm/Support/DynamicAnalysis.h"
@@ -25,6 +25,21 @@ void TBV::insert_node(uint64_t key, unsigned bitPosition)
     e = false;
     tbv_map[key].BitVector[bitPosition] = 1;
 }
+
+
+#ifdef SOURCE_CODE_ANALYSIS
+void TBV::insert_source_code_line(uint64_t key, unsigned SourceCodeLine, unsigned Resource)
+{
+    key = key % SplitTreeRange;
+    tbv_map[key].SourceCodeLinesOperationPair.push_back(std::make_pair(SourceCodeLine,Resource));
+}
+
+vector<pair<unsigned,unsigned>> TBV::get_source_code_lines(uint64_t key){
+ key = key % SplitTreeRange;
+  return tbv_map[key].SourceCodeLinesOperationPair;
+}
+#endif
+
 
 void TBV::delete_node(uint64_t key, unsigned bitPosition)
 {
