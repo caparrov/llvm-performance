@@ -4342,7 +4342,8 @@ DynamicAnalysis::IncreaseInstructionFetchCycle(bool EmptyBuffers){
       //FirstNonEmptyLevel[LFB_STALL] = (FirstNonEmptyLevel[LFB_STALL]==0)?InstructionFetchCycle:FirstNonEmptyLevel[LFB_STALL];
       InstructionsLastIssueCycle[LFB_STALL] =PrevInstructionFetchCycle;
       //FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange] = insert_node(PrevInstructionFetchCycle, LFB_STALL, FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange]);
-      FullOccupancyCyclesTree[(PrevInstructionFetchCycle/SplitTreeRange)].insert_node(PrevInstructionFetchCycle, LFB_STALL);
+      TreeChunk  = GetTreeChunk(PrevInstructionFetchCycle);
+      FullOccupancyCyclesTree[TreeChunk].insert_node(PrevInstructionFetchCycle, LFB_STALL);
       // We do it when an instruction is inserted. Otherwise, SourceCodeLine has the value
       // of the last instruction analyzed from the instruction fetch window, which
       // might not be the instruction that was stalled.
@@ -4365,7 +4366,8 @@ DynamicAnalysis::IncreaseInstructionFetchCycle(bool EmptyBuffers){
       //FirstNonEmptyLevel[LB_STALL] = (FirstNonEmptyLevel[LB_STALL]==0)?InstructionFetchCycle:FirstNonEmptyLevel[LB_STALL];
       InstructionsLastIssueCycle[LB_STALL] =PrevInstructionFetchCycle;
       //FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange] = insert_node(PrevInstructionFetchCycle, LB_STALL, FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange]);
-      FullOccupancyCyclesTree[(PrevInstructionFetchCycle/SplitTreeRange)].insert_node(PrevInstructionFetchCycle, LB_STALL);
+      TreeChunk = GetTreeChunk(PrevInstructionFetchCycle);
+      FullOccupancyCyclesTree[TreeChunk].insert_node(PrevInstructionFetchCycle, LB_STALL);
       /*
        #ifdef SOURCE_CODE_ANALYSIS
        FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange]->SourceCodeLines.insert(SourceCodeLine);
@@ -4388,7 +4390,8 @@ DynamicAnalysis::IncreaseInstructionFetchCycle(bool EmptyBuffers){
       DEBUG(dbgs()<< "Inserting SB_STALL when instruction fetch cycle changes for cycle "<< PrevInstructionFetchCycle<<"\n");
 #endif
       //FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange] = insert_node(PrevInstructionFetchCycle, SB_STALL,FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange]);
-      FullOccupancyCyclesTree[(PrevInstructionFetchCycle/SplitTreeRange)].insert_node(PrevInstructionFetchCycle, SB_STALL);
+      TreeChunk = GetTreeChunk(PrevInstructionFetchCycle);
+      FullOccupancyCyclesTree[TreeChunk].insert_node(PrevInstructionFetchCycle, SB_STALL);
       
       InstructionsCountExtended[SB_STALL]++;
     }
