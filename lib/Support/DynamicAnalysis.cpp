@@ -1140,7 +1140,7 @@ DynamicAnalysis::ThereIsAvailableBandwidth(unsigned NextAvailableCycle, unsigned
   float AvailableBandwidth;
   unsigned AccessWidth;
   unsigned IssueCycleGranularity = 0;
-  unsigned TmpTreeChunk, TreeChunk;
+  unsigned TmpTreeChunk;
   unsigned LevelOccupancy;
   Tree<uint64_t> * Node;
   if (TargetLevel==true && FoundInFullOccupancyCyclesTree == false) {
@@ -1222,7 +1222,7 @@ DynamicAnalysis::ThereIsAvailableBandwidth(unsigned NextAvailableCycle, unsigned
           FoundInFullOccupancyCyclesTree = true;
           EnoughBandwidth  = false;
           //Every time NextAvailableCycle changes, we need to update TreeChunk
-          TreeChunk = GetTreeChunk(NextAvailableCycle);
+        //  TreeChunk = GetTreeChunk(NextAvailableCycle);
           
           // ?? TreeChunk = NextAvailableCycle/SplitTreeRange;
           
@@ -1268,7 +1268,7 @@ DynamicAnalysis::ThereIsAvailableBandwidth(unsigned NextAvailableCycle, unsigned
           FoundInFullOccupancyCyclesTree = true;
           EnoughBandwidth = false;
           
-          TreeChunk = GetTreeChunk(NextAvailableCycle);
+        //  TreeChunk = GetTreeChunk(NextAvailableCycle);
           
 #ifdef DEBUG_GENERIC
           DEBUG(dbgs() << "NextAvailableCycle " << NextAvailableCycle << "\n");
@@ -1304,7 +1304,6 @@ DynamicAnalysis::FindNextAvailableIssueCycleUntilNotInFullOrEnoughBandwidth(unsi
   unsigned NextAvailableCycle = NextCycle;
   unsigned OriginalCycle;
   Tree<uint64_t> * Node = AvailableCyclesTree[ExecutionResource];
-  unsigned TreeChunk;
   Tree<uint64_t> * LastNodeVisited = NULL;
   
   NextAvailableCycle++;
@@ -1379,7 +1378,7 @@ DynamicAnalysis::FindNextAvailableIssueCycleUntilNotInFullOrEnoughBandwidth(unsi
     
   }
   
-  TreeChunk = GetTreeChunk(NextAvailableCycle);
+//  TreeChunk = GetTreeChunk(NextAvailableCycle);
   
 #ifdef DEBUG_GENERIC
   DEBUG(dbgs() << "NextAvailableCycle " << NextAvailableCycle << "\n");
@@ -2323,6 +2322,7 @@ DynamicAnalysis::IsEmptyLevel(unsigned ExecutionResource, uint64_t Level, bool& 
 
 
 // This is not yet working...
+#if 0
 
 uint64_t
 DynamicAnalysis::FindNextNonEmptyLevel(unsigned ExecutionResource, uint64_t Level){
@@ -2498,7 +2498,6 @@ DynamicAnalysis::FindNextNonEmptyLevel(unsigned ExecutionResource, uint64_t Leve
   // Scan for next cycle where ExecutionResource == 1
   
   
-#if 0
   while (IsInFullOccupancyCyclesTree == true) {
     dbgs() << "Starting the search for level " << Original << "\n";
     
@@ -2643,7 +2642,6 @@ DynamicAnalysis::FindNextNonEmptyLevel(unsigned ExecutionResource, uint64_t Leve
     
     
   }
-#endif
   
   if (IsInFullOccupancyCyclesTree == false) { // i.e., there are no non-empty level
     //NextNonEmptyLevelFullOccupancyCyclesTree = LastNodeVisited->key;
@@ -2668,7 +2666,7 @@ DynamicAnalysis::FindNextNonEmptyLevel(unsigned ExecutionResource, uint64_t Leve
   
 }
 
-
+#endif
 
 /* An alternative to optimize calculateSpan could be merging the
  AvailableCyclesTree and FullOccupancyCyclesTree and doing and
