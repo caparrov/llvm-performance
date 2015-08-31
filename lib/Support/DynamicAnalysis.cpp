@@ -1334,8 +1334,8 @@ DynamicAnalysis::FindNextAvailableIssueCycleUntilNotInFullOrEnoughBandwidth(unsi
       // Search for a smaller one
       Node = Node->left;
     }else if( Node->key < NextAvailableCycle){
-      LastNodeVisited = Node;
-      break;
+    //  LastNodeVisited = Node;
+     // break;
       // We comment this out because this will never happen in NextAvailable because
       // for every full node we always insert the next available. The general
       // algorithm that finds the larger, if it exist, should have this code
