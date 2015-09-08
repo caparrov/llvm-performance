@@ -1360,6 +1360,9 @@ DynamicAnalysis::FindNextAvailableIssueCycleUntilNotInFullOrEnoughBandwidth(unsi
         Node = Node-> left;
       }else{ //Node->key < OriginalCycle
         // Search for a larger one, but do not store last node visited...
+	DEBUG(dbgs() << "Search for a larger one\n");
+	if(Node->right==NULL)
+	DEBUG(dbgs() << "But there is no larger one\n");
         Node = Node-> right;
       }
     }else{ //Node->key = NextAvailableCycle
@@ -1373,7 +1376,7 @@ DynamicAnalysis::FindNextAvailableIssueCycleUntilNotInFullOrEnoughBandwidth(unsi
   DEBUG(dbgs() << "Finish loop\n");
   //LastNodeVisited contains the next available cycle. But we still need to check
   //that it is available for lower and upper levels.
-  if (LastNodeVisited->key >= OriginalCycle) {
+  if (LastNodeVisited!= NULL && LastNodeVisited->key >= OriginalCycle) {
     NextAvailableCycle = LastNodeVisited->key;
     
   }
@@ -4365,6 +4368,7 @@ DynamicAnalysis::IncreaseInstructionFetchCycle(bool EmptyBuffers){
       InstructionsLastIssueCycle[LB_STALL] =PrevInstructionFetchCycle;
       //FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange] = insert_node(PrevInstructionFetchCycle, LB_STALL, FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange]);
       TreeChunk = GetTreeChunk(PrevInstructionFetchCycle);
+	DEBUG(dbgs() << "LB_STALL in cycle " << PrevInstructionFetchCycle << "\n");
       FullOccupancyCyclesTree[TreeChunk].insert_node(PrevInstructionFetchCycle, LB_STALL);
       /*
        #ifdef SOURCE_CODE_ANALYSIS
