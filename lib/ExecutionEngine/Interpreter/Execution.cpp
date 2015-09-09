@@ -2438,7 +2438,9 @@ void Interpreter::run() {
           if (!(WarmCache && Analyzer->rep == 0)) {
 
              tStartPostProcessing = clock();
-            Analyzer->finishAnalysis();
+            //Analyzer->finishAnalysis();
+            Analyzer->finishAnalysisContech(true);
+
             tEndPostProcessing = clock();
             CyclesPostProcessing = ((float)tEndPostProcessing - (float)tStartPostProcessing);
             ExecutionTimePostProcessing = CyclesPostProcessing / CLOCKS_PER_SEC;

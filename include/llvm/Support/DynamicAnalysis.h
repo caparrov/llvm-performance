@@ -20,7 +20,7 @@
 #include "llvm/Support/InstIterator.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
 
-//#define INTERPRETER
+#define INTERPRETER
 
 #ifdef INTERPRETER
 #include "llvm/Support/top-down-size-splay.hpp"
@@ -410,13 +410,36 @@ private:
 public:
   TBV();
   void insert_source_code_line(uint64_t key, unsigned SourceCodeLine, unsigned Resource);
-vector<pair<unsigned,unsigned>>  get_source_code_lines(uint64_t key);
+vector<pair<unsigned,unsigned> >  get_source_code_lines(uint64_t key);
   bool get_node(uint64_t key, unsigned bitPosition);
   bool get_node_nb(uint64_t key, unsigned bitPosition);
   void insert_node(uint64_t key, unsigned bitPosition);
   void delete_node(uint64_t key, unsigned bitPosition);
   bool empty();
 };
+
+struct ACTNode {
+public:
+  uint64_t key;
+  int32_t issueOccupancy;
+  int32_t widthOccupancy;
+  int32_t occupancyPrefetch;
+  uint64_t address;
+};
+
+class ACT {
+private:
+  vector< TBV> act_vec;
+  
+public:
+  bool get_node(uint64_t, unsigned);
+  void push_back(ACTNode*, unsigned);
+  void DebugACT();
+  size_t size();
+  void clear();
+};
+
+
 
 uint64_t BitScan(vector< TBV> &FullOccupancyCyclesTree, uint64_t key, unsigned bitPosition);
 
@@ -607,6 +630,22 @@ bool VectorCode;
   uint64_t MaxDispatchToLoadBufferQueueTree;
   vector<ComplexTree<uint64_t> *> PointersToRemove;
   
+  //---------------- CONTECH: NEW FINAL VERSIONS ----------------------
+   vector< dynamic_bitset<> > CGSFCache;
+   vector< dynamic_bitset<> > CISFCache;
+  // Stores the bottleneck of the residing task
+  vector<vector<float> > BnkMat;
+  ACT ACTFinal;
+  void ComputeAvailableTreeFinal();
+  void ComputeAvailableTreeFinalHelper(uint p, Tree<uint64_t>* t, uint d);
+  uint64_t CalculateSpanFinal(int ResourceType);
+  unsigned CalculateGroupSpanFinal(vector<int> & ResourcesVector);
+  unsigned CalculateIssueSpanFinal(vector<int> & ResourcesVector);
+  bool IsEmptyLevelFinal(unsigned ExecutionResource, uint64_t Level);
+
+  //---------------- CONTECH----------------------
+
+  
   //Statistics
   double AverageILP;
   
@@ -711,7 +750,7 @@ bool VectorCode;
   uint64_t CalculateSpan(int ResourceType);
   //unsigned CalculateGroupSpan(int NResources, ...);
   unsigned CalculateGroupSpan(vector<int> & ResourcesVector, bool WithPrefetch = false, bool ForceUnitLatency = false);
-  
+
   
   unsigned CalculateIssueSpan(vector<int> & ResourcesVector);
   
@@ -726,6 +765,8 @@ bool VectorCode;
   
   bool IsEmptyLevel(unsigned ExecutionResource, uint64_t Level, bool& IsInAvailableCyclesTree,
                     bool& IsInFullOccupancyCyclesTree , bool WithPrefetch = false);
+  
+  
   uint64_t FindNextNonEmptyLevel(unsigned ExecutionResource, uint64_t Level);
   bool isStallCycle(int ResourceType, uint64_t Level);
   
@@ -795,6 +836,8 @@ bool VectorCode;
   unsigned int roundNextMultipleOf2(uint64_t num);
   unsigned int DivisionRoundUp(float a, float b);
   void finishAnalysis();
+  
+  void finishAnalysisContech(bool isBnkReqd);
   void printHeaderStat(string Header);
   
   int getInstructionType(Instruction &I);
