@@ -373,6 +373,14 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
     for (unsigned i = 0; i< nMemExecutionUnits; i++)
       AccessGranularities[i+nArithmeticExecutionUnits+nMovExecutionUnits] = MemAccessGranularity[i];
   
+    // Latency and throughput of buffers. Although it has no effect, these
+  // values are used
+  for (unsigned i = 0; i< nBuffers; i++) {
+    this->ExecutionUnitsLatency.push_back(1); //Default value for latency
+    this->ExecutionUnitsThroughput.push_back(1); // Infinite throughput
+    this->ExecutionUnitsParallelIssue.push_back(1);
+    AccessGranularities.push_back(1);
+  }
   
   
   
@@ -416,15 +424,7 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
     AccessGranularities.push_back(1);
   }
   
-  // Latency and throughput of buffers. Although it has no effect, these
-  // values are used
-  for (unsigned i = 0; i< nBuffers; i++) {
-    this->ExecutionUnitsLatency.push_back(1); //Default value for latency
-    this->ExecutionUnitsThroughput.push_back(1); // Infinite throughput
-    this->ExecutionUnitsParallelIssue.push_back(1);
-    AccessGranularities.push_back(1);
-  }
-  
+
   
   // We need AccessWidth and Throughput for every resource for which we calculte
   // span, including ports
@@ -584,7 +584,7 @@ DynamicAnalysis::DynamicAnalysis(string TargetFunction,
   
   //SplitTreeRange = 65536;
   
-  for (unsigned i = 0; i< nExecutionUnits + nPorts + nAGUs + nLoadAGUs + nStoreAGUs; i++)
+  for (unsigned i = 0; i< nExecutionUnits + nPorts + nAGUs + nLoadAGUs + nStoreAGUs+nBuffers; i++)
     AvailableCyclesTree.push_back(NULL);
   
   IssuePorts = vector<unsigned>();
@@ -6970,6 +6970,42 @@ report_fatal_error("Spans should be the same");
         }
         
       }
+//---------------------------------------------------------------------------------------------
+int n = nExecutionUnits+nBuffers;
+int nCombinations = 0;
+for(int k = 2; k<= nExecutionUnits+nBuffers; k++){
+  vector < vector < int > > combinations;
+  vector < int >selected;
+  vector < int >selector (n);
+
+
+  fill (selector.begin (), selector.begin () + k, 1);
+  do
+    {
+      for (int i = 0; i < n; i++)
+    {
+      if (selector[i])
+        {
+          selected.push_back (i);
+        }
+    }
+     nCombinations++;
+  std::vector<int> result (selected.size());
+ copy (selected.begin (), selected.end (),result.begin());
+for(int j = 0; j< result.size();j++){
+dbgs() << result[j] << " ";
+}
+dbgs() << "\n";
+dbgs() << "Group Span " << CalculateGroupSpan(result) << "\n";
+	result.clear();
+      selected.clear ();
+    }
+  while (prev_permutation (selector.begin (), selector.end ()));
+}
+
+dbgs() << "total number of combinations " << nCombinations << "\n";
+//---------------------------------------------------------------------------------------------
+
       printHeaderStat("Execution Times Breakdowns");
       unsigned MinExecutionTime;
       unsigned IssueEffects;
