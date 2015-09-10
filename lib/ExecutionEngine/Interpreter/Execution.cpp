@@ -2438,13 +2438,28 @@ void Interpreter::run() {
           if (!(WarmCache && Analyzer->rep == 0)) {
 
              tStartPostProcessing = clock();
-            //Analyzer->finishAnalysis();
-            Analyzer->finishAnalysisContech(true);
-
+            Analyzer->finishAnalysis();
             tEndPostProcessing = clock();
             CyclesPostProcessing = ((float)tEndPostProcessing - (float)tStartPostProcessing);
             ExecutionTimePostProcessing = CyclesPostProcessing / CLOCKS_PER_SEC;
             dbgs() << "Execution time Post processing " << ExecutionTimePostProcessing << " s\n";
+            
+            tStartPostProcessing = clock();
+            Analyzer->finishAnalysisContech(true);
+            tEndPostProcessing = clock();
+            CyclesPostProcessing = ((float)tEndPostProcessing - (float)tStartPostProcessing);
+            ExecutionTimePostProcessing = CyclesPostProcessing / CLOCKS_PER_SEC;
+            dbgs() << "Execution time Post processing " << ExecutionTimePostProcessing << " s\n";
+            
+            tStartPostProcessing = clock();
+
+            Analyzer->finishAnalysisContechSimplified();
+            tEndPostProcessing = clock();
+            CyclesPostProcessing = ((float)tEndPostProcessing - (float)tStartPostProcessing);
+            ExecutionTimePostProcessing = CyclesPostProcessing / CLOCKS_PER_SEC;
+            dbgs() << "Execution time Post processing " << ExecutionTimePostProcessing << " s\n";
+
+           
           }else{
 
       TargetFunctionExecuted= true;

@@ -390,11 +390,11 @@ struct StructMemberLessThanOrEqualThanValuePred
 class TBV {
   class TBV_node {
   public:
-    TBV_node():BitVector(20) {
+    TBV_node():BitVector(MAX_RESOURCE_VALUE) {
       
     }
-    //vector<bool> BitVector;
-    dynamic_bitset<> BitVector; // from boost
+  //  vector<bool> BitVector;
+  dynamic_bitset<> BitVector; // from boost
 #ifdef SOURCE_CODE_ANALYSIS
 //    set<uint64_t> SourceCodeLines;
     vector<pair<unsigned,unsigned>> SourceCodeLinesOperationPair;
@@ -417,6 +417,9 @@ vector<pair<unsigned,unsigned> >  get_source_code_lines(uint64_t key);
   void delete_node(uint64_t key, unsigned bitPosition);
   bool empty();
 };
+
+
+
 
 struct ACTNode {
 public:
@@ -598,6 +601,7 @@ bool VectorCode;
   vector<uint64_t> FirstNonEmptyLevel;
   vector<uint64_t> BuffersOccupancy;
   vector<uint64_t> LastIssueCycleVector;
+  uint64_t LastIssueCycleFinal;
   
   vector<unsigned> MaxOccupancy;
   vector<bool> FirstIssue;
@@ -642,6 +646,8 @@ bool VectorCode;
   unsigned CalculateGroupSpanFinal(vector<int> & ResourcesVector);
   unsigned CalculateIssueSpanFinal(vector<int> & ResourcesVector);
   bool IsEmptyLevelFinal(unsigned ExecutionResource, uint64_t Level);
+  unsigned GetGroupSpanFinal(vector<int> & ResourcesVector);
+
 
   //---------------- CONTECH----------------------
 
@@ -836,8 +842,9 @@ bool VectorCode;
   unsigned int roundNextMultipleOf2(uint64_t num);
   unsigned int DivisionRoundUp(float a, float b);
   void finishAnalysis();
-  
+  void finishAnalysisContechSimplified();
   void finishAnalysisContech(bool isBnkReqd);
+  
   void printHeaderStat(string Header);
   
   int getInstructionType(Instruction &I);
