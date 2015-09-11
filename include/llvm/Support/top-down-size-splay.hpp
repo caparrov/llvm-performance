@@ -116,12 +116,11 @@ namespace SplayTree{
   Tree<T> * splay (T i, Tree<T> *t) 
   {
     Tree<T> N, *l, *r, *y;
-    size_t root_size, l_size, r_size;
+    size_t l_size, r_size;
     
     if (t == NULL) return t;
     N.left = N.right = NULL;
     l = r = &N;
-    root_size = node_size(t);
     l_size = r_size = 0;
  
     for (;;) {
@@ -402,12 +401,11 @@ namespace SplayTreeBoolean{
    TreeBitVector<T> * splay (T i,  TreeBitVector<T> *t)
   {
      TreeBitVector<T> N, *l, *r, *y;
-    size_t root_size, l_size, r_size;
+    size_t l_size, r_size;
     
     if (t == NULL) return t;
     N.left = N.right = NULL;
     l = r = &N;
-    root_size = node_size(t);
     l_size = r_size = 0;
     
     for (;;) {
@@ -682,12 +680,11 @@ namespace SplayTreeVector{
   TreeVector<T> * splay (T i, TreeVector<T> *t)
   {
     TreeVector<T> N, *l, *r, *y;
-    size_t root_size, l_size, r_size;
+    size_t  l_size, r_size;
     
     if (t == NULL) return t;
     N.left = N.right = NULL;
     l = r = &N;
-    root_size = node_size(t);
     l_size = r_size = 0;
     
     for (;;) {
@@ -948,12 +945,11 @@ namespace SimpleSplayTree {
   SimpleTree<T> * splay (T i, SimpleTree<T> *t)
   {
     SimpleTree<T> N, *l, *r, *y;
-    size_t root_size, l_size, r_size;
+    size_t l_size, r_size;
     
     if (t == NULL) return t;
     N.left = N.right = NULL;
     l = r = &N;
-    root_size = node_size(t);
     l_size = r_size = 0;
     
     for (;;) {
@@ -1245,12 +1241,11 @@ namespace ComplexSplayTree {
   ComplexTree<T> * splay (T i, ComplexTree<T> *t)
   {
     ComplexTree<T> N, *l, *r, *y;
-    size_t root_size, l_size, r_size;
+    size_t l_size, r_size;
     
     if (t == NULL) return t;
     N.left = N.right = NULL;
     l = r = &N;
-    root_size = node_size(t);
     l_size = r_size = 0;
     
     for (;;) {

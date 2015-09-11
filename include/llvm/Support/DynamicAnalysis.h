@@ -16,11 +16,10 @@
 #include "llvm/DebugInfo.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/SmallString.h"
-//#include "llvm/Support/top-down-size-splay.hpp"
 #include "llvm/Support/InstIterator.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
 
-#define INTERPRETER
+//#define INTERPRETER
 
 #ifdef INTERPRETER
 #include "llvm/Support/top-down-size-splay.hpp"
@@ -41,7 +40,7 @@
 #include <unordered_map>
 #endif
 #include <deque>
-//#define ROUND_REUSE_DISTANCE
+#define ROUND_REUSE_DISTANCE
 #define NORMAL_REUSE_DISTRIBUTION
 
 
@@ -647,8 +646,8 @@ bool VectorCode;
   unsigned CalculateIssueSpanFinal(vector<int> & ResourcesVector);
   bool IsEmptyLevelFinal(unsigned ExecutionResource, uint64_t Level);
   unsigned GetGroupSpanFinal(vector<int> & ResourcesVector);
-
-
+  unsigned GetGroupOverlapCyclesFinal(vector<int> & ResourcesVector);
+unsigned GetStallOverlapCyclesFinal(vector < int >&ResourcesVector);
   //---------------- CONTECH----------------------
 
   
