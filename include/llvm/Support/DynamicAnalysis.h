@@ -633,6 +633,7 @@ bool VectorCode;
   uint64_t MaxDispatchToLoadBufferQueueTree;
   vector<ComplexTree<uint64_t> *> PointersToRemove;
   
+
   //---------------- CONTECH: NEW FINAL VERSIONS ----------------------
    vector< dynamic_bitset<> > CGSFCache;
    vector< dynamic_bitset<> > CISFCache;
@@ -663,6 +664,8 @@ unsigned GetStallOverlapCyclesFinal(vector < int >&ResourcesVector);
   Tree<uint64_t> * PrefetchReuseTree;
   uint64_t PrefetchReuseTreeSize;
   double ErrorApproximationReuse;
+
+  map <unsigned , pair<double,unsigned> > OverlapPercentagesMap;
   
   vector< vector<unsigned> > ParallelismDistribution;
   map<int,int> ReuseDistanceDistribution;
