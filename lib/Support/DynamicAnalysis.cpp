@@ -4766,8 +4766,7 @@ if(ReservationStationIssueCycles.size () == (unsigned) ReservationStationSize &&
     OOOBufferFull = true;
     uint64_t CurrentInstructionFetchCycle = InstructionFetchCycle;
     InstructionFetchCycle = GetMinIssueCycleReservationStation ();
-	if(InstructionFetchCycle <= CurrentInstructionFetchCycle)
-report_fatal_error("InstructionFetchCycle did not increase for RS");
+	
     if (InstructionFetchCycle > CurrentInstructionFetchCycle + 1)
       FirstNonEmptyLevel[RS_STALL] =
 	(FirstNonEmptyLevel[RS_STALL] == 0) ? CurrentInstructionFetchCycle + 1 : FirstNonEmptyLevel[RS_STALL];
@@ -4796,8 +4795,7 @@ report_fatal_error("InstructionFetchCycle did not increase for RS");
     OOOBufferFull = true;
     uint64_t CurrentInstructionFetchCycle = InstructionFetchCycle;
     InstructionFetchCycle = max (InstructionFetchCycle, ReorderBufferCompletionCycles.front ());
-if(InstructionFetchCycle <= CurrentInstructionFetchCycle)
-report_fatal_error("InstructionFetchCycle did not increase for ROB");
+
     if (InstructionFetchCycle > CurrentInstructionFetchCycle + 1) {
       FirstNonEmptyLevel[ROB_STALL] =
 	(FirstNonEmptyLevel[ROB_STALL] == 0) ? CurrentInstructionFetchCycle + 1 : FirstNonEmptyLevel[ROB_STALL];
@@ -4913,6 +4911,7 @@ if( node_size (LoadBufferCompletionCyclesTree) > LoadBufferSize)
     report_fatal_error ("Buffer overflow");
   BuffersOccupancy[SB_STALL - RS_STALL] += StoreBufferCompletionCycles.size ();
   BuffersOccupancy[LFB_STALL - RS_STALL] += LineFillBufferCompletionCycles.size ();
+//dbgs() << "Increasing LineFillBufferCompletionCycles by " << LineFillBufferCompletionCycles.size () << "\n";
 
     uint64_t PrevInstructionFetchCycle = InstructionFetchCycle - 1;
     if (DispatchToLineFillBufferQueue.empty () == false) {
@@ -5107,12 +5106,13 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, unsigned OpCode, uint64_t 
 	  //Code for reuse calculation
 	  Distance = ReuseDistance (Info.LastAccess, TotalInstructions, CacheLine);
 
+/*
 #ifdef DEBUG_MEMORY_TRACES
 	  DEBUG (dbgs () << "MemoryAddress " << MemoryAddress << "\n");
 	  DEBUG (dbgs () << "CacheLine " << CacheLine << "\n");
 	  DEBUG (dbgs () << "Distance " << Distance << "\n");
 #endif
-
+*/
 
 	  Info.LastAccess = TotalInstructions;
 	  insertCacheLineLastAccess (CacheLine, Info.LastAccess);
@@ -5136,13 +5136,13 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, unsigned OpCode, uint64_t 
 
 
 	  Distance = ReuseDistance (Info.LastAccess, TotalInstructions, CacheLine);
-
+/*
 #ifdef DEBUG_MEMORY_TRACES
 	  DEBUG (dbgs () << "MemoryAddress " << MemoryAddress << "\n");
 	  DEBUG (dbgs () << "CacheLine " << CacheLine << "\n");
 	  DEBUG (dbgs () << "Distance " << Distance << "\n");
 #endif
-
+*/
 
 	  Info.LastAccess = TotalInstructions;
 	  insertCacheLineLastAccess (CacheLine, Info.LastAccess);
@@ -9658,9 +9658,9 @@ DynamicAnalysis::finishAnalysisContechSimplified ()
     }
   }
 
-   for (unsigned i = 0; i < MAX_RESOURCE_VALUE; i++) {
-	dbgs() << GetResourceName(i) << " " <<  CGSFCache[i].size() << " " << CGSFCache[i].count() << "\n";
-}
+//   for (unsigned i = 0; i < MAX_RESOURCE_VALUE; i++) {
+//	dbgs() << GetResourceName(i) << " " <<  CGSFCache[i].size() << " " << CGSFCache[i].count() << "\n";
+//}
 
   //================= Calculate total span ==========================//
 
@@ -9746,8 +9746,6 @@ DynamicAnalysis::finishAnalysisContechSimplified ()
 
   printHeaderStat ("Stall Cycles");
 
-
-
   dbgs () << "RESOURCE\tN_STALL_CYCLES\t\tAVERAGE_OCCUPANCY\n";
 
   for (int j = RS_STALL; j <= LFB_STALL; j++) {
@@ -9755,9 +9753,8 @@ DynamicAnalysis::finishAnalysisContechSimplified ()
       dbgs () << GetResourceName (j) << "\t\t" << ResourcesSpan[j] << "\t\t" << INF << "\n";
     }
     else {
-      dbgs () << GetResourceName (j) << "\t\t" << ResourcesSpan[j] << "\t\t" << BuffersOccupancy[j -
-												 RS_STALL] /
-	TotalSpan << "\n";
+      dbgs () << GetResourceName (j) << "\t\t" << ResourcesSpan[j] << "\t\t";
+      fprintf (stderr, " %1.3f\n", BuffersOccupancy[j -RS_STALL]/(double)TotalSpan);
     }
   }
 
