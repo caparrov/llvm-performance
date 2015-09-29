@@ -9,6 +9,8 @@
 #ifndef LLVM_SUPPORT_DYNAMIC_ANALYSIS_H
 #define LLVM_SUPPORT_DYNAMIC_ANALYSIS_H
 
+//#define INTERPRETER
+
 
 #include "../../../lib/ExecutionEngine/Interpreter/Interpreter.h"
 #include "llvm/IR/Instructions.h"
@@ -18,8 +20,6 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/InstIterator.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
-
-//#define INTERPRETER
 
 #ifdef INTERPRETER
 #include "llvm/Support/top-down-size-splay.hpp"
@@ -600,6 +600,10 @@ bool VectorCode;
   vector<uint64_t> FirstNonEmptyLevel;
   vector<uint64_t> BuffersOccupancy;
   vector<uint64_t> LastIssueCycleVector;
+  vector<double> AverageOverlapsCycles;
+  vector<uint64_t> OverlapsCount;
+  vector<double> AverageOverlaps;
+
   uint64_t LastIssueCycleFinal;
   
   vector<unsigned> MaxOccupancy;
@@ -648,7 +652,7 @@ bool VectorCode;
   bool IsEmptyLevelFinal(unsigned ExecutionResource, uint64_t Level);
   unsigned GetGroupSpanFinal(vector<int> & ResourcesVector);
   unsigned GetGroupOverlapCyclesFinal(vector<int> & ResourcesVector);
-unsigned GetStallOverlapCyclesFinal(vector < int >&ResourcesVector);
+unsigned GetOneToAllOverlapCyclesFinal(vector < int >&ResourcesVector);
   //---------------- CONTECH----------------------
 
   
