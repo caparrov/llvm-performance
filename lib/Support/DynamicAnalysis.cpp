@@ -584,6 +584,7 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
     AverageOverlaps.push_back(0);
     AverageOverlapsCycles.push_back(0);
     OverlapsCount.push_back(0);
+OverlapsDerivatives.push_back(1);
   }
   
   
@@ -606,6 +607,7 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
   
   CGSFCache.resize (MAX_RESOURCE_VALUE);
   CISFCache.resize (MAX_RESOURCE_VALUE);
+  CLSFCache.resize(MAX_RESOURCE_VALUE);
   
   
 }
@@ -1910,7 +1912,8 @@ DynamicAnalysis::InsertNextAvailableIssueCycle (uint64_t NextAvailableCycle, uns
         // but have to update the level occupancy anyway.
         // Similarly, if AccessWidth*NElementsVector > ExecutionUnitsThroughput[ExecutionResource], we update occupancy
         // with AccessWidth? , or better, with .. TODO
-        Node->widthOccupancy += AccessWidth;
+       // Node->widthOccupancy += AccessWidth;
+	Node->widthOccupancy += (unsigned) ExecutionUnitsParallelIssue[ExecutionResource] * ExecutionUnitsThroughput[ExecutionResource];
       }
       
     }
@@ -4769,7 +4772,7 @@ DynamicAnalysis::IncreaseInstructionFetchCycle (bool EmptyBuffers)
     OOOBufferFull = true;
     uint64_t CurrentInstructionFetchCycle = InstructionFetchCycle;
     InstructionFetchCycle = GetMinIssueCycleReservationStation ();
-
+    
     if (InstructionFetchCycle > CurrentInstructionFetchCycle + 1)
       FirstNonEmptyLevel[RS_STALL] =
       (FirstNonEmptyLevel[RS_STALL] == 0) ? CurrentInstructionFetchCycle + 1 : FirstNonEmptyLevel[RS_STALL];
@@ -4798,7 +4801,7 @@ DynamicAnalysis::IncreaseInstructionFetchCycle (bool EmptyBuffers)
     OOOBufferFull = true;
     uint64_t CurrentInstructionFetchCycle = InstructionFetchCycle;
     InstructionFetchCycle = max (InstructionFetchCycle, ReorderBufferCompletionCycles.front ());
-
+    
     if (InstructionFetchCycle > CurrentInstructionFetchCycle + 1) {
       FirstNonEmptyLevel[ROB_STALL] =
       (FirstNonEmptyLevel[ROB_STALL] == 0) ? CurrentInstructionFetchCycle + 1 : FirstNonEmptyLevel[ROB_STALL];
@@ -4846,6 +4849,7 @@ DynamicAnalysis::IncreaseInstructionFetchCycle (bool EmptyBuffers)
     //Remove from Load, Store and Fill Line Buffers elements completed at issue cycle
     // RemoveFromLoadBuffer(InstructionFetchCycle);
     RemoveFromLoadBufferTree (InstructionFetchCycle);
+    PrintLoadBufferTree ();
     RemoveFromStoreBuffer (InstructionFetchCycle);
     RemoveFromLineFillBuffer (InstructionFetchCycle);
     //  RemoveFromDispatchToLoadBufferQueue(InstructionFetchCycle);
@@ -4906,17 +4910,15 @@ DynamicAnalysis::IncreaseInstructionFetchCycle (bool EmptyBuffers)
   
   
   if (OriginalInstructionFetchCycle != InstructionFetchCycle) {
-
     BuffersOccupancy[RS_STALL - RS_STALL] += ReservationStationIssueCycles.size ();
     BuffersOccupancy[ROB_STALL - RS_STALL] += ReorderBufferCompletionCycles.size ();
     //BuffersOccupancy[LB_STALL-RS_STALL] += LoadBufferCompletionCycles.size();
     BuffersOccupancy[LB_STALL - RS_STALL] += node_size (LoadBufferCompletionCyclesTree);
-    if( node_size (LoadBufferCompletionCyclesTree) > LoadBufferSize)
-      report_fatal_error ("Buffer overflow");
+   /* if( node_size (LoadBufferCompletionCyclesTree) > LoadBufferSize)
+      report_fatal_error ("Buffer overflow");*/
     BuffersOccupancy[SB_STALL - RS_STALL] += StoreBufferCompletionCycles.size ();
     BuffersOccupancy[LFB_STALL - RS_STALL] += LineFillBufferCompletionCycles.size ();
     
-
     uint64_t PrevInstructionFetchCycle = InstructionFetchCycle - 1;
     if (DispatchToLineFillBufferQueue.empty () == false) {
       if (InstructionsCountExtended[LFB_STALL] == 0)
@@ -5100,87 +5102,84 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
             OS << visitResult;
             MemoryAddress = strtol (OS.str ().str ().c_str (), NULL, 16);
 #else
-
-	  MemoryAddress = addr;
+            MemoryAddress = addr;
 #endif
-
-	  CacheLine = MemoryAddress >> BitsPerCacheLine;
-	  Info = getCacheLineInfo (CacheLine);
-
-
-	  //Code for reuse calculation
-	  Distance = ReuseDistance (Info.LastAccess, TotalInstructions, CacheLine);
-
+            
+            CacheLine = MemoryAddress >> BitsPerCacheLine;
+            Info = getCacheLineInfo (CacheLine);
+            
+            
+            //Code for reuse calculation
+            Distance = ReuseDistance (Info.LastAccess, TotalInstructions, CacheLine);
+            
 /*
 #ifdef DEBUG_MEMORY_TRACES
-	  DEBUG (dbgs () << "MemoryAddress " << MemoryAddress << "\n");
-	  DEBUG (dbgs () << "CacheLine " << CacheLine << "\n");
-	  DEBUG (dbgs () << "Distance " << Distance << "\n");
+            DEBUG (dbgs () << "MemoryAddress " << MemoryAddress << "\n");
+            DEBUG (dbgs () << "CacheLine " << CacheLine << "\n");
+            DEBUG (dbgs () << "Distance " << Distance << "\n");
 #endif
-*/
-
-	  Info.LastAccess = TotalInstructions;
-	  insertCacheLineLastAccess (CacheLine, Info.LastAccess);
-	  //   insertMemoryAddressIssueCycle(MemoryAddress, TotalInstructions);
-	  //   updateReuseDistanceDistribution(Distance, InstructionIssueCycle);
-	  ExtendedInstructionType = GetExtendedInstructionType (Instruction::Load, Distance);
-	}
-	break;
-      case Instruction::Store:
-	{
-
+  */          
+            
+            Info.LastAccess = TotalInstructions;
+            insertCacheLineLastAccess (CacheLine, Info.LastAccess);
+            //   insertMemoryAddressIssueCycle(MemoryAddress, TotalInstructions);
+            //   updateReuseDistanceDistribution(Distance, InstructionIssueCycle);
+            ExtendedInstructionType = GetExtendedInstructionType (Instruction::Load, Distance);
+          }
+            break;
+          case Instruction::Store:
+          {
 #ifdef INTERPRETER
             SmallString < 128 > StrVal;
             raw_svector_ostream OS (StrVal);
             OS << visitResult;
             MemoryAddress = strtol (OS.str ().str ().c_str (), NULL, 16);
 #else
-
-	  MemoryAddress = addr;
+            MemoryAddress = addr;
 #endif
-	  CacheLine = MemoryAddress >> BitsPerCacheLine;
-	  Info = getCacheLineInfo (CacheLine);
-
-
-	  Distance = ReuseDistance (Info.LastAccess, TotalInstructions, CacheLine);
-/*
+            CacheLine = MemoryAddress >> BitsPerCacheLine;
+            Info = getCacheLineInfo (CacheLine);
+            
+            
+            Distance = ReuseDistance (Info.LastAccess, TotalInstructions, CacheLine);
+            /*
 #ifdef DEBUG_MEMORY_TRACES
-	  DEBUG (dbgs () << "MemoryAddress " << MemoryAddress << "\n");
-	  DEBUG (dbgs () << "CacheLine " << CacheLine << "\n");
-	  DEBUG (dbgs () << "Distance " << Distance << "\n");
+            DEBUG (dbgs () << "MemoryAddress " << MemoryAddress << "\n");
+            DEBUG (dbgs () << "CacheLine " << CacheLine << "\n");
+            DEBUG (dbgs () << "Distance " << Distance << "\n");
 #endif
-*/
-
-	  Info.LastAccess = TotalInstructions;
-	  insertCacheLineLastAccess (CacheLine, Info.LastAccess);
-	  //     insertMemoryAddressIssueCycle(MemoryAddress, TotalInstructions);
-	  //  updateReuseDistanceDistribution(Distance, InstructionIssueCycle);
-	  ExtendedInstructionType = GetExtendedInstructionType (Instruction::Store, Distance);
-	}
-	break;
-
-      default:
-	break;
-      }
-
-      // ============================ SPATIAL PREFETCHER ==============================
-
-      if (SpatialPrefetcher && (OpCode == Instruction::Load || OpCode == Instruction::Store)
-	  && (ExtendedInstructionType > PrefetchDispatch && !(ExecutionUnit[ExtendedInstructionType] == PrefetchLevel))
-	  /*ExtendedInstructionType > L1_STORE_NODE */
-	  /*&& (CacheLine %2) == 0 */
-	  /*  &&(ExtendedInstructionType == MEM_LOAD_NODE || ExtendedInstructionType == MEM_STORE_NODE ) */
-	) {
-
-	NextCacheLine = CacheLine + 1;
-
-	//Get reuse distance of NextCacheLine
-	Info = getCacheLineInfo (NextCacheLine);
-	Distance = ReuseDistance (Info.LastAccess, TotalInstructions, NextCacheLine, true);
-	NextCacheLineExtendedInstructionType = GetMemoryInstructionType (Distance, MemoryAddress, isLoad);
-
-	ExecutionResource = ExecutionUnit[NextCacheLineExtendedInstructionType];
-
+            */
+            
+            Info.LastAccess = TotalInstructions;
+            insertCacheLineLastAccess (CacheLine, Info.LastAccess);
+            //     insertMemoryAddressIssueCycle(MemoryAddress, TotalInstructions);
+            //  updateReuseDistanceDistribution(Distance, InstructionIssueCycle);
+            ExtendedInstructionType = GetExtendedInstructionType (Instruction::Store, Distance);
+          }
+            break;
+            
+          default:
+            break;
+        }
+        
+        // ============================ SPATIAL PREFETCHER ==============================
+        
+        if (SpatialPrefetcher && (OpCode == Instruction::Load || OpCode == Instruction::Store)
+            && (ExtendedInstructionType > PrefetchDispatch && !(ExecutionUnit[ExtendedInstructionType] == PrefetchLevel))
+            /*ExtendedInstructionType > L1_STORE_NODE */
+            /*&& (CacheLine %2) == 0 */
+            /*  &&(ExtendedInstructionType == MEM_LOAD_NODE || ExtendedInstructionType == MEM_STORE_NODE ) */
+            ) {
+          
+          NextCacheLine = CacheLine + 1;
+          
+          //Get reuse distance of NextCacheLine
+          Info = getCacheLineInfo (NextCacheLine);
+          Distance = ReuseDistance (Info.LastAccess, TotalInstructions, NextCacheLine, true);
+          NextCacheLineExtendedInstructionType = GetMemoryInstructionType (Distance, MemoryAddress, isLoad);
+          
+          ExecutionResource = ExecutionUnit[NextCacheLineExtendedInstructionType];
+          
 #ifdef DEBUG_PREFETCHER
           DEBUG (dbgs () << "CacheLine " << CacheLine << "\n");
           DEBUG (dbgs () << "NextCacheLine " << NextCacheLine << "\n");
@@ -5205,9 +5204,10 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
     }
     else {
       
-      DEBUG (dbgs () << I << " (" << &I << ")\n");
+
       
       if (InstructionType >= 0 || forceAnalyze == true) {
+      DEBUG (dbgs () << I << " (" << &I << ")\n");
         // Determine instruction width
         int NumOperands = I.getNumOperands ();
         
@@ -8098,6 +8098,45 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
   }
   
   
+  unsigned DynamicAnalysis::CalculateLatencySpanFinal(unsigned i){
+
+CLSFCache[i].resize(LastIssueCycleFinal + 100);
+if(ExecutionUnitsLatency[i] > 1){    
+ CLSFCache[i] |= (CISFCache[i]>>1);
+
+if(ExecutionUnitsThroughput[i]>=1){
+
+for(unsigned j = 0; j < ExecutionUnitsLatency[i]-1; j++){
+ CLSFCache[i] |= (CLSFCache[i] >> 1);
+
+}
+
+
+}else{
+//TODO: What if execution unit throughput is < 1
+}
+
+}
+return CLSFCache[i].count();
+}
+
+
+
+  unsigned DynamicAnalysis::GetLatencyIssueOverlap(unsigned i){
+
+    dynamic_bitset <> BitMesh (LastIssueCycleFinal + 100);
+
+          BitMesh ^= CISFCache[i];
+  
+    BitMesh &= CLSFCache[i];
+ 
+ return BitMesh.count();
+}
+
+
+
+
+
   
   unsigned
   DynamicAnalysis::GetGroupSpanFinal (vector < int >&ResourcesVector)
@@ -9426,6 +9465,21 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
         dbgs () << "\n";
 #endif
       }
+
+
+#ifdef PRINT_ALL
+      printHeaderStat ("Buffers Bottlenecks");
+#endif
+#ifndef READ_BOTTLENECK
+      dbgs () << "Bottleneck\tISSUE\n";
+      for (int j = RS_STALL; j <= LFB_STALL; j++) {
+        dbgs () << GetResourceName (j) << "\t";
+      }
+      dbgs () << "\n";
+#endif
+
+
+
 #ifdef PRINT_ALL
       printHeaderStat ("Execution Times Breakdowns");
       dbgs () << "RESOURCE\tMIN-EXEC-TIME\tISSUE-EFFECTS\tLATENCY-EFFECTS\tSTALL-EFFECTS\tTOTAL\n";
@@ -9551,7 +9605,7 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
     uint64_t TotalStallSpan = 0;
     float Performance = 0;
     uint64_t Total;
-    uint64_t T1, T2, OverlapCycles, MinResourceSpan;
+    uint64_t T1, T2, OverlapCycles, MinResourceSpan, MinResource;
     vector < int >compResources;
     vector < int >movResources;
     vector < int >memResources;
@@ -9606,6 +9660,8 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
       
     }
     
+
+
 #ifdef DEBUG_OOO_BUFFERS
     
     DEBUG (dbgs () << "Size of RS " << ReservationStationIssueCycles.size () << "\n");
@@ -9666,33 +9722,12 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
 #endif
       }
     }
-<<<<<<< HEAD
-  }
-
-//   for (unsigned i = 0; i < MAX_RESOURCE_VALUE; i++) {
-//	dbgs() << GetResourceName(i) << " " <<  CGSFCache[i].size() << " " << CGSFCache[i].count() << "\n";
-//}
-
-  //================= Calculate total span ==========================//
-
-
-  unsigned long long InstructionLatency = 0;
-  uint64_t LastCycle = 0;
-
-  for (unsigned j = 0; j < nExecutionUnits; j++) {
-    // If there are instructions of this type
-    if (InstructionsCountExtended[j] > 0) {
-      InstructionLatency = ExecutionUnitsLatency[j];
-
-      LastCycle = LastIssueCycleVector[j];
-      TotalSpan = max (LastCycle + InstructionLatency, TotalSpan);
-=======
     
+/*
     for (unsigned i = 0; i < MAX_RESOURCE_VALUE; i++) {
       dbgs() << GetResourceName(i) << " " <<  CGSFCache[i].size() << " " << CGSFCache[i].count() << "\n";
->>>>>>> ef1c8e212ad8a0586b312ebbddb2f896db31c293
     }
-    
+  */  
     //================= Calculate total span ==========================//
     
     
@@ -9757,6 +9792,8 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
       }
     }
     
+
+
     //==================== Print resource statistics =============================//
     
     dbgs () << "RESOURCE\tN_OPS_ISSUED\tSPAN\t\tISSUE-SPAN\tSTALL-SPAN\t\tMAX_OCCUPANCY\n";
@@ -9786,39 +9823,16 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
         dbgs () << GetResourceName (j) << "\t\t" << ResourcesSpan[j] << "\t\t" << INF << "\n";
       }
       else {
-        dbgs () << GetResourceName (j) << "\t\t" << ResourcesSpan[j] << "\t\t" << BuffersOccupancy[j -
-                                                                                                   RS_STALL] /
-        TotalSpan << "\n";
+        dbgs () << GetResourceName (j) << "\t\t" << ResourcesSpan[j] << "\t\t";
+        fprintf (stderr, " %1.3f\n", BuffersOccupancy[j -RS_STALL] /(double)TotalSpan);
+
       }
     }
     
+
     printHeaderStat ("Span Only Stalls");
     
     {
-<<<<<<< HEAD
-
-      dbgs () << GetResourceName (j) << "\t\t" <<
-	InstructionsCountExtended[j] << "\t\t" << ResourcesSpan[j] << "\t\t" << IssueSpan[j] << "\t\t" <<
-	ResourcesTotalStallSpanVector[j] << "\t\t" <<MaxOccupancy[j] << " \n";
-
-    }
-  }
-
-
-  //==================== Print stall cycles =============================//
-
-  printHeaderStat ("Stall Cycles");
-
-  dbgs () << "RESOURCE\tN_STALL_CYCLES\t\tAVERAGE_OCCUPANCY\n";
-
-  for (int j = RS_STALL; j <= LFB_STALL; j++) {
-    if (TotalSpan == 0) {
-      dbgs () << GetResourceName (j) << "\t\t" << ResourcesSpan[j] << "\t\t" << INF << "\n";
-    }
-    else {
-      dbgs () << GetResourceName (j) << "\t\t" << ResourcesSpan[j] << "\t\t";
-      fprintf (stderr, " %1.3f\n", BuffersOccupancy[j -RS_STALL]/(double)TotalSpan);
-=======
       vector < int >tv;
       
       for (unsigned i = RS_STALL; i <= LFB_STALL; i++) {
@@ -9836,7 +9850,6 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
         TotalStallSpan = GetGroupSpanFinal (tv);
         
       }
->>>>>>> ef1c8e212ad8a0586b312ebbddb2f896db31c293
     }
     
     dbgs () << TotalStallSpan << "\n";
@@ -10032,6 +10045,7 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
       }
     }
     
+
     printHeaderStat ("Resource-Resource Overlap Percentage (resources span without stall)");
     
     dbgs () << "RESOURCE";
@@ -10282,14 +10296,14 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
     // ===================== ALL OVERLAPS - SECOND APPROACH ===========================//
     {
       
-      printHeaderStat ("All overlaps II");
-      unsigned n = nExecutionUnits+nBuffers-1;
+      printHeaderStat ("All overlaps");
+      unsigned n = nExecutionUnits+nBuffers;
       int nCombinations = 0;
       bool ResourceWithNoInstructions = false;
       
       // The variable k denotes the size of the groups
       for (unsigned k = 2; k <= nExecutionUnits+nBuffers; k++) {
-        vector < vector < int >>combinations;
+        vector < vector < int > >combinations;
         vector < int >selected;
         vector < int >selector (n);
         
@@ -10307,6 +10321,7 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
           OverlapCycles = 0;
           MinResourceSpan = 0;
           OverlapPercetage = 0;
+		MinResource = 0;
           
           for (unsigned j = 0; j < result.size (); j++) {
             if (InstructionsCountExtended[result[j]] == 0) {
@@ -10319,12 +10334,17 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
             for (unsigned j = 0; j < result.size (); j++) {
               dbgs () << result[j] << " ";
               if (InstructionsCountExtended[result[j]] > 0) {
-                if (MinResourceSpan == 0)
+                if (MinResourceSpan == 0){
                   // MinResourceSpan = ResourcesTotalStallSpanVector[result[j]];
                   MinResourceSpan = ResourcesSpan[result[j]];
-                else
+                  MinResource =result[j];
+}
+                else{
                   //                MinResourceSpan = min (MinResourceSpan, ResourcesTotalStallSpanVector[result[j]]);
                   MinResourceSpan = min (MinResourceSpan, ResourcesSpan[result[j]]);
+                  if(MinResourceSpan == ResourcesSpan[result[j]] )
+MinResource = result[j];
+}
               }
             }
             
@@ -10333,9 +10353,12 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
               OverlapPercetage = (float) OverlapCycles / (float (MinResourceSpan));
               
             }
-            
+            dbgs() << "| " << MinResource << " | ";
             dbgs () << OverlapCycles << " ";
             fprintf (stderr, " %1.3f\n", OverlapPercetage);
+
+		   OverlapsDerivatives[MinResource]+= OverlapPercetage*pow(-1,k+1); 
+
             for (unsigned j = 0; j < result.size (); j++) {
               AverageOverlapsCycles[result[j]]+= OverlapCycles;
               AverageOverlaps[result[j]]+= OverlapPercetage;
@@ -10430,7 +10453,16 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
         }
       }
     }
-    
+     printHeaderStat ("Overlaps Derivatives");
+for (unsigned i = 0; i < nExecutionUnits+nBuffers; i++) {
+        if (InstructionsCountExtended[i]!= 0) {
+          dbgs () << GetResourceName(i) << " " << OverlapsDerivatives[i] << "\n";
+}else{
+if(OverlapsDerivatives[i] != 1)
+report_fatal_error("Derivative not NULL for a resource without instructions");
+}
+}
+
     // ===================== ALL OVERLAPS - TRIRD APPROACH ===========================//
     {
       
@@ -10461,7 +10493,9 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
         }
         
       }
-      
+  
+
+    
     }
     
     
@@ -10476,6 +10510,7 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
     uint64_t Work;
     
     for (unsigned i = 0; i < nExecutionUnits; i++) {
+if(InstructionsCountExtended[i] > 0){
       auto & BnkVec = BnkMat[i];
       
       // Work is always the total number of floating point operations... Otherwise it makes
@@ -10522,9 +10557,33 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
         }
       }
       dbgs () << "\n";
+}else{
+      dbgs () << GetResourceName (i) << "\t\t";
+      for (unsigned j = 0; j < nBuffers+2; j++) {
+        dbgs () << INF << "\t";
+}
+      dbgs () << "\n";
+}    
+}
+    
+   //======================= Buffers Bottlenecks ===============================//
+    
+    printHeaderStat ("Buffers Bottlenecks");
+{
+uint64_t Work = InstructionsCount[0];
+    dbgs () << "Bottleneck\tISSUE\n";
+    for (int j = RS_STALL; j <= LFB_STALL; j++) {
+      dbgs () << GetResourceName (j) << "\t";
+	if(InstructionsCountExtended[j]!=0)
+          fprintf (stderr, " %1.3f\n", ((float)Work)/ResourcesSpan[j]);
+else
+		          dbgs () << INF << "\n";
     }
-    
-    
+
+ }   
+
+
+     //======================= Execution Times Breakdown =========================//
     printHeaderStat ("Execution Times Breakdowns");
     dbgs () << "RESOURCE\tMIN-EXEC-TIME\tISSUE-EFFECTS\tLATENCY-EFFECTS\tSTALL-EFFECTS\tTOTAL\n";
     
@@ -10542,6 +10601,27 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
         LatencyEffects = 0;
         IssueEffects = 0;
         StallEffects = ResourcesTotalStallSpanVector[i];
+dbgs () << GetResourceName (i) << "\t\t";
+        dbgs () << " " << MinExecutionTime;
+        //  fprintf(stderr, " %1.3f ", MinExecutionTime);
+        dbgs () << "\t";
+        dbgs () << " " << IssueEffects;
+        // fprintf(stderr, " %1.3f ", IssueEffects);
+        dbgs () << "\t";
+        dbgs () << " " << LatencyEffects;
+        // fprintf(stderr, " %1.3f ", LatencyEffects);
+        dbgs () << "\t";
+        dbgs () << " " << StallEffects;
+        // fprintf(stderr, " %1.3f ", StallEffects);
+        if (MinExecutionTime + IssueEffects + LatencyEffects + StallEffects != ResourcesTotalStallSpanVector[i]
+            && MinExecutionTime != 0) {
+          report_fatal_error ("Breakdown of execution time does not match total execution time\n");
+          
+        }
+        else {
+          dbgs () << "\t" << ResourcesTotalStallSpanVector[i] << "\n";
+        }
+
       }
       else {
         if (ExecutionUnitsParallelIssue[i] == INF) {
@@ -10647,10 +10727,7 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
         }
         
         
-        
-        //              }
-        
-        
+       
         
         
         StallEffects = ResourcesTotalStallSpanVector[i] - ResourcesSpan[i];
@@ -10679,6 +10756,32 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
         }
       }
     }
+
+    printHeaderStat ("Issue-Latency Overlaps");
+
+uint64_t LatencySpan = 0;
+for(uint i = 0; i< nExecutionUnits; i++){
+if(InstructionsCountExtended[i]>0){
+LatencySpan = CalculateLatencySpanFinal(i);
+dbgs() << GetResourceName(i) << " " <<  IssueSpan[i] << " " << LatencySpan << " ";
+if(LatencySpan == 0)
+dbgs() << "0\n";
+else         
+ fprintf (stderr, " %1.3f\n", GetLatencyIssueOverlap(i)/((double)min(IssueSpan[i], LatencySpan)));
+	//dbgs() << GetResourceName(i) << " " <<  IssueSpan[i] << " " <<  CalculateLatencySpanFinal(i) << " " << GetLatencyIssueOverlap(i) << "\n";
+}
+}
+
+
+	
+/*
+for(uint i = 0; i< nExecutionUnits; i++)
+if(InstructionsCountExtended[i]>0){
+
+	dbgs() << GetResourceName(i) << " " <<  IssueSpan[i] << " " <<  CalculateLatencySpanFinal(i) << " " << GetLatencyIssueOverlap(i) << "\n";
+}
+}
+*/
     
     
     unsigned nArithmeticInstructionCount =
@@ -10770,3 +10873,4 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
     
     
   }
+

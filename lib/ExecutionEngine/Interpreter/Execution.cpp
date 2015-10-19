@@ -2365,7 +2365,7 @@ void Interpreter::run() {
    
     ExecutionContext &SF = ECStack.back();  // Current stack frame
     Instruction &I = *SF.CurInst++;         // Increment before execute
-  
+        DEBUG (dbgs () << I << " (" << &I << ")\n");
     // Track the number of dynamic instructions executed.
     ++NumDynamicInsts;
     

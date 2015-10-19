@@ -603,6 +603,7 @@ bool VectorCode;
   vector<double> AverageOverlapsCycles;
   vector<uint64_t> OverlapsCount;
   vector<double> AverageOverlaps;
+  vector<double> OverlapsDerivatives;
 
   uint64_t LastIssueCycleFinal;
   
@@ -641,6 +642,7 @@ bool VectorCode;
   //---------------- CONTECH: NEW FINAL VERSIONS ----------------------
    vector< dynamic_bitset<> > CGSFCache;
    vector< dynamic_bitset<> > CISFCache;
+   vector< dynamic_bitset<> > CLSFCache;
   // Stores the bottleneck of the residing task
   vector<vector<float> > BnkMat;
   ACT ACTFinal;
@@ -651,8 +653,11 @@ bool VectorCode;
   unsigned CalculateIssueSpanFinal(vector<int> & ResourcesVector);
   bool IsEmptyLevelFinal(unsigned ExecutionResource, uint64_t Level);
   unsigned GetGroupSpanFinal(vector<int> & ResourcesVector);
+  unsigned GetLatencySpanFinal(unsigned i);
+  unsigned CalculateLatencySpanFinal(unsigned i);
   unsigned GetGroupOverlapCyclesFinal(vector<int> & ResourcesVector);
 unsigned GetOneToAllOverlapCyclesFinal(vector < int >&ResourcesVector);
+  unsigned GetLatencyIssueOverlap(unsigned i);
   //---------------- CONTECH----------------------
 
   

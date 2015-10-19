@@ -1112,21 +1112,25 @@ new_node->duplicates = 1;
     
     if (t==NULL) return NULL;
     tsize = t->size;
+     // std::cerr << "tsize before splaying "<<tsize <<"\n";
     t = splay(i,t);
-    
+         // std::cerr << "tsize after splaying "<<t->size <<"\n";
     //if (compare(i, t->key) == 0) {               /* found it */
     if (i == t->key) {               /* found it */
+   //   std::cerr << "Found it\n";
 if(t->duplicates>1){
 t->duplicates--;
 t->size=t->size-1;
 return t;
 }
 
-      if (t->left == NULL) {
+      if (t->left == NULL) { // That means there are no smaller
+   //   std::cerr << "(t->left == NULL, that is, there are no smaller\n";
         x = t->right;
       } else {
         x = splay(i, t->left);
         x->right = t->right;
+   //   std::cerr << "Root of the returned tree "<< x->key<<"\n";
       }
       //free(t);
       delete t;
