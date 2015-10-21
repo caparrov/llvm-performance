@@ -1370,13 +1370,13 @@ r_size += r->IssueCycles.size()+node_size(r->right);
   template <typename T>
   ComplexTree<T> * insert_node(T i, T j, ComplexTree<T> * t) {
     
-    
+   // dbgs() << "Inserting node\n";
     ComplexTree<T> * new_node;
     
     if (t != NULL) {
       
       t = splay(i,t);
-      //if (compare(i, t->key)==0) {
+      //if (compare(i, t->key)==0) 
 // NEW: We allow duplicate keys.
        if (i == t->key){
 	  t->IssueCycles.push_back(j);
@@ -1396,14 +1396,21 @@ t->size = t->size +1;
       
       new_node->left = new_node->right = NULL;
       
-      //    } else if (compare(i, t->key) < 0) {
+      //     else if (compare(i, t->key) < 0) 
     } else if (i < t->key) {
+   // dbgs() << "i < t->key\n";
+ //   dbgs() << "i "<<i<<"\n";
+  //  dbgs() << "t->key "<<t->key<<"\n";
       new_node->left = t->left;
+//NEW
       new_node->right = t;
       t->left = NULL;
       //t->size = 1+node_size(t->right);
 t->size = t->IssueCycles.size()+node_size(t->right);
     } else {
+ //dbgs() << "i >= t->key\n";
+  //  dbgs() << "i "<<i<<"\n";
+ //   dbgs() << "t->key "<<t->key<<"\n";
       new_node->right = t->right;
       new_node->left = t;
       t->right = NULL;
@@ -1411,6 +1418,7 @@ t->size = t->IssueCycles.size()+node_size(t->right);
 t->size =  t->IssueCycles.size()+node_size(t->left);
     }
     
+
     new_node->key = i;
     new_node->IssueCycles.push_back(j);
     new_node->size = 1 + node_size(new_node->left) + node_size(new_node->right);
@@ -1439,21 +1447,35 @@ typedef typename std::vector<T>::iterator iterator;
     t = splay(i,t);
   
     
-    //if (compare(i, t->key) == 0) {               /* found it */
+    //if (compare(i, t->key) == 0) {              /* found it */
     if (i == t->key) {               /* found it */
-	
+	//std::cerr << "Found it\n";
+	//std::cerr << "i "<< i <<"\n";
+	//std::cerr << "t->key "<<t->key <<"\n";
+	//std::cerr << "t->IssueCycles.size() "<<t->IssueCycles.size() <<"\n";
 	if(t->IssueCycles.size()>1){
 	for(iterator it = t->IssueCycles.begin(); it != t->IssueCycles.end(); ++it) {
     /* std::cout << *it; ... */
+	//std::cerr << "Issue cycle in delete_node "<<*it <<"\n";
 if(*it == j ){
 t->IssueCycles.erase(it);
 t->size = t->size -1;
 return t;
-}else{
-      std::cout << "Object not found\n";
+}
+//else{
+ //     std::cout << "Object not found\n";
+//exit(0);
+//}
+
+
+}
+//If, after traversing IssueCycles is not found, then error
+std::cout << "Object not found\n";
 exit(0);
-}
-}
+
+}else{
+//std::cerr << "Size is equal to one. Should remove the entire node\n";
+//std::cerr << "t->IssueCycles.begin() " << *(t->IssueCycles.begin()) << "\n";
 }
 	
       if (t->left == NULL) {

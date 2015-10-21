@@ -531,6 +531,10 @@ public:
   vector<uint64_t> LineFillBufferCompletionCycles;
   vector<InstructionDispatchInfo> DispatchToLoadBufferQueue;
   ComplexTree<uint64_t> *DispatchToLoadBufferQueueTree;
+vector<pair<uint64_t,uint64_t>> DispatchToLoadBufferQueueTreeCyclesToRemove;
+
+	
+	bool SmallBuffers;
   
   vector<InstructionDispatchInfo> DispatchToStoreBufferQueue;
   vector<InstructionDispatchInfo> DispatchToLineFillBufferQueue;
@@ -823,6 +827,7 @@ unsigned GetOneToAllOverlapCyclesFinal(vector < int >&ResourcesVector);
   
   uint64_t FindIssueCycleWhenLoadBufferIsFull();
   uint64_t FindIssueCycleWhenLoadBufferTreeIsFull();
+   uint64_t FindIssueCycleWhenLoadBufferTreeIsFullOld();
   
   uint64_t FindIssueCycleWhenStoreBufferIsFull();
   uint64_t FindIssueCycleWhenLineFillBufferIsFull();

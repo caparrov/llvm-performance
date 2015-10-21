@@ -238,10 +238,16 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
   this->ReportOnlyPerformance = ReportOnlyPerformance;
   this->rep = rep;
   
-  
-  
+SmallBuffers = false;
+/*
+  if(LoadBufferSize < 100)
+	SmallBuffers = true;
+else{
+SmallBuffers = false;
   LoadBufferCompletionCyclesTree = NULL;
   DispatchToLoadBufferQueueTree = NULL;
+}
+*/
   MinLoadBuffer = 0;
   MaxDispatchToLoadBufferQueueTree = 0;
   
@@ -2218,6 +2224,7 @@ DynamicAnalysis::ReuseTreeSearchDelete (uint64_t Original, uint64_t address, boo
     Distance = -1;
   }
   else {
+
     while (true) {
       // This is the mechanism used in the original algorithm to delete the host
       // node,  decrementing the last_record attribute of the host node, and
@@ -2561,7 +2568,8 @@ uint64_t DynamicAnalysis::GetMinCompletionCycleLoadBuffer ()
 
 uint64_t DynamicAnalysis::GetMinCompletionCycleLoadBufferTree ()
 {
-  return MinLoadBuffer;
+
+  return MinLoadBuffer; 
   //return min(LoadBufferCompletionCyclesTree);
 }
 
@@ -3755,14 +3763,24 @@ DynamicAnalysis::RemoveFromLoadBuffer (uint64_t Cycle)
 void
 DynamicAnalysis::RemoveFromLoadBufferTree (uint64_t Cycle)
 {
-  
+  PrintLoadBufferTree();
+PrintDispatchToLoadBufferTree();
   
 #ifdef DEBUG_OOO_BUFFERS
+//  dbgs() << "Removing element with Cycle "<< Cycle <<" from LoadBufferTree\n";
   DEBUG(dbgs() << "Removing element with Cycle "<< Cycle <<" from LoadBufferTree\n");
   DEBUG(dbgs() << "Size before removing "<< node_size(LoadBufferCompletionCyclesTree) <<"\n");
+ //dbgs() << "Removing element with Cycle "<< Cycle <<" from LoadBufferTree\n";
+ // dbgs() << "Size before removing "<< node_size(LoadBufferCompletionCyclesTree) <<"\n";
 #endif
   bool CycleFound = true;
-  while (CycleFound == true) {
+// TODO: This may be an infinite loop??
+ // dbgs() << "Removing element with Cycle "<< Cycle <<" from LoadBufferTree\n";
+ // dbgs() << "Size before removing "<< node_size(LoadBufferCompletionCyclesTree) <<"\n";
+//dbgs()<< "This may be an infintie loop??\n";
+//dbgs()<< " Cycle "<<Cycle <<"\n";
+//dbgs()<< " MinLoadBuffer "<<MinLoadBuffer <<"\n";
+  while (LoadBufferCompletionCyclesTree!=NULL && (CycleFound == true || Cycle >= MinLoadBuffer)) {
     
     
     if (LoadBufferCompletionCyclesTree != NULL) {
@@ -3774,18 +3792,29 @@ DynamicAnalysis::RemoveFromLoadBufferTree (uint64_t Cycle)
         LoadBufferCompletionCyclesTree->left = NULL;
 #ifdef DEBUG_OOO_BUFFERS
         DEBUG(dbgs() << "Cycle found, so actually removing the element\n");
+      // dbgs() << "Cycle found, so actually removing the element\n";
 #endif
         LoadBufferCompletionCyclesTree = delete_node (Cycle, LoadBufferCompletionCyclesTree);
         // If we remove the minimum, the resulting tree has as node the
         // successor of the minimum, which is the next minimum -> This is not
         // true after we have splayed and the minimum is in the root.
-        if (Cycle == MinLoadBuffer && LoadBufferCompletionCyclesTree != NULL) {
+        // The condition cannot be if (Cycle == MinLoadBuffer && LoadBufferCompletionCyclesTree != NULL) 
+        // Because we may have skipped some cycles, and we are not actually removing the minimum
+        if (Cycle >= MinLoadBuffer && LoadBufferCompletionCyclesTree != NULL) {
+
           MinLoadBuffer = min (LoadBufferCompletionCyclesTree);
+
           // MinLoadBuffer = LoadBufferCompletionCyclesTree->key;
         }
+	if(LoadBufferCompletionCyclesTree==NULL)
+break;
       }
       else {
-        CycleFound = false;
+      //  CycleFound = false;
+if(Cycle >= MinLoadBuffer)
+		Cycle--;
+else
+CycleFound = false;
       }
       
       
@@ -3797,7 +3826,7 @@ DynamicAnalysis::RemoveFromLoadBufferTree (uint64_t Cycle)
   }
   
 #ifdef DEBUG_OOO_BUFFERS
-  
+  // dbgs() << "Size after removing "<< node_size(LoadBufferCompletionCyclesTree) <<"\n";
   DEBUG(dbgs() << "Size after removing "<< node_size(LoadBufferCompletionCyclesTree) <<"\n");
 #endif
   
@@ -3865,6 +3894,7 @@ DynamicAnalysis::RemoveFromDispatchToLineFillBufferQueue (uint64_t Cycle)
 
 
 
+
 void
 DynamicAnalysis::DispatchToLoadBuffer (uint64_t Cycle)
 {
@@ -3889,39 +3919,75 @@ DynamicAnalysis::inOrder (uint64_t i, ComplexTree < uint64_t > *n)
 {
   
   bool condition = false;
-  if (n == NULL)
-    return;
-  inOrder (i, n->left);
-  
+bool StopChecking = false;
+  if (n == NULL){
+//  dbgs () << "n is NULL\n";    
+return;
+   }else
+ // dbgs () << "n not NULL\n";
+ // dbgs () << "checking in n->left is NULL\n";
+ // if (n->left == NULL)
+  //dbgs () << "n->left NULL\n";
+ // dbgs () << "checked\n";
+    inOrder (i, n->left);
+ // dbgs () << "Cycle of inOrder "<< i << "\n";
   for(std::vector<uint64_t>::iterator it = n->IssueCycles.begin(); it != n->IssueCycles.end(); ++it) {
     if (*it <= i && *it != 0) {
       condition = true;
-      
+      //  dbgs () << "Found a completion cycle with issue cycle "<< i << "\n";
+     //  dbgs () << "Completion cycle "<< n->key << "\n";
+    DEBUG (dbgs () << "Size of issue cycles "<<  n->IssueCycles.size()<<"\n");
       break;
     }
   }
   if(condition==true){
+
     //if (n->IssueCycle <= i && n->IssueCycle != 0)
     if (node_size (LoadBufferCompletionCyclesTree) == 0) {
+
       MinLoadBuffer = n->key;
+
     }
     else {
       MinLoadBuffer = min (MinLoadBuffer, n->key);
+
     }
-    
+   
+
+   // dbgs () << "Iterating thought issue cycles\n";
+   // dbgs () << "Size of issue cycles "<<  n->IssueCycles.size()<<"\n";
+ 
     DEBUG (dbgs () << "Cycle of inOrder "<< i << "\n");
     DEBUG (dbgs () << "Iterating thought issue cycles\n");
     DEBUG (dbgs () << "Size of issue cycles "<<  n->IssueCycles.size()<<"\n");
-    for(std::vector<uint64_t>::iterator it = n->IssueCycles.begin(); it != n->IssueCycles.end(); ++it) {
+   //dbgs () << "Size of issue cycles "<<  n->IssueCycles.size()<<"\n";
+    for(std::vector<uint64_t>::iterator it = n->IssueCycles.begin(); (!StopChecking && it != n->IssueCycles.end()); ++it) {
       DEBUG (dbgs () << "Issue cycle "<< *it<<"\n");
-      if(*it == i){
-        
+    //  dbgs () << "Issue cycle "<< *it<<"\n";
+     // if(*it == i)
+            if (*it <= i && *it != 0) {
         //  DEBUG (dbgs () << "Inserting into LB node with issue cycle " << n->IssueCycle << " and key " << n->key << "\n");
         LoadBufferCompletionCyclesTree = insert_node (n->key, LoadBufferCompletionCyclesTree);
         //Bofore: n->IssueCycle instead of i
         DEBUG (dbgs () << "Removing from dispatch\n");
-        DispatchToLoadBufferQueueTree = delete_node (n->key,i, DispatchToLoadBufferQueueTree);
-        it--;
+     //   dbgs () << "Removing from dispatch\n";
+
+	   if(n->IssueCycles.size()==1){
+		StopChecking = true;
+}
+//dbgs() << "Storing into DispatchToLoadBufferQueueTreeCyclesToRemove pair " << n->key << ", " << i<< "\n";
+DispatchToLoadBufferQueueTreeCyclesToRemove.push_back(std::make_pair(n->key,i));
+      //  DispatchToLoadBufferQueueTree = delete_node (n->key,i, DispatchToLoadBufferQueueTree);
+        //dbgs() << "Removing from dispatch\n";
+             // dbgs () << "Checking StopChecking\n";
+if(!StopChecking){
+      //  dbgs () << "Decreasing iterator\n";
+      //  it--;
+       // dbgs () << "Decreased it\n";
+}else{
+//n = DispatchToLoadBufferQueueTree;
+       // dbgs () << "DId not Decreased it\n";
+}
       }
     }
     // PointersToRemove.push_back (n);
@@ -3946,9 +4012,10 @@ DynamicAnalysis::inOrder (uint64_t i, ComplexTree < uint64_t > *n)
      
      */
   }
-  
+         // dbgs () << "Calling in order\n";
+if(n!=NULL)
   inOrder (i, n->right);
-  
+           // dbgs () << "Exit in order\n";
 }
 
 
@@ -3958,9 +4025,19 @@ void
 DynamicAnalysis::DispatchToLoadBufferTree (uint64_t Cycle)
 {
   
-  
-  
+  DispatchToLoadBufferQueueTreeCyclesToRemove.clear();
+  //  dbgs() << "__________________________________DispatchToLoadBufferTree__________________________________\n";
   inOrder (Cycle, DispatchToLoadBufferQueueTree);
+ //   dbgs() << "End of ispatchToLoadBufferTree\n";
+  //  dbgs() << "****Before removing\n";
+//PrintDispatchToLoadBufferTree();
+for(unsigned int i = 0; i< DispatchToLoadBufferQueueTreeCyclesToRemove.size();i++){
+//dbgs() << "Removing  pair " << DispatchToLoadBufferQueueTreeCyclesToRemove[i].first << ", " << DispatchToLoadBufferQueueTreeCyclesToRemove[i].second<< "\n";
+DispatchToLoadBufferQueueTree = delete_node (DispatchToLoadBufferQueueTreeCyclesToRemove[i].first,DispatchToLoadBufferQueueTreeCyclesToRemove[i].second, 
+DispatchToLoadBufferQueueTree);
+}
+  //  dbgs() << "****After removing\n";
+//PrintDispatchToLoadBufferTree();
   /*
    DEBUG(dbgs() << "Finish inOrder. Size of PointersToRemoce " <<  PointersToRemove.size ()<< "\n");
    
@@ -4080,11 +4157,13 @@ uint64_t DynamicAnalysis::FindIssueCycleWhenLineFillBufferIsFull ()
 
 uint64_t DynamicAnalysis::FindIssueCycleWhenLoadBufferIsFull ()
 {
-  
+
   size_t
   BufferSize = DispatchToLoadBufferQueue.size ();
-  
-  if (BufferSize == 0) {
+#ifdef DEBUG_OOO_BUFFERS
+PrintDispatchToLoadBuffer();
+#endif 
+ if (BufferSize == 0) {
     return GetMinCompletionCycleLoadBuffer ();
   }
   else {
@@ -4100,9 +4179,12 @@ uint64_t DynamicAnalysis::FindIssueCycleWhenLoadBufferIsFull ()
          it != DispatchToLoadBufferQueue.end (); ++it) {
       EarliestDispatchCycle = max (EarliestDispatchCycle, (*it).IssueCycle);
     }
-    EarliestDispatchCycle = MaxDispatchToLoadBufferQueueTree;
-    
-    //Traverse LB and count how many elements are there smaller than EarliestDispathCycle
+    //EarliestDispatchCycle = MaxDispatchToLoadBufferQueueTree;
+#ifdef DEBUG_OOO_BUFFERS
+
+      DEBUG(dbgs() << "EarliestDispatchCycle " << EarliestDispatchCycle << "\n");
+#endif
+    //Traverse LB and count how many elements are there *smaller than or equal* EarliestDispathCycle
     unsigned
     counter = 0;
     for (vector < uint64_t >::iterator it = LoadBufferCompletionCycles.begin (); it != LoadBufferCompletionCycles.end ();
@@ -4110,16 +4192,39 @@ uint64_t DynamicAnalysis::FindIssueCycleWhenLoadBufferIsFull ()
       if ((*it) <= EarliestDispatchCycle)
         counter++;
     }
+#ifdef DEBUG_OOO_BUFFERS
+
+      DEBUG(dbgs() << "counter " << counter << "\n");
+#endif
     uint64_t
     IssueCycle = 0;
     // This means that in LB, there are more loads that terminate before or in
     // my dispatch cycle -> IssueCycle is Earliest
     if (counter > BufferSize) {
       IssueCycle = EarliestDispatchCycle;
-    }
-    else {
-      if (counter == BufferSize) {
-        // Iterate thtough both, DispatchBufferQueue and LB to determine the smallest
+
+    }else {
+      if (counter == BufferSize|| (counter < BufferSize && counter==LoadBufferCompletionCycles.size() && BufferSize > LoadBufferSize) ) {
+
+   // Iterate through both, DispatchBufferQueue and LB to count how many elements are completed 
+// in a cycle *larger than* EarliestDispatchCycle
+		unsigned CompletedAfterCounter = 0;
+
+ for (vector < InstructionDispatchInfo >::iterator it = DispatchToLoadBufferQueue.begin ();
+             it != DispatchToLoadBufferQueue.end (); ++it) {
+	 if ((*it).CompletionCycle > EarliestDispatchCycle)
+CompletedAfterCounter++;
+}
+	       for (vector < uint64_t >::iterator it = LoadBufferCompletionCycles.begin (); it != LoadBufferCompletionCycles.end ();
+             ++it) {
+  if ((*it) > EarliestDispatchCycle)
+CompletedAfterCounter++;
+}
+
+if(CompletedAfterCounter < LoadBufferSize){
+      IssueCycle = EarliestDispatchCycle;
+}else{
+        // Iterate through both, DispatchBufferQueue and LB to determine the smallest
         // completion cycle which is larger than EarliestDispatchCycle.
         // Initialize with the Completion cycle of the last element of the
         // DispatchToLoadBufferQueue
@@ -4129,7 +4234,10 @@ uint64_t DynamicAnalysis::FindIssueCycleWhenLoadBufferIsFull ()
           if ((*it).CompletionCycle > EarliestDispatchCycle)
             IssueCycle = min (IssueCycle, (*it).CompletionCycle);
         }
-        
+#ifdef DEBUG_OOO_BUFFERS
+
+      DEBUG(dbgs() << "IssueCycle after iteration through DispatchToLoadBufferQueue "<< IssueCycle<<"\n");
+#endif
         // We have to also iterate over the completion cycles of the LB even
         // if there are more elements in the DispatchQueue than the size
         // of the LB. Because it can happen than all the elements of the
@@ -4141,11 +4249,16 @@ uint64_t DynamicAnalysis::FindIssueCycleWhenLoadBufferIsFull ()
         // to iterate over the LB.
         for (vector < uint64_t >::iterator it = LoadBufferCompletionCycles.begin (); it != LoadBufferCompletionCycles.end ();
              ++it) {
-          if ((*it) > EarliestDispatchCycle + 1)
+        //  if ((*it) > EarliestDispatchCycle + 1)
+  if ((*it) > EarliestDispatchCycle)
             IssueCycle = min (IssueCycle, *it);
         }
-        
-      }
+#ifdef DEBUG_OOO_BUFFERS
+
+     DEBUG(dbgs() << "IssueCycle after iteration through LoadBufferCompletionCycles"<<IssueCycle<<"\n");
+#endif      
+}
+}
       else {
         report_fatal_error ("Error in Dispatch to Load Buffer Queue");
         
@@ -4179,8 +4292,6 @@ uint64_t DynamicAnalysis::FindIssueCycleWhenLoadBufferIsFull ()
 }
 
 
-
-
 uint64_t DynamicAnalysis::FindIssueCycleWhenLoadBufferTreeIsFull ()
 {
   
@@ -4192,9 +4303,177 @@ uint64_t DynamicAnalysis::FindIssueCycleWhenLoadBufferTreeIsFull ()
   
   if (BufferSize == 0) {
     
+    return GetMinCompletionCycleLoadBufferTree ();
+  }
+  else {
+     uint64_t EarliestDispatchCycle = 0;
+    bool AvailableSlots = false;
+  uint64_t SlotsLoadBufferCompleteBeforeEarliestDispatch = 0;
+    uint64_t SlotsDispatchCompleteBeforeEarliest = 0;
+    uint64_t SlotsDispatchCompleteAfterEarliest = 0;
+   uint64_t TotalCyclesCompleteAfter = 0;
+    // Iterate through the DispathToLoadBufferQueue and get the
+    // largest dispatch cycle. The new load cannot be dispatched
+    // untill all previous in Dispatch Queue have been dispatched.
+    //  We keep a variable, so no need to iterate 
+    EarliestDispatchCycle = MaxDispatchToLoadBufferQueueTree;
+     
+    DEBUG (dbgs () << "EarliestDispatchCycle " << EarliestDispatchCycle << "\n");
+    
+
+   //Traverse LB and count how many elements are there *smaller than or equal* EarliestDispathCycle
+  
+    
+    LoadBufferCompletionCyclesTree = splay (EarliestDispatchCycle, LoadBufferCompletionCyclesTree);
+
+    DEBUG (dbgs () << "LoadBufferCompletionCyclesTree->key " << LoadBufferCompletionCyclesTree->key << "\n");
+
+// When we splay, the following can happen:
+// key == Earliest: account for the size of the left node, if any, and the duplicates of key
+// key > Earliest: account for the size of the left node, if any.
+// key < Earliest: account for the size of the left node, if any, plus the duplicated.
+// If node->left is not NULL, is the size of left. If, moreover, node->key <= EarliestComplettionCycle,
+// then add also the duplicates of this node. 
+if (LoadBufferCompletionCyclesTree->left != NULL)
+  SlotsLoadBufferCompleteBeforeEarliestDispatch = node_size (LoadBufferCompletionCyclesTree->left);
+if(LoadBufferCompletionCyclesTree->key <= EarliestDispatchCycle)
+  SlotsLoadBufferCompleteBeforeEarliestDispatch+= LoadBufferCompletionCyclesTree->duplicates;
+
+ TotalCyclesCompleteAfter = LoadBufferSize - SlotsLoadBufferCompleteBeforeEarliestDispatch;
+
+    AvailableSlots = SlotsLoadBufferCompleteBeforeEarliestDispatch;
+
+  //   dbgs () << "AvailableSlots " << AvailableSlots << "\n";
+    // Traverse DispatchToLoadBufferQueuteTree and count how many
+    // complete after my EarliestDispatchCycle, and how many earlier
+    
+
+//dbgs() << "Key of DispatchToLoadBufferQueueTree before splaying " << DispatchToLoadBufferQueueTree->key << "\n";
+    DispatchToLoadBufferQueueTree = splay (EarliestDispatchCycle, DispatchToLoadBufferQueueTree);
+//dbgs() << "Key of DispatchToLoadBufferQueueTree before splaying " << DispatchToLoadBufferQueueTree->key << "\n";
+if(DispatchToLoadBufferQueueTree->left!=NULL)
+SlotsDispatchCompleteBeforeEarliest = node_size(DispatchToLoadBufferQueueTree->left);
+if(DispatchToLoadBufferQueueTree->right!=NULL)
+SlotsDispatchCompleteAfterEarliest = node_size(DispatchToLoadBufferQueueTree->right);
+
+if(DispatchToLoadBufferQueueTree->key <= EarliestDispatchCycle)
+SlotsDispatchCompleteBeforeEarliest +=  DispatchToLoadBufferQueueTree->IssueCycles.size();
+else
+SlotsDispatchCompleteAfterEarliest+=  DispatchToLoadBufferQueueTree->IssueCycles.size();
+    DEBUG (dbgs () << "AvailableSlots " << AvailableSlots << "\n");
+
+ TotalCyclesCompleteAfter+=SlotsDispatchCompleteAfterEarliest;
+    DEBUG (dbgs () << "SlotsLoadBufferCompleteBeforeEarliestDispatch " << SlotsLoadBufferCompleteBeforeEarliestDispatch << "\n");
+    DEBUG (dbgs () << "SlotsDispatchCompleteBeforeEarliest " << SlotsDispatchCompleteBeforeEarliest << "\n");
+    DEBUG (dbgs () << "SlotsDispatchCompleteAfterEarliest " << SlotsDispatchCompleteAfterEarliest << "\n");
+    DEBUG (dbgs () << "TotalCyclesCompleteAfter " << TotalCyclesCompleteAfter << "\n");
+    uint64_t IssueCycle = 0;
+    // This means that in LB, there are more loads that terminate before or in
+    // my dispatch cycle -> IssueCycle is Earliest
+    if(TotalCyclesCompleteAfter < LoadBufferSize){ // Need to readjust > 0) {
+      
+      IssueCycle = EarliestDispatchCycle;
+
+    }
+    else {
+      
+      DEBUG (dbgs () << "Find  in DispatchToLoadBufferQueueTree the largest than or equal to " << EarliestDispatchCycle +
+             1 << "\n");
+      ComplexTree < uint64_t > *Node = DispatchToLoadBufferQueueTree;
+     // dbgs() << "Buffer before searching\n";
+//PrintDispatchToLoadBufferTree();
+      while (true) {
+        // This is the mechanism used in the original algorithm to delete the host
+        // node,  decrementing the last_record attribute of the host node, and
+        // the size attribute of all parents nodes.
+        // Node->size = Node->size-1;
+        if (EarliestDispatchCycle + 1 < Node->key) {
+          
+          if (Node->left == NULL)
+            break;
+          if (Node->left->key < EarliestDispatchCycle + 1) {
+            break;
+          }
+          Node = Node->left;
+        }
+        else {
+          if (EarliestDispatchCycle + 1 > Node->key) {
+            if (Node->right == NULL)
+              break;
+            Node = Node->right;
+          }
+          else {		// Last = Node->key, i.e., Node is the host node
+            break;
+          }
+        }
+      }
+      
+      IssueCycle = Node->key;
+      DEBUG (dbgs () << "IssueCycle " << IssueCycle << "\n");
+  
+PrintDispatchToLoadBufferTree();
+      
+      //Get the closest larger than or equal to EarliestaDispatchCycle
+      DEBUG (dbgs () << "The same with LB\n");
+    // dbgs () << "The same with LB\n";
+      
+      SimpleTree < uint64_t > *TmpNode = LoadBufferCompletionCyclesTree;
+      
+      while (true) {
+        // This is the mechanism used in the original algorithm to delete the host
+        // node,  decrementing the last_record attribute of the host node, and
+        // the size attribute of all parents nodes.
+        // Node->size = Node->size-1;
+        if (EarliestDispatchCycle + 1 < TmpNode->key) {
+          
+          if (TmpNode->left == NULL)
+            break;
+          if (TmpNode->left->key < EarliestDispatchCycle + 1) {
+            break;
+          }
+          TmpNode = TmpNode->left;
+        }
+        else {
+          if (EarliestDispatchCycle + 1 > TmpNode->key) {
+            if (TmpNode->right == NULL)
+              break;
+            TmpNode = TmpNode->right;
+          }
+          else {		// Last = Node->key, i.e., Node is the host node
+            break;
+          }
+        }
+      }
+      if (TmpNode->key >= EarliestDispatchCycle + 1) {
+        IssueCycle = min (TmpNode->key, IssueCycle);        
+      }
+    }
+
+//dbgs() << "Returning Issue Cycle " << IssueCycle << "\n";
+
+    return IssueCycle; 
+  }
+}
+
+//------------------------------
+
+
+uint64_t DynamicAnalysis::FindIssueCycleWhenLoadBufferTreeIsFullOld ()
+{
+  
+  
+  
+  // size_t BufferSize = DispatchToLoadBufferQueue.size();
+  size_t
+  BufferSize = node_size (DispatchToLoadBufferQueueTree);
+  
+  if (BufferSize == 0) {
+    
     if(DispatchToLoadBufferQueueTree != NULL){
+ //    dbgs() << "DispatchToLoadBufferQueueTree not null, key "<< DispatchToLoadBufferQueueTree->key<<", size "<<DispatchToLoadBufferQueueTree->size<<"\n";
       DEBUG(dbgs() << "DispatchToLoadBufferQueueTree not null, key "<< DispatchToLoadBufferQueueTree->key<<", size "<<DispatchToLoadBufferQueueTree->size<<"\n");
     }else{
+  //   dbgs() <<"DispatchToLoadBufferQueueTree is NULL\n";
       DEBUG(dbgs() <<"DispatchToLoadBufferQueueTree is NULL\n");
     }
     return GetMinCompletionCycleLoadBufferTree ();
@@ -4215,7 +4494,7 @@ uint64_t DynamicAnalysis::FindIssueCycleWhenLoadBufferTreeIsFull ()
      EarliestDispatchCycle = max(EarliestDispatchCycle, (*it).IssueCycle);
      } */
     EarliestDispatchCycle = MaxDispatchToLoadBufferQueueTree;
-    
+  //  dbgs () << "EarliestDispatchCycle " << EarliestDispatchCycle << "\n";
     DEBUG (dbgs () << "EarliestDispatchCycle " << EarliestDispatchCycle << "\n");
     //Traverse LB and count how many elements are there smaller than EarliestDispathCycle
     uint64_t
@@ -4224,23 +4503,33 @@ uint64_t DynamicAnalysis::FindIssueCycleWhenLoadBufferTreeIsFull ()
     SlotsCompleteAfterDispatch = 0;
     
     LoadBufferCompletionCyclesTree = splay (EarliestDispatchCycle, LoadBufferCompletionCyclesTree);
+ //   dbgs () << "LoadBufferCompletionCyclesTree->key " << LoadBufferCompletionCyclesTree->key << "\n";
     DEBUG (dbgs () << "LoadBufferCompletionCyclesTree->key " << LoadBufferCompletionCyclesTree->key << "\n");
     if (LoadBufferCompletionCyclesTree->left != NULL) {
       DEBUG (dbgs () << "Left was not null\n");
+  //    dbgs () << "Left was not null\n";
       SlotsCompleteBeforeDispatch = node_size (LoadBufferCompletionCyclesTree->left);
       DEBUG (dbgs () << "Left node size " << SlotsCompleteBeforeDispatch << "\n");
+  //    dbgs () << "Left node size " << SlotsCompleteBeforeDispatch << "\n";
       if (LoadBufferCompletionCyclesTree->key <= EarliestDispatchCycle) {
         DEBUG (dbgs () << "They key equal to Earliest, so increase counter by 1\n");
+    //    dbgs () << "They key equal to Earliest, so increase counter by 1\n";
         //SlotsCompleteBeforeDispatch++; // NEW: Increase by duplicate
+   //     dbgs () << "Adding duplicates : "<< LoadBufferCompletionCyclesTree->duplicates<<"\n";
         SlotsCompleteBeforeDispatch+= LoadBufferCompletionCyclesTree->duplicates;
-        if(LoadBufferCompletionCyclesTree-> right != NULL)
+     //   dbgs () << "SlotsCompleteBeforeDispatch "<< SlotsCompleteBeforeDispatch<<"\n";
+        if(LoadBufferCompletionCyclesTree-> right != NULL){
           DEBUG (dbgs () << "Right key "<< (LoadBufferCompletionCyclesTree->right)->key<<"\n");
+       //   dbgs () << "Right key "<< (LoadBufferCompletionCyclesTree->right)->key<<"\n";
+}
       }
     }
     else {
+   //   dbgs () << "Left was null\n";
       DEBUG (dbgs () << "Left was null\n");
       if (LoadBufferCompletionCyclesTree->key == EarliestDispatchCycle) {
         DEBUG (dbgs () << "but they key equal to Earliest, so counter in 1\n");
+     //   dbgs () << "but they key equal to Earliest, so counter in 1\n";
         //SlotsCompleteBeforeDispatch = 1;
         // NEW
         SlotsCompleteBeforeDispatch = LoadBufferCompletionCyclesTree->duplicates ;
@@ -4253,7 +4542,7 @@ uint64_t DynamicAnalysis::FindIssueCycleWhenLoadBufferTreeIsFull ()
     
     AvailableSlots = SlotsCompleteBeforeDispatch;
     DEBUG (dbgs () << "AvailableSlots " << AvailableSlots << "\n");
-    
+  //   dbgs () << "AvailableSlots " << AvailableSlots << "\n";
     // Traverse DispatchToLoadBufferQueuteTree and count how many
     // complete after my EarliestDispatchCycle
     
@@ -4286,31 +4575,126 @@ uint64_t DynamicAnalysis::FindIssueCycleWhenLoadBufferTreeIsFull ()
      }
      
      */
-    
+
+// Thsi code assumes that if splay does not find the node, it will return the smallest. But this depends
+// On wether the initial key is larger or smaller than EarliestDispacthCycle. If it is larger 
+// and Earliesta dispacth cycle is not found, returns the minum. If it is smaller and Earliest
+// DispatchCycle not found, returns the next larger. BUT DEPENDS ON THE INITIAL VALUE
+// OF THE KEY
+
+
+    /*	dbgs() << "Key of DispatchToLoadBufferQueueTree before splaying " << DispatchToLoadBufferQueueTree->key << "\n";
     DispatchToLoadBufferQueueTree = splay (EarliestDispatchCycle, DispatchToLoadBufferQueueTree);
+	dbgs() << "KEY AFTER SPLAYING eARLISIES " << DispatchToLoadBufferQueueTree->key << "\n";
     if (DispatchToLoadBufferQueueTree->key > EarliestDispatchCycle) {
       // All complete after
+	dbgs() << "All complete after" << "\n";
       SlotsCompleteAfterDispatch = node_size (DispatchToLoadBufferQueueTree);
     }
     else {
       if (DispatchToLoadBufferQueueTree->right != NULL) {
+	dbgs() << "DispatchToLoadBufferQueueTree->right != NULL \n";
         SlotsCompleteAfterDispatch = node_size (DispatchToLoadBufferQueueTree->right);
       }
       else {
         SlotsCompleteAfterDispatch = 1;
       }
-    }				/*
+    }*/		
+		/*
              for(vector<InstructionDispatchInfo>::iterator it = DispatchToLoadBufferQueue.begin();
              it != DispatchToLoadBufferQueue.end(); ++it){
              if ((*it).CompletionCycle > EarliestDispatchCycle) {
              SlotsCompleteAfterDispatch++;
              };
              } */
+//dbgs() << "Key of DispatchToLoadBufferQueueTree before splaying " << DispatchToLoadBufferQueueTree->key << "\n";
+if(DispatchToLoadBufferQueueTree->key > EarliestDispatchCycle){
+
+    DispatchToLoadBufferQueueTree = splay (EarliestDispatchCycle, DispatchToLoadBufferQueueTree);
+//dbgs() << "Key of DispatchToLoadBufferQueueTree after splaying " << DispatchToLoadBufferQueueTree->key << "\n";
+//If initially is larger, and after splaying key > EarliestDispath, and node->left == NULL, then all
+ // the elements in the DispatchBuffer complete after EarliestDispatch
+if(DispatchToLoadBufferQueueTree->key > EarliestDispatchCycle){
+if(DispatchToLoadBufferQueueTree->right!=NULL)
+ SlotsCompleteAfterDispatch = node_size (DispatchToLoadBufferQueueTree->right)+DispatchToLoadBufferQueueTree->IssueCycles.size();
+else{
+ SlotsCompleteAfterDispatch =DispatchToLoadBufferQueueTree->IssueCycles.size();
+}
+/*
+ if(DispatchToLoadBufferQueueTree->left==NULL){
+  // All complete after
+	dbgs() << "All complete after" << "\n";
+      SlotsCompleteAfterDispatch = node_size (DispatchToLoadBufferQueueTree);
+}else{
+ SlotsCompleteAfterDispatch = node_size (DispatchToLoadBufferQueueTree->right)+DispatchToLoadBufferQueueTree->IssueCycles.size();
+}
+*/
+}else{
+if(DispatchToLoadBufferQueueTree->key < EarliestDispatchCycle){
+// If initially key was larger, but after splaying key is smaller, then it is the 
+// size of the right.
+ if (DispatchToLoadBufferQueueTree->right != NULL) {
+	dbgs() << "DispatchToLoadBufferQueueTree->right != NULL \n";
+        SlotsCompleteAfterDispatch = node_size (DispatchToLoadBufferQueueTree->right);//+DispatchToLoadBufferQueueTree->right->IssueCycles.size();
+        }
+}else{
+if(DispatchToLoadBufferQueueTree->right == NULL)
+report_fatal_error("node->right cannot be NULL if before splaying was larger than earliest, and after splaying the  key is equal to earliest");
+else
+        SlotsCompleteAfterDispatch = node_size (DispatchToLoadBufferQueueTree->right)+DispatchToLoadBufferQueueTree->IssueCycles.size();
+}
+}
+}else{
+if(DispatchToLoadBufferQueueTree->key < EarliestDispatchCycle){
+    DispatchToLoadBufferQueueTree = splay (EarliestDispatchCycle, DispatchToLoadBufferQueueTree);
+if(DispatchToLoadBufferQueueTree->key < EarliestDispatchCycle){
+if(DispatchToLoadBufferQueueTree->right!=NULL){
+        SlotsCompleteAfterDispatch = node_size (DispatchToLoadBufferQueueTree->right);
+}else{
+// All are smaller, so do nothing
+}
+}else{
+if(DispatchToLoadBufferQueueTree->key > EarliestDispatchCycle){
+if(DispatchToLoadBufferQueueTree->right!=NULL){
+SlotsCompleteAfterDispatch = DispatchToLoadBufferQueueTree->IssueCycles.size()+node_size (DispatchToLoadBufferQueueTree->right);
+}else{
+SlotsCompleteAfterDispatch = DispatchToLoadBufferQueueTree->IssueCycles.size();
+}
+if(DispatchToLoadBufferQueueTree->left==NULL){
+report_fatal_error("node->left cannot be NULL if the key was smaller and after splaying the key is larger");
+}
+
+}else{// If after splaying is the same
+if(DispatchToLoadBufferQueueTree->right!=NULL){
+SlotsCompleteAfterDispatch = DispatchToLoadBufferQueueTree->IssueCycles.size()+node_size (DispatchToLoadBufferQueueTree->right);
+}else{
+SlotsCompleteAfterDispatch = DispatchToLoadBufferQueueTree->IssueCycles.size();
+}
+
+}
+}
+
+}else{ // DispatchToLoadBufferQueueTree->key == EarliestDispathCycle. We don't have to splay
+if(DispatchToLoadBufferQueueTree->right != NULL){
+//TODO: Does size include Issue Cycles size??
+        SlotsCompleteAfterDispatch = DispatchToLoadBufferQueueTree->IssueCycles.size()+node_size (DispatchToLoadBufferQueueTree->right);//+DispatchToLoadBufferQueueTree->right->IssueCycles.size();
+}else{
+        SlotsCompleteAfterDispatch = DispatchToLoadBufferQueueTree->IssueCycles.size();
+}
+
+}
+}
+
+
     DEBUG (dbgs () << "SlotsCompleteAfterDispatch " << SlotsCompleteAfterDispatch << "\n");
-    
-    AvailableSlots -= SlotsCompleteAfterDispatch;
+ //   dbgs () << "SlotsCompleteAfterDispatch " << SlotsCompleteAfterDispatch << "\n";
+if(SlotsCompleteAfterDispatch > AvailableSlots)
+AvailableSlots =0;
+else    
+AvailableSlots -= SlotsCompleteAfterDispatch;
+
     DEBUG (dbgs () << "AvailableSlots " << AvailableSlots << "\n");
-    
+  //  dbgs () << "AvailableSlots " << AvailableSlots << "\n";
     //Compute how many complete before dispatch from the DispatchQueue
     
     /*
@@ -4327,10 +4711,12 @@ uint64_t DynamicAnalysis::FindIssueCycleWhenLoadBufferTreeIsFull ()
     if (AvailableSlots > 0) {
       
       IssueCycle = EarliestDispatchCycle;
+
     }
     else {
-      // if (counter == BufferSize) {
+      // if (counter == BufferSize) 
       DEBUG (dbgs () << "Counter is <= to BufferSize\n");
+ //   dbgs () << "Counter is <= to BufferSize\n";
       // Iterate thtough both, DispatchBufferQueue and LB to determine the smallest
       // completion cycle which is larger than EarliestDispatchCycle.
       // Initialize with the Completion cycle of the last element of the
@@ -4339,9 +4725,11 @@ uint64_t DynamicAnalysis::FindIssueCycleWhenLoadBufferTreeIsFull ()
       
       DEBUG (dbgs () << "Find  in DispatchToLoadBufferQueueTree the largest than or equal to " << EarliestDispatchCycle +
              1 << "\n");
-      
+   //  dbgs () << "Find  in DispatchToLoadBufferQueueTree the largest than or equal to " << EarliestDispatchCycle +
+  //           1 << "\n";
       ComplexTree < uint64_t > *Node = DispatchToLoadBufferQueueTree;
-      
+     // dbgs() << "Buffer before searching\n";
+//PrintDispatchToLoadBufferTree();
       while (true) {
         // This is the mechanism used in the original algorithm to delete the host
         // node,  decrementing the last_record attribute of the host node, and
@@ -4370,7 +4758,9 @@ uint64_t DynamicAnalysis::FindIssueCycleWhenLoadBufferTreeIsFull ()
       
       IssueCycle = Node->key;
       DEBUG (dbgs () << "IssueCycle " << IssueCycle << "\n");
-      
+    //  dbgs () << "IssueCycle " << IssueCycle << "\n";
+  //dbgs() << "Buffer after searching\n";
+PrintDispatchToLoadBufferTree();
       /*
        IssueCycle = DispatchToLoadBufferQueue.back().CompletionCycle;
        for(vector<InstructionDispatchInfo>::iterator it = DispatchToLoadBufferQueue.begin();
@@ -4395,7 +4785,7 @@ uint64_t DynamicAnalysis::FindIssueCycleWhenLoadBufferTreeIsFull ()
       
       //Get the closest larger than or equal to EarliestaDispatchCycle
       DEBUG (dbgs () << "The same with LB\n");
-      
+    // dbgs () << "The same with LB\n";
       
       SimpleTree < uint64_t > *TmpNode = LoadBufferCompletionCyclesTree;
       
@@ -4440,7 +4830,7 @@ uint64_t DynamicAnalysis::FindIssueCycleWhenLoadBufferTreeIsFull ()
         
       }
       DEBUG (dbgs () << "IssueCycle " << IssueCycle << "\n");
-      
+    //  dbgs () << "IssueCycle " << IssueCycle << "\n";
       //}
       /*}else{
        dbgs() << "Counter " << counter << "\n";
@@ -4470,6 +4860,8 @@ uint64_t DynamicAnalysis::FindIssueCycleWhenLoadBufferTreeIsFull ()
      sort(LoadBufferCompletionCycles.begin(), LoadBufferCompletionCycles.end());
      return LoadBufferCompletionCycles[BufferSize];
      } */
+//dbgs() << "Returning Issue Cycle " << IssueCycle << "\n";
+
     return IssueCycle;
     
   }
@@ -4556,6 +4948,7 @@ DynamicAnalysis::PrintLoadBufferTreeRecursive (SimpleTree < uint64_t > *p)
     if (p->right)
       PrintLoadBufferTreeRecursive (p->right);
     for(unsigned i = 0; i< p->duplicates;i++)
+//dbgs () << " " << p->key;
       DEBUG (dbgs () << " " << p->key);
   }
   else
@@ -4574,11 +4967,13 @@ DynamicAnalysis::PrintDispatchToLoadBufferTreeRecursive (ComplexTree < uint64_t 
     if (key) {
       for(std::vector<uint64_t>::iterator it = p->IssueCycles.begin(); it != p->IssueCycles.end(); ++it) {
         DEBUG (dbgs () << " " << p->key);
+//dbgs () << " " << p->key;
       }
     }
     else{
       for(std::vector<uint64_t>::iterator it = p->IssueCycles.begin(); it != p->IssueCycles.end(); ++it) {
         DEBUG (dbgs () << " " << *it);
+       // dbgs () << " " << *it;
       }
     }
   }
@@ -4592,12 +4987,19 @@ DynamicAnalysis::PrintDispatchToLoadBufferTreeRecursive (ComplexTree < uint64_t 
 void
 DynamicAnalysis::PrintLoadBufferTree ()
 {
-  
+/*
+  dbgs () << "Load Buffer Tree:\n";
+  PrintLoadBufferTreeRecursive (LoadBufferCompletionCyclesTree);
+  dbgs () << "\n";
+  dbgs () << "Size of Load Buffer Tree: "<< node_size(LoadBufferCompletionCyclesTree)<<"\n";
+  //   printPostOrder(LoadBufferCompletionCyclesTree);
+  */
   DEBUG (dbgs () << "Load Buffer Tree:\n");
   PrintLoadBufferTreeRecursive (LoadBufferCompletionCyclesTree);
   DEBUG (dbgs () << "\n");
   DEBUG (dbgs () << "Size of Load Buffer Tree: "<< node_size(LoadBufferCompletionCyclesTree)<<"\n");
   //   printPostOrder(LoadBufferCompletionCyclesTree);
+
 }
 
 
@@ -4648,6 +5050,14 @@ DynamicAnalysis::PrintDispatchToLoadBuffer ()
 void
 DynamicAnalysis::PrintDispatchToLoadBufferTree ()
 {
+/*
+ dbgs () << "Dispatch to Load Buffer Issue Cycles:\n";
+  PrintDispatchToLoadBufferTreeRecursive (DispatchToLoadBufferQueueTree, false);
+  dbgs () << "\n";
+  dbgs () << "Dispatch to Load Buffer Completion Cycles:\n";
+  PrintDispatchToLoadBufferTreeRecursive (DispatchToLoadBufferQueueTree, true);
+  dbgs () << "\n";
+*/
   
   DEBUG (dbgs () << "Dispatch to Load Buffer Issue Cycles:\n");
   PrintDispatchToLoadBufferTreeRecursive (DispatchToLoadBufferQueueTree, false);
@@ -4655,6 +5065,7 @@ DynamicAnalysis::PrintDispatchToLoadBufferTree ()
   DEBUG (dbgs () << "Dispatch to Load Buffer Completion Cycles:\n");
   PrintDispatchToLoadBufferTreeRecursive (DispatchToLoadBufferQueueTree, true);
   DEBUG (dbgs () << "\n");
+
 }
 
 
@@ -4704,7 +5115,7 @@ DynamicAnalysis::IncreaseInstructionFetchCycle (bool EmptyBuffers)
   unsigned TreeChunk = 0;
   uint64_t OriginalInstructionFetchCycle = InstructionFetchCycle;
   
-  
+
   DEBUG (dbgs () << "_____________________ InstructionFetchCycle " << InstructionFetchCycle << "_____________________\n");
   
 #ifdef MOO_BUFFERS
@@ -4712,12 +5123,19 @@ DynamicAnalysis::IncreaseInstructionFetchCycle (bool EmptyBuffers)
   PrintReservationStation ();
   PrintReorderBuffer ();
   PrintStoreBuffer ();
+  if(SmallBuffers)
+ 	PrintLoadBuffer();
+	else
   PrintLoadBufferTree ();
-  // PrintLoadBuffer();
+
   PrintLineFillBuffer ();
-  PrintDispatchToStoreBuffer ();
-  //  PrintDispatchToLoadBuffer();
+if(SmallBuffers)
+PrintDispatchToLoadBuffer();
+else
   PrintDispatchToLoadBufferTree ();
+
+  PrintDispatchToStoreBuffer ();  
+
   PrintDispatchToLineFillBuffer ();
 #endif
 #endif
@@ -4735,17 +5153,23 @@ DynamicAnalysis::IncreaseInstructionFetchCycle (bool EmptyBuffers)
 #ifdef MOO_BUFFERS
   //Remove from Load, Store and Fill Line Buffers elements completed at issue cycle
   
-  //RemoveFromLoadBuffer(InstructionFetchCycle);
-  
+if(SmallBuffers){
+  RemoveFromLoadBuffer(InstructionFetchCycle);
+  RemoveFromDispatchToLoadBufferQueue(InstructionFetchCycle);
+  }else
   RemoveFromLoadBufferTree (InstructionFetchCycle);
-  RemoveFromStoreBuffer (InstructionFetchCycle);
+  
+RemoveFromStoreBuffer (InstructionFetchCycle);
   RemoveFromLineFillBuffer (InstructionFetchCycle);
-  //RemoveFromDispatchToLoadBufferQueue(InstructionFetchCycle);
+
   RemoveFromDispatchToStoreBufferQueue (InstructionFetchCycle);
   RemoveFromDispatchToLineFillBufferQueue (InstructionFetchCycle);
   // Insert into LB, SB and LFB the instructions from the dispatch queue.
-  //DispatchToLoadBuffer(InstructionFetchCycle);
+if(SmallBuffers)
+  DispatchToLoadBuffer(InstructionFetchCycle);
+else
   DispatchToLoadBufferTree (InstructionFetchCycle);
+  
   DispatchToStoreBuffer (InstructionFetchCycle);
   DispatchToLineFillBuffer (InstructionFetchCycle);
 #endif
@@ -4755,12 +5179,18 @@ DynamicAnalysis::IncreaseInstructionFetchCycle (bool EmptyBuffers)
   PrintReservationStation ();
   PrintReorderBuffer ();
   PrintStoreBuffer ();
+if(SmallBuffers)
+  PrintLoadBuffer();
+else
   PrintLoadBufferTree ();
-  //PrintLoadBuffer();
+
   PrintLineFillBuffer ();
   PrintDispatchToStoreBuffer ();
-  // PrintDispatchToLoadBuffer();
+if(SmallBuffers)
+   PrintDispatchToLoadBuffer();
+else
   PrintDispatchToLoadBufferTree ();
+
   PrintDispatchToLineFillBuffer ();
 #endif
 #endif
@@ -4832,13 +5262,19 @@ DynamicAnalysis::IncreaseInstructionFetchCycle (bool EmptyBuffers)
     PrintReorderBuffer ();
 #ifdef MOO_BUFFERS
     PrintStoreBuffer ();
-    //    PrintLoadBuffer();
+if(SmallBuffers)
+       PrintLoadBuffer();
+else
     PrintLoadBufferTree ();
+
     PrintLineFillBuffer ();
     PrintDispatchToStoreBuffer ();
-    //PrintDispatchToLoadBuffer();
+if(SmallBuffers)
+    PrintDispatchToLoadBuffer();
+else
     PrintDispatchToLoadBufferTree ();
-    PrintDispatchToLineFillBuffer ();
+    
+PrintDispatchToLineFillBuffer ();
 #endif
 #endif
     
@@ -4847,18 +5283,25 @@ DynamicAnalysis::IncreaseInstructionFetchCycle (bool EmptyBuffers)
     
 #ifdef MOO_BUFFERS
     //Remove from Load, Store and Fill Line Buffers elements completed at issue cycle
-    // RemoveFromLoadBuffer(InstructionFetchCycle);
+if(SmallBuffers){
+     RemoveFromLoadBuffer(InstructionFetchCycle);
+RemoveFromDispatchToLoadBufferQueue(InstructionFetchCycle);
+}else
     RemoveFromLoadBufferTree (InstructionFetchCycle);
-    PrintLoadBufferTree ();
+    
+    
     RemoveFromStoreBuffer (InstructionFetchCycle);
     RemoveFromLineFillBuffer (InstructionFetchCycle);
-    //  RemoveFromDispatchToLoadBufferQueue(InstructionFetchCycle);
+
     RemoveFromDispatchToStoreBufferQueue (InstructionFetchCycle);
     RemoveFromDispatchToLineFillBufferQueue (InstructionFetchCycle);
     // Insert into LB, SB and LFB the instructions from the dispatch queue.
-    //  DispatchToLoadBuffer(InstructionFetchCycle);
+if(SmallBuffers)
+      DispatchToLoadBuffer(InstructionFetchCycle);
+else
     DispatchToLoadBufferTree (InstructionFetchCycle);
-    DispatchToStoreBuffer (InstructionFetchCycle);
+    
+   DispatchToStoreBuffer (InstructionFetchCycle);
     DispatchToLineFillBuffer (InstructionFetchCycle);
 #endif
     
@@ -4867,11 +5310,16 @@ DynamicAnalysis::IncreaseInstructionFetchCycle (bool EmptyBuffers)
     PrintReorderBuffer ();
 #ifdef MOO_BUFFERS
     PrintStoreBuffer ();
-    // PrintLoadBuffer();
+if(SmallBuffers)
+    PrintLoadBuffer();
+else
     PrintLoadBufferTree ();
-    PrintLineFillBuffer ();
+    
+PrintLineFillBuffer ();
     PrintDispatchToStoreBuffer ();
-    // PrintDispatchToLoadBuffer();
+if(SmallBuffers)
+     PrintDispatchToLoadBuffer();
+else
     PrintDispatchToLoadBufferTree ();
     PrintDispatchToLineFillBuffer ();
 #endif
@@ -4912,10 +5360,19 @@ DynamicAnalysis::IncreaseInstructionFetchCycle (bool EmptyBuffers)
   if (OriginalInstructionFetchCycle != InstructionFetchCycle) {
     BuffersOccupancy[RS_STALL - RS_STALL] += ReservationStationIssueCycles.size ();
     BuffersOccupancy[ROB_STALL - RS_STALL] += ReorderBufferCompletionCycles.size ();
-    //BuffersOccupancy[LB_STALL-RS_STALL] += LoadBufferCompletionCycles.size();
+if(SmallBuffers){
+    BuffersOccupancy[LB_STALL-RS_STALL] += LoadBufferCompletionCycles.size();
+ if(LoadBufferCompletionCycles.size() > LoadBufferSize)
+      report_fatal_error ("Buffer overflow");
+
+}else{
     BuffersOccupancy[LB_STALL - RS_STALL] += node_size (LoadBufferCompletionCyclesTree);
-   /* if( node_size (LoadBufferCompletionCyclesTree) > LoadBufferSize)
-      report_fatal_error ("Buffer overflow");*/
+    if( node_size(LoadBufferCompletionCyclesTree) > LoadBufferSize){
+dbgs() <<  "node_size (LoadBufferCompletionCyclesTree) " << node_size (LoadBufferCompletionCyclesTree) << "\n";
+dbgs() <<  "LoadBufferSize " <<LoadBufferSize << "\n";
+     report_fatal_error ("Buffer overflow");
+}
+}
     BuffersOccupancy[SB_STALL - RS_STALL] += StoreBufferCompletionCycles.size ();
     BuffersOccupancy[LFB_STALL - RS_STALL] += LineFillBufferCompletionCycles.size ();
     
@@ -4944,8 +5401,17 @@ DynamicAnalysis::IncreaseInstructionFetchCycle (bool EmptyBuffers)
       InstructionsCountExtended[LFB_STALL]++;
     }
     
-    if (node_size (DispatchToLoadBufferQueueTree) != 0) {
+bool BufferNonEmpty=false;
+if(SmallBuffers){
+if (DispatchToLoadBufferQueue.empty() == false) 
+BufferNonEmpty = true;
+}else{
+if (node_size (DispatchToLoadBufferQueueTree) != 0)
+BufferNonEmpty = true;
+}
+   // if (node_size (DispatchToLoadBufferQueueTree) != 0) {
       //if (DispatchToLoadBufferQueue.empty() == false) {
+if(BufferNonEmpty){
       if (InstructionsCountExtended[LB_STALL] == 0)
         FirstIssue[LB_STALL] = true;
       if (FirstIssue[LB_STALL] == true) {
@@ -5533,11 +5999,25 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
             //Calculate issue cycle depending on buffer Occupancy.
             if (LoadBufferSize > 0) {
               
-              if (node_size (LoadBufferCompletionCyclesTree) == LoadBufferSize) {
+
+bool BufferFull=false;
+if(SmallBuffers){
+if (LoadBufferCompletionCycles.size() == LoadBufferSize)
+BufferFull = true;
+}else{
+if (node_size (LoadBufferCompletionCyclesTree) == LoadBufferSize)
+BufferFull = true;
+}
+
+
+            //  if (node_size (LoadBufferCompletionCyclesTree) == LoadBufferSize) {
                 // if (LoadBufferCompletionCycles.size() == LoadBufferSize) { // If the load buffer is full
-                
+              if(BufferFull){  
+if(SmallBuffers)
+InstructionIssueLoadBufferAvailable = FindIssueCycleWhenLoadBufferIsFull();
+else
                 InstructionIssueLoadBufferAvailable = FindIssueCycleWhenLoadBufferTreeIsFull ();
-                //              InstructionIssueLoadBufferAvailable = FindIssueCycleWhenLoadBufferIsFull();
+                
                 
                 // If, moreover, the instruction has to go to the LineFillBuffer...
                 if (ExtendedInstructionType >= L2_LOAD_NODE && LineFillBufferSize > 0) {
@@ -5739,6 +6219,7 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
                    "========\n");
             DEBUG (dbgs () << "======== Instruction Issue Cycle (Throughput Availability)" << InstructionIssueThroughputAvailable
                    << "========\n");
+           // dbgs () << "__________________Instruction Issue Cycle " << InstructionIssueCycle << "__________________\n";
             DEBUG (dbgs () << "__________________Instruction Issue Cycle " << InstructionIssueCycle << "__________________\n");
 #endif
           }
@@ -6020,6 +6501,7 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
             DEBUG (dbgs () << "======== Instruction Issue Cycle (Throughput Availability) " <<
                    InstructionIssueThroughputAvailable << "========\n");
             DEBUG (dbgs () << "__________________Instruction Issue Cycle " << InstructionIssueCycle << "__________________\n");
+           // dbgs () << "__________________Instruction Issue Cycle " << InstructionIssueCycle << "__________________\n";
 #endif
           }
           break;
@@ -6090,6 +6572,7 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
                    "========\n");
             DEBUG (dbgs () << "========Original Instruction Issue Cycle (fetch cycle) " << InstructionFetchCycle <<
                    "========\n");
+          // dbgs () << "__________________Instruction Issue Cycle " << InstructionIssueCycle << "__________________\n";
             DEBUG (dbgs () << "__________________Instruction Issue Cycle " << InstructionIssueCycle << "__________________\n");
 #endif
           }
@@ -6399,15 +6882,39 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
             // If LB is INF, this comparison is false. But still
             // we need to check wether RS is INF
             
-            if (node_size (LoadBufferCompletionCyclesTree) == LoadBufferSize && LoadBufferSize > 0) {
+bool BufferFull=false;
+if(SmallBuffers){
+if (LoadBufferCompletionCycles.size() == LoadBufferSize)
+BufferFull = true;
+}else{
+if (node_size (LoadBufferCompletionCyclesTree) == LoadBufferSize)
+BufferFull = true;
+}
+if (LoadBufferSize > 0 && BufferFull) {
+            //if (node_size (LoadBufferCompletionCyclesTree) == LoadBufferSize && LoadBufferSize > 0) {
               // if(LoadBufferCompletionCycles.size() == LoadBufferSize && LoadBufferSize > 0){
               
               // Put in the reservation station, but only if RS exists
-              //   CycleInsertReservationStation = FindIssueCycleWhenLoadBufferIsFull();
+if(SmallBuffers)
+                 CycleInsertReservationStation = FindIssueCycleWhenLoadBufferIsFull();
+else
               CycleInsertReservationStation = FindIssueCycleWhenLoadBufferTreeIsFull ();
-              ReservationStationIssueCycles.push_back (CycleInsertReservationStation);
+if(InstructionIssueLoadBufferAvailable != CycleInsertReservationStation)
+report_fatal_error("InstructionIssueLoadBufferAvailable != CycleInsertReservationStation");
+     //  CycleInsertReservationStation =  InstructionIssueLoadBufferAvailable;
+     ReservationStationIssueCycles.push_back (CycleInsertReservationStation);
               
-              //Put in the DispatchToLoadBufferQueue
+ //Put in the DispatchToLoadBufferQueue
+if(SmallBuffers){
+
+               InstructionDispatchInfo DispathInfo;
+               DispathInfo.IssueCycle = CycleInsertReservationStation;
+               DispathInfo.CompletionCycle = NewInstructionIssueCycle+Latency;
+               DispatchToLoadBufferQueue.push_back(DispathInfo);
+               
+}else{
+
+
               if (DispatchToLoadBufferQueueTree == NULL) {
                 MaxDispatchToLoadBufferQueueTree = CycleInsertReservationStation;
               }
@@ -6418,18 +6925,24 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
               
 #ifdef DEBUG_OOO_BUFFERS
               DEBUG (dbgs () << "Inserting  " << NewInstructionIssueCycle + Latency << " to DispatchToLoadBufferQueue, whith dispatch cycle "<<CycleInsertReservationStation <<"\n");
+  // dbgs () << "Inserting  " << NewInstructionIssueCycle + Latency << " to DispatchToLoadBufferQueue, whith dispatch cycle "<<CycleInsertReservationStation <<"\n";
+
 #endif
-              
+//dbgs() << "Before insert\n";
+  //            	PrintLoadBufferTree();
+//PrintDispatchToLoadBufferTree();
+
               DispatchToLoadBufferQueueTree =
               insert_node (NewInstructionIssueCycle + Latency, CycleInsertReservationStation, DispatchToLoadBufferQueueTree);
+//	PrintLoadBufferTree();
+//PrintDispatchToLoadBufferTree();
+
+}
+
+             
               
               
-              /*
-               InstructionDispatchInfo DispathInfo;
-               DispathInfo.IssueCycle = CycleInsertReservationStation;
-               DispathInfo.CompletionCycle = NewInstructionIssueCycle+Latency;
-               DispatchToLoadBufferQueue.push_back(DispathInfo);
-               */
+              
               
               
 #ifdef SOURCE_CODE_ANALYSIS
@@ -6500,25 +7013,42 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
               }
             }
             else {
+bool BufferFull=true;
+if(SmallBuffers){
+if (LoadBufferCompletionCycles.size() != LoadBufferSize)
+BufferFull = false;
+}else{
+if (node_size (LoadBufferCompletionCyclesTree) != LoadBufferSize)
+BufferFull = false;
+}
+
+
               //If LB is not full
-              if (node_size (LoadBufferCompletionCyclesTree) != LoadBufferSize && LoadBufferSize > 0) {
+              if (LoadBufferSize > 0 && BufferFull==false) {
+          //    if (node_size (LoadBufferCompletionCyclesTree) != LoadBufferSize && LoadBufferSize > 0) {
                 // if (LoadBufferCompletionCycles.size() != LoadBufferSize && LoadBufferSize > 0) {
                 
+
+                //Insert into LB
+if(SmallBuffers)
+                 LoadBufferCompletionCycles.push_back(NewInstructionIssueCycle+Latency);
+else{
 #ifdef DEBUG_OOO_BUFFERS
                 DEBUG (dbgs () << "node_size (LoadBufferCompletionCyclesTree)  " << node_size (LoadBufferCompletionCyclesTree) << "\n");
                 DEBUG (dbgs () << "Inserting  " << NewInstructionIssueCycle + Latency << " to LoadBuffer\n");
 #endif
-                //Insert into LB
-                // LoadBufferCompletionCycles.push_back(NewInstructionIssueCycle+Latency);
                 if (node_size (LoadBufferCompletionCyclesTree) == 0) {
                   MinLoadBuffer = NewInstructionIssueCycle + Latency;
+
                 }
                 else {
                   MinLoadBuffer = min (MinLoadBuffer, NewInstructionIssueCycle + Latency);
+
                 }
                 LoadBufferCompletionCyclesTree =
                 insert_node (NewInstructionIssueCycle + Latency, LoadBufferCompletionCyclesTree);
-                if (ExtendedInstructionType >= L2_LOAD_NODE && LineFillBufferSize != 0) {	// If it has to go to the LFS...
+}     
+           if (ExtendedInstructionType >= L2_LOAD_NODE && LineFillBufferSize != 0) {	// If it has to go to the LFS...
                   
                   if (LineFillBufferCompletionCycles.size () == LineFillBufferSize || !DispatchToLineFillBufferQueue.empty ()) {
                     InstructionDispatchInfo DispathInfo;
@@ -6655,7 +7185,7 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
     
     
     
-    bool PrintWarning = false;
+
     unsigned long long TotalSpan = 0;
     uint64_t TotalStallSpan = 0;
     uint64_t PairSpan = 0;
@@ -6682,17 +7212,30 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
     DEBUG (dbgs () << "Starting while loop\n");
     DEBUG (dbgs () << "Sise of RS " << ReservationStationIssueCycles.size () << "\n");
     DEBUG (dbgs () << "Sise of ROB " << ReorderBufferCompletionCycles.size () << "\n");
+if(SmallBuffers)
+DEBUG (dbgs () << "Sise of LB " << LoadBufferCompletionCycles.size() << "\n");
+else
     DEBUG (dbgs () << "Sise of LB " << node_size(LoadBufferCompletionCyclesTree) << "\n");
+
     DEBUG (dbgs () << "Sise of SB " << StoreBufferCompletionCycles.size () << "\n");
     DEBUG (dbgs () << "Sise of LFB " << LineFillBufferCompletionCycles.size () << "\n");
     DEBUG (dbgs () << "______________________________________________________\n");
 #endif
     
+bool BufferNonEmpty=false;
+if(SmallBuffers){
+if (LoadBufferCompletionCycles.size() != 0)
+BufferNonEmpty = true;
+}else{
+if (node_size(LoadBufferCompletionCyclesTree) != 0)
+BufferNonEmpty = true;
+}
     
+
     // Increase FetchCycle until all buffers are empty
     while (ReservationStationIssueCycles.size () != 0
            || ReorderBufferCompletionCycles.size () != 0
-           || node_size(LoadBufferCompletionCyclesTree) != 0 || StoreBufferCompletionCycles.size () != 0
+           || BufferNonEmpty || StoreBufferCompletionCycles.size () != 0
            || LineFillBufferCompletionCycles.size () != 0) {
       // In IncreaseInstructionFetchCycle(), InstructionFetchCycle only increases when
       // RS or ROB are full. But in this case, they may not get full, but we just
@@ -6707,17 +7250,35 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
       PrintReservationStation ();
       PrintReorderBuffer ();
       PrintStoreBuffer ();
+if(SmallBuffers)
+PrintLoadBuffer();
+else
       PrintLoadBufferTree ();
-      // PrintLoadBuffer();
+     
       PrintLineFillBuffer ();
       
       DEBUG (dbgs () << "Size of RS " << ReservationStationIssueCycles.size () << "\n");
       DEBUG (dbgs () << "Size of ROB " << ReorderBufferCompletionCycles.size () << "\n");
-      DEBUG (dbgs () << "Size of LB " << node_size(LoadBufferCompletionCyclesTree) << "\n");
+if(SmallBuffers)
+DEBUG (dbgs () << "Sise of LB " << LoadBufferCompletionCycles.size() << "\n");
+else
+    DEBUG (dbgs () << "Sise of LB " << node_size(LoadBufferCompletionCyclesTree) << "\n");
+
       DEBUG (dbgs () << "Size of SB " << StoreBufferCompletionCycles.size () << "\n");
       DEBUG (dbgs () << "Size of LFB " << LineFillBufferCompletionCycles.size () << "\n");
       DEBUG (dbgs () << "______________________________________________________\n");
 #endif
+BufferNonEmpty=false;
+//Update Buffer Size
+if(SmallBuffers){
+if (LoadBufferCompletionCycles.size() != 0)
+BufferNonEmpty = true;
+}else{
+if (node_size(LoadBufferCompletionCyclesTree) != 0)
+BufferNonEmpty = true;
+}
+
+
       
     }
     
@@ -6725,7 +7286,10 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
     
     DEBUG (dbgs () << "Size of RS " << ReservationStationIssueCycles.size () << "\n");
     DEBUG (dbgs () << "Size of ROB " << ReorderBufferCompletionCycles.size () << "\n");
-    DEBUG (dbgs () << "Size of LB " << node_size(LoadBufferCompletionCyclesTree) << "\n");
+if(SmallBuffers)
+DEBUG (dbgs () << "Sise of LB " << LoadBufferCompletionCycles.size() << "\n");
+else
+    DEBUG (dbgs () << "Sise of LB " << node_size(LoadBufferCompletionCyclesTree) << "\n");
     DEBUG (dbgs () << "Size of SB " << StoreBufferCompletionCycles.size () << "\n");
     DEBUG (dbgs () << "Size of LFB " << LineFillBufferCompletionCycles.size () << "\n");
 #endif
@@ -7841,7 +8405,7 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
               
               if (VectorCode == false) {
                 if (IssueSpan[i] < MinExecutionTime) {
-                  PrintWarning = true;
+
                   dbgs () << "IssueSpan[i] " << IssueSpan[i] << "\n";
                   dbgs () << "MinExecutionTime " << MinExecutionTime << "\n";
                   report_fatal_error ("IssueSpan < Min execution time");
@@ -7945,9 +8509,8 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
       dbgs () << "TOTAL" << "\t\t" << InstructionsCount[0] + InstructionsCount[1] << "\t\t" << TotalSpan << " \n";
       Performance = (float) nArithmeticInstructionCount / ((float) TotalSpan);
       fprintf (stderr, "PERFORMANCE %1.3f\n", Performance);
-      if (PrintWarning == true)
-        dbgs () << "WARNING: IssueSpan < MinExecutionTime\n";
-      
+    
+
       
       
 #ifdef ILP_DISTRIBUTION
@@ -8637,7 +9200,7 @@ return CLSFCache[i].count();
   void
   DynamicAnalysis::finishAnalysisContech (bool isBnkReqd)
   {
-    bool PrintWarning = false;
+
     unsigned long long TotalSpan = 0;
     uint64_t TotalStallSpan = 0;
     uint64_t PairSpan = 0;
@@ -9538,8 +10101,8 @@ return CLSFCache[i].count();
           }
           
           if (IssueSpan[i] < MinExecutionTime) {
-            PrintWarning = true;
-            IssueSpan[i] = MinExecutionTime;
+      report_fatal_error ("WARNING: IssueSpan < MinExecutionTime\n");
+//            IssueSpan[i] = MinExecutionTime;
           }
           IssueEffects = IssueSpan[i] - MinExecutionTime;
           
@@ -9581,8 +10144,6 @@ return CLSFCache[i].count();
       dbgs () << "TOTAL" << "\t\t" << InstructionsCount[0] + InstructionsCount[1] << "\t\t" << TotalSpan << " \n";
       Performance = (float) InstructionsCount[0] / ((float) TotalSpan);
       fprintf (stderr, "PERFORMANCE %1.3f\n", Performance);
-      if (PrintWarning == true)
-        dbgs () << "WARNING: IssueSpan < MinExecutionTime\n";
       
       
       
@@ -9600,7 +10161,7 @@ return CLSFCache[i].count();
   void
   DynamicAnalysis::finishAnalysisContechSimplified ()
   {
-    bool PrintWarning = false;
+
     unsigned long long TotalSpan = 0;
     uint64_t TotalStallSpan = 0;
     float Performance = 0;
@@ -9621,17 +10182,28 @@ return CLSFCache[i].count();
     DEBUG (dbgs () << "Starting while loop\n");
     DEBUG (dbgs () << "Sise of RS " << ReservationStationIssueCycles.size () << "\n");
     DEBUG (dbgs () << "Sise of ROB " << ReorderBufferCompletionCycles.size () << "\n");
+if(SmallBuffers)
+DEBUG (dbgs () << "Sise of LB " << LoadBufferCompletionCycles.size() << "\n");
+else
     DEBUG (dbgs () << "Sise of LB " << node_size(LoadBufferCompletionCyclesTree) << "\n");
     DEBUG (dbgs () << "Sise of SB " << StoreBufferCompletionCycles.size () << "\n");
     DEBUG (dbgs () << "Sise of LFB " << LineFillBufferCompletionCycles.size () << "\n");
     DEBUG (dbgs () << "______________________________________________________\n");
 #endif
+    bool BufferNonEmpty=false;
+if(SmallBuffers){
+if (LoadBufferCompletionCycles.size() != 0)
+BufferNonEmpty = true;
+}else{
+if (node_size(LoadBufferCompletionCyclesTree) != 0)
+BufferNonEmpty = true;
+}
     
     
     // Increase FetchCycle until all buffers are empty
     while (ReservationStationIssueCycles.size () != 0
            || ReorderBufferCompletionCycles.size () != 0
-           || node_size(LoadBufferCompletionCyclesTree) != 0 || StoreBufferCompletionCycles.size () != 0
+           || BufferNonEmpty || StoreBufferCompletionCycles.size () != 0
            || LineFillBufferCompletionCycles.size () != 0) {
       // In IncreaseInstructionFetchCycle(), InstructionFetchCycle only increases when
       // RS or ROB are full. But in this case, they may not get full, but we just
@@ -9646,18 +10218,34 @@ return CLSFCache[i].count();
       PrintReservationStation ();
       PrintReorderBuffer ();
       PrintStoreBuffer ();
+if(SmallBuffers)
+ PrintLoadBuffer();
+else
       PrintLoadBufferTree ();
-      // PrintLoadBuffer();
+     
       PrintLineFillBuffer ();
       
       DEBUG (dbgs () << "Size of RS " << ReservationStationIssueCycles.size () << "\n");
       DEBUG (dbgs () << "Size of ROB " << ReorderBufferCompletionCycles.size () << "\n");
-      DEBUG (dbgs () << "Size of LB " <<node_size(LoadBufferCompletionCyclesTree)<< "\n");
+if(SmallBuffers)
+DEBUG (dbgs () << "Sise of LB " << LoadBufferCompletionCycles.size() << "\n");
+else
+    DEBUG (dbgs () << "Sise of LB " << node_size(LoadBufferCompletionCyclesTree) << "\n");
       DEBUG (dbgs () << "Size of SB " << StoreBufferCompletionCycles.size () << "\n");
       DEBUG (dbgs () << "Size of LFB " << LineFillBufferCompletionCycles.size () << "\n");
       DEBUG (dbgs () << "______________________________________________________\n");
 #endif
-      
+      BufferNonEmpty=false;
+//Update Buffer Size
+if(SmallBuffers){
+if (LoadBufferCompletionCycles.size() != 0)
+BufferNonEmpty = true;
+}else{
+if (node_size(LoadBufferCompletionCyclesTree) != 0)
+BufferNonEmpty = true;
+}
+
+
     }
     
 
@@ -9666,7 +10254,10 @@ return CLSFCache[i].count();
     
     DEBUG (dbgs () << "Size of RS " << ReservationStationIssueCycles.size () << "\n");
     DEBUG (dbgs () << "Size of ROB " << ReorderBufferCompletionCycles.size () << "\n");
-    DEBUG (dbgs () << "Size of LB " <<node_size(LoadBufferCompletionCyclesTree)<< "\n");
+if(SmallBuffers)
+DEBUG (dbgs () << "Sise of LB " << LoadBufferCompletionCycles.size() << "\n");
+else
+    DEBUG (dbgs () << "Sise of LB " << node_size(LoadBufferCompletionCyclesTree) << "\n");
     DEBUG (dbgs () << "Size of SB " << StoreBufferCompletionCycles.size () << "\n");
     DEBUG (dbgs () << "Size of LFB " << LineFillBufferCompletionCycles.size () << "\n");
 #endif
@@ -10673,7 +11264,7 @@ dbgs () << GetResourceName (i) << "\t\t";
         
         if (VectorCode == false) {
           if (IssueSpan[i] < MinExecutionTime) {
-            PrintWarning = true;
+
             dbgs () << "IssueSpan[i] " << IssueSpan[i] << "\n";
             dbgs () << "MinExecutionTime " << MinExecutionTime << "\n";
             report_fatal_error ("IssueSpan < Min execution time");
@@ -10797,8 +11388,8 @@ if(InstructionsCountExtended[i]>0){
     dbgs () << "TOTAL" << "\t\t" << InstructionsCount[0] + InstructionsCount[1] << "\t\t" << TotalSpan << " \n";
     Performance = (float) nArithmeticInstructionCount / ((float) TotalSpan);
     fprintf (stderr, "PERFORMANCE %1.3f\n", Performance);
-    if (PrintWarning == true)
-      report_fatal_error ("WARNING: IssueSpan < MinExecutionTime\n");
+
+
     
     
     
