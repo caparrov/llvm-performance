@@ -603,6 +603,7 @@ bool VectorCode;
   vector<uint64_t> SpanGaps;
   vector<uint64_t> FirstNonEmptyLevel;
   vector<uint64_t> BuffersOccupancy;
+  vector<uint64_t> BuffersOccupancy90;
   vector<uint64_t> LastIssueCycleVector;
   vector<double> AverageOverlapsCycles;
   vector<uint64_t> OverlapsCount;

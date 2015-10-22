@@ -595,8 +595,10 @@ OverlapsDerivatives.push_back(1);
   
   
   
-  for (unsigned i = 0; i < nBuffers; i++)
+  for (unsigned i = 0; i < nBuffers; i++){
     BuffersOccupancy.push_back (0);
+	BuffersOccupancy90.push_back (0);
+   }
   
   //Initially, FullOccupancyCyclesTree has one element
   //FullOccupancyCyclesTree.push_back(NULL);
@@ -2056,10 +2058,7 @@ DynamicAnalysis::InsertNextAvailableIssueCycle (uint64_t NextAvailableCycle, uns
 #endif
     // Instead of splay, we need insert_node
     //FullOccupancyCyclesTree[TreeChunk] = splay(NextAvailableCycle+NextCycle/*1*/,  FullOccupancyCyclesTree[TreeChunk]);
-#ifdef DEBUG_GENERIC
-    //   if (FullOccupancyCyclesTree[TreeChunk] == NULL)
-    //    DEBUG(dbgs() << "FullOccupancyCyclesTree[TreeChunk] == NULL\n");
-#endif
+
     /*if (FullOccupancyCyclesTree[TreeChunk] == NULL ||
      (FullOccupancyCyclesTree[TreeChunk] != NULL &&
      !(FullOccupancyCyclesTree[TreeChunk]->key == NextAvailableCycle+NextCycle &&
@@ -3292,9 +3291,7 @@ DynamicAnalysis::CollectSourceCodeLineStatistics (uint64_t ResourceType,
         SourceCodeLineInfoBreakdown[Line]
         [GetPositionSourceCodeLineInfoVector (ResourceType) + 1]++;
       }
-      
-      
-      
+
     }
   }
   
@@ -3921,14 +3918,9 @@ DynamicAnalysis::inOrder (uint64_t i, ComplexTree < uint64_t > *n)
   bool condition = false;
 bool StopChecking = false;
   if (n == NULL){
-//  dbgs () << "n is NULL\n";    
 return;
    }else
- // dbgs () << "n not NULL\n";
- // dbgs () << "checking in n->left is NULL\n";
- // if (n->left == NULL)
-  //dbgs () << "n->left NULL\n";
- // dbgs () << "checked\n";
+ 
     inOrder (i, n->left);
  // dbgs () << "Cycle of inOrder "<< i << "\n";
   for(std::vector<uint64_t>::iterator it = n->IssueCycles.begin(); it != n->IssueCycles.end(); ++it) {
@@ -4026,7 +4018,7 @@ DynamicAnalysis::DispatchToLoadBufferTree (uint64_t Cycle)
 {
   
   DispatchToLoadBufferQueueTreeCyclesToRemove.clear();
-  //  dbgs() << "__________________________________DispatchToLoadBufferTree__________________________________\n";
+
   inOrder (Cycle, DispatchToLoadBufferQueueTree);
  //   dbgs() << "End of ispatchToLoadBufferTree\n";
   //  dbgs() << "****Before removing\n";
@@ -4036,58 +4028,7 @@ for(unsigned int i = 0; i< DispatchToLoadBufferQueueTreeCyclesToRemove.size();i+
 DispatchToLoadBufferQueueTree = delete_node (DispatchToLoadBufferQueueTreeCyclesToRemove[i].first,DispatchToLoadBufferQueueTreeCyclesToRemove[i].second, 
 DispatchToLoadBufferQueueTree);
 }
-  //  dbgs() << "****After removing\n";
-//PrintDispatchToLoadBufferTree();
-  /*
-   DEBUG(dbgs() << "Finish inOrder. Size of PointersToRemoce " <<  PointersToRemove.size ()<< "\n");
-   
-   for (size_t i = 0; i < PointersToRemove.size (); ++i) {
-   
-   DEBUG(dbgs() << "Removing from DispatchToLoadBufferQueueTree the node with key " <<PointersToRemove.at (i)->key<<"\n");
-   DEBUG(dbgs() << "Removing from DispatchToLoadBufferQueueTree the node with issue cycle " <<PointersToRemove.at (i)->IssueCycle<<"\n");
-   //DEBUG(dbgs() << "DispatchToLoadBufferQueueTree-> key  " << DispatchToLoadBufferQueueTree->key <"\n");
-   //DEBUG(dbgs() << "DispatchToLoadBufferQueueTree-> IssueCycle  " <<DispatchToLoadBufferQueueTree-> IssueCycle <"\n");
-   DispatchToLoadBufferQueueTree = splay(PointersToRemove.at (i)->key,DispatchToLoadBufferQueueTree);
-   DispatchToLoadBufferQueueTree = delete_node (PointersToRemove.at (i)->key,DispatchToLoadBufferQueueTree);
-   //DispatchToLoadBufferQueueTree = delete_node (PointersToRemove.at (i)->key, DispatchToLoadBufferQueueTree);
-   
-   }
-   PointersToRemove.clear ();
-   */
-  //DispatchToLoadBufferQueueTree = remove(DispatchToLoadBufferQueueTree,Cycle);
-  
-  
-  
-  
-  //  dbgs()<< "Removing from dispatch\n";
-  // dbgs()<< "Size before "<<node_size(DispatchToLoadBufferQueueTree)<<"\n";
-  /*
-   DispatchToLoadBufferQueueTree->left = NULL;
-   if (DispatchToLoadBufferQueueTree->key == Cycle) {
-   DispatchToLoadBufferQueueTree = delete_node(Cycle, DispatchToLoadBufferQueueTree);
-   }
-   dbgs()<< "Size after "<<node_size(DispatchToLoadBufferQueueTree)<<"\n";
-   */
-  
-  
-  //DispatchToLoadBufferQueueTree =  RemoveFromDispatchAndInsertIntoLoad(Cycle, DispatchToLoadBufferQueueTree);
-  /*
-   vector<InstructionDispatchInfo>::iterator it = DispatchToLoadBufferQueue.begin();
-   for(; it != DispatchToLoadBufferQueue.end();) {
-   if ((*it).IssueCycle == InstructionFetchCycle) {
-   //Erase returns the next valid iterator => insert in LoadBuffer before it is removed
-   if (node_size(LoadBufferCompletionCyclesTree) == 0) {
-   MinLoadBuffer =(*it).CompletionCycle;
-   }else{
-   MinLoadBuffer = min(MinLoadBuffer,(*it).CompletionCycle);
-   }
-   
-   LoadBufferCompletionCyclesTree= insert_node((*it).CompletionCycle , LoadBufferCompletionCyclesTree);
-   it = DispatchToLoadBufferQueue.erase(it);
-   }else
-   ++it;
-   }
-   */
+
 }
 
 
@@ -4264,27 +4205,7 @@ if(CompletedAfterCounter < LoadBufferSize){
         
       }
     }
-    
-    
-    
-    // The idea before was that the lower "BufferSize" elements of the sorted
-    // LB are associated to the dipatch cycles of the elements in the DispatchQueue.
-    // But this sorting is very exepensive.
-    /*
-     if (BufferSize >= (unsigned)LoadBufferSize) {
-     // Iterate from end-LineFillBufferSize
-     uint64_t EarliestCompletion = DispatchToLoadBufferQueue.back().CompletionCycle;
-     for(vector<InstructionDispatchInfo>::iterator it = DispatchToLoadBufferQueue.end()-1;
-     it >= DispatchToLoadBufferQueue.end()-LoadBufferSize; --it){
-     if ((*it).CompletionCycle < EarliestCompletion) {
-     EarliestCompletion =(*it).CompletionCycle;
-     }
-     }
-     return EarliestCompletion;
-     }else{
-     sort(LoadBufferCompletionCycles.begin(), LoadBufferCompletionCycles.end());
-     return LoadBufferCompletionCycles[BufferSize];
-     } */
+  
     return IssueCycle;
     
   }
@@ -4455,418 +4376,6 @@ PrintDispatchToLoadBufferTree();
   }
 }
 
-//------------------------------
-
-
-uint64_t DynamicAnalysis::FindIssueCycleWhenLoadBufferTreeIsFullOld ()
-{
-  
-  
-  
-  // size_t BufferSize = DispatchToLoadBufferQueue.size();
-  size_t
-  BufferSize = node_size (DispatchToLoadBufferQueueTree);
-  
-  if (BufferSize == 0) {
-    
-    if(DispatchToLoadBufferQueueTree != NULL){
- //    dbgs() << "DispatchToLoadBufferQueueTree not null, key "<< DispatchToLoadBufferQueueTree->key<<", size "<<DispatchToLoadBufferQueueTree->size<<"\n";
-      DEBUG(dbgs() << "DispatchToLoadBufferQueueTree not null, key "<< DispatchToLoadBufferQueueTree->key<<", size "<<DispatchToLoadBufferQueueTree->size<<"\n");
-    }else{
-  //   dbgs() <<"DispatchToLoadBufferQueueTree is NULL\n";
-      DEBUG(dbgs() <<"DispatchToLoadBufferQueueTree is NULL\n");
-    }
-    return GetMinCompletionCycleLoadBufferTree ();
-  }
-  else {
-    
-    // Iterate through the DispathToLoadBufferQueue and get the
-    // largest dispatch cycle. The new load cannot be dispatched
-    // untill all previous in Dispatch Queue have been dispatched.
-    // At the same time,
-    uint64_t
-    EarliestDispatchCycle = 0;
-    uint64_t
-    AvailableSlots = 0;
-    /*
-     for(vector<InstructionDispatchInfo>::iterator it = DispatchToLoadBufferQueue.begin();
-     it != DispatchToLoadBufferQueue.end(); ++it){
-     EarliestDispatchCycle = max(EarliestDispatchCycle, (*it).IssueCycle);
-     } */
-    EarliestDispatchCycle = MaxDispatchToLoadBufferQueueTree;
-  //  dbgs () << "EarliestDispatchCycle " << EarliestDispatchCycle << "\n";
-    DEBUG (dbgs () << "EarliestDispatchCycle " << EarliestDispatchCycle << "\n");
-    //Traverse LB and count how many elements are there smaller than EarliestDispathCycle
-    uint64_t
-    SlotsCompleteBeforeDispatch = 0;
-    uint64_t
-    SlotsCompleteAfterDispatch = 0;
-    
-    LoadBufferCompletionCyclesTree = splay (EarliestDispatchCycle, LoadBufferCompletionCyclesTree);
- //   dbgs () << "LoadBufferCompletionCyclesTree->key " << LoadBufferCompletionCyclesTree->key << "\n";
-    DEBUG (dbgs () << "LoadBufferCompletionCyclesTree->key " << LoadBufferCompletionCyclesTree->key << "\n");
-    if (LoadBufferCompletionCyclesTree->left != NULL) {
-      DEBUG (dbgs () << "Left was not null\n");
-  //    dbgs () << "Left was not null\n";
-      SlotsCompleteBeforeDispatch = node_size (LoadBufferCompletionCyclesTree->left);
-      DEBUG (dbgs () << "Left node size " << SlotsCompleteBeforeDispatch << "\n");
-  //    dbgs () << "Left node size " << SlotsCompleteBeforeDispatch << "\n";
-      if (LoadBufferCompletionCyclesTree->key <= EarliestDispatchCycle) {
-        DEBUG (dbgs () << "They key equal to Earliest, so increase counter by 1\n");
-    //    dbgs () << "They key equal to Earliest, so increase counter by 1\n";
-        //SlotsCompleteBeforeDispatch++; // NEW: Increase by duplicate
-   //     dbgs () << "Adding duplicates : "<< LoadBufferCompletionCyclesTree->duplicates<<"\n";
-        SlotsCompleteBeforeDispatch+= LoadBufferCompletionCyclesTree->duplicates;
-     //   dbgs () << "SlotsCompleteBeforeDispatch "<< SlotsCompleteBeforeDispatch<<"\n";
-        if(LoadBufferCompletionCyclesTree-> right != NULL){
-          DEBUG (dbgs () << "Right key "<< (LoadBufferCompletionCyclesTree->right)->key<<"\n");
-       //   dbgs () << "Right key "<< (LoadBufferCompletionCyclesTree->right)->key<<"\n";
-}
-      }
-    }
-    else {
-   //   dbgs () << "Left was null\n";
-      DEBUG (dbgs () << "Left was null\n");
-      if (LoadBufferCompletionCyclesTree->key == EarliestDispatchCycle) {
-        DEBUG (dbgs () << "but they key equal to Earliest, so counter in 1\n");
-     //   dbgs () << "but they key equal to Earliest, so counter in 1\n";
-        //SlotsCompleteBeforeDispatch = 1;
-        // NEW
-        SlotsCompleteBeforeDispatch = LoadBufferCompletionCyclesTree->duplicates ;
-      }
-      else {
-        SlotsCompleteBeforeDispatch = 0;
-      }
-    }
-    
-    
-    AvailableSlots = SlotsCompleteBeforeDispatch;
-    DEBUG (dbgs () << "AvailableSlots " << AvailableSlots << "\n");
-  //   dbgs () << "AvailableSlots " << AvailableSlots << "\n";
-    // Traverse DispatchToLoadBufferQueuteTree and count how many
-    // complete after my EarliestDispatchCycle
-    
-    /*
-     ComplexTree<uint64_t> Node = DispatchToLoadBufferQueueTree;
-     
-     
-     while (true) {
-     // This is the mechanism used in the original algorithm to delete the host
-     // node,  decrementing the last_record attribute of the host node, and
-     // the size attribute of all parents nodes.
-     // Node->size = Node->size-1;
-     if (EarliestDispatchCycle < Node->key) {
-     
-     if (Node->left == NULL)
-     break;
-     if (Node->left->key < EarliestDispatchCycle) {
-     break;
-     }
-     Node = Node->left;
-     }else{
-     if (EarliestDispatchCycle > Node-> key) {
-     if (Node->right == NULL)
-     break;
-     Node = Node->right;
-     }else{ // Last = Node->key, i.e., Node is the host node
-     break;
-     }
-     }
-     }
-     
-     */
-
-// Thsi code assumes that if splay does not find the node, it will return the smallest. But this depends
-// On wether the initial key is larger or smaller than EarliestDispacthCycle. If it is larger 
-// and Earliesta dispacth cycle is not found, returns the minum. If it is smaller and Earliest
-// DispatchCycle not found, returns the next larger. BUT DEPENDS ON THE INITIAL VALUE
-// OF THE KEY
-
-
-    /*	dbgs() << "Key of DispatchToLoadBufferQueueTree before splaying " << DispatchToLoadBufferQueueTree->key << "\n";
-    DispatchToLoadBufferQueueTree = splay (EarliestDispatchCycle, DispatchToLoadBufferQueueTree);
-	dbgs() << "KEY AFTER SPLAYING eARLISIES " << DispatchToLoadBufferQueueTree->key << "\n";
-    if (DispatchToLoadBufferQueueTree->key > EarliestDispatchCycle) {
-      // All complete after
-	dbgs() << "All complete after" << "\n";
-      SlotsCompleteAfterDispatch = node_size (DispatchToLoadBufferQueueTree);
-    }
-    else {
-      if (DispatchToLoadBufferQueueTree->right != NULL) {
-	dbgs() << "DispatchToLoadBufferQueueTree->right != NULL \n";
-        SlotsCompleteAfterDispatch = node_size (DispatchToLoadBufferQueueTree->right);
-      }
-      else {
-        SlotsCompleteAfterDispatch = 1;
-      }
-    }*/		
-		/*
-             for(vector<InstructionDispatchInfo>::iterator it = DispatchToLoadBufferQueue.begin();
-             it != DispatchToLoadBufferQueue.end(); ++it){
-             if ((*it).CompletionCycle > EarliestDispatchCycle) {
-             SlotsCompleteAfterDispatch++;
-             };
-             } */
-//dbgs() << "Key of DispatchToLoadBufferQueueTree before splaying " << DispatchToLoadBufferQueueTree->key << "\n";
-if(DispatchToLoadBufferQueueTree->key > EarliestDispatchCycle){
-
-    DispatchToLoadBufferQueueTree = splay (EarliestDispatchCycle, DispatchToLoadBufferQueueTree);
-//dbgs() << "Key of DispatchToLoadBufferQueueTree after splaying " << DispatchToLoadBufferQueueTree->key << "\n";
-//If initially is larger, and after splaying key > EarliestDispath, and node->left == NULL, then all
- // the elements in the DispatchBuffer complete after EarliestDispatch
-if(DispatchToLoadBufferQueueTree->key > EarliestDispatchCycle){
-if(DispatchToLoadBufferQueueTree->right!=NULL)
- SlotsCompleteAfterDispatch = node_size (DispatchToLoadBufferQueueTree->right)+DispatchToLoadBufferQueueTree->IssueCycles.size();
-else{
- SlotsCompleteAfterDispatch =DispatchToLoadBufferQueueTree->IssueCycles.size();
-}
-/*
- if(DispatchToLoadBufferQueueTree->left==NULL){
-  // All complete after
-	dbgs() << "All complete after" << "\n";
-      SlotsCompleteAfterDispatch = node_size (DispatchToLoadBufferQueueTree);
-}else{
- SlotsCompleteAfterDispatch = node_size (DispatchToLoadBufferQueueTree->right)+DispatchToLoadBufferQueueTree->IssueCycles.size();
-}
-*/
-}else{
-if(DispatchToLoadBufferQueueTree->key < EarliestDispatchCycle){
-// If initially key was larger, but after splaying key is smaller, then it is the 
-// size of the right.
- if (DispatchToLoadBufferQueueTree->right != NULL) {
-	dbgs() << "DispatchToLoadBufferQueueTree->right != NULL \n";
-        SlotsCompleteAfterDispatch = node_size (DispatchToLoadBufferQueueTree->right);//+DispatchToLoadBufferQueueTree->right->IssueCycles.size();
-        }
-}else{
-if(DispatchToLoadBufferQueueTree->right == NULL)
-report_fatal_error("node->right cannot be NULL if before splaying was larger than earliest, and after splaying the  key is equal to earliest");
-else
-        SlotsCompleteAfterDispatch = node_size (DispatchToLoadBufferQueueTree->right)+DispatchToLoadBufferQueueTree->IssueCycles.size();
-}
-}
-}else{
-if(DispatchToLoadBufferQueueTree->key < EarliestDispatchCycle){
-    DispatchToLoadBufferQueueTree = splay (EarliestDispatchCycle, DispatchToLoadBufferQueueTree);
-if(DispatchToLoadBufferQueueTree->key < EarliestDispatchCycle){
-if(DispatchToLoadBufferQueueTree->right!=NULL){
-        SlotsCompleteAfterDispatch = node_size (DispatchToLoadBufferQueueTree->right);
-}else{
-// All are smaller, so do nothing
-}
-}else{
-if(DispatchToLoadBufferQueueTree->key > EarliestDispatchCycle){
-if(DispatchToLoadBufferQueueTree->right!=NULL){
-SlotsCompleteAfterDispatch = DispatchToLoadBufferQueueTree->IssueCycles.size()+node_size (DispatchToLoadBufferQueueTree->right);
-}else{
-SlotsCompleteAfterDispatch = DispatchToLoadBufferQueueTree->IssueCycles.size();
-}
-if(DispatchToLoadBufferQueueTree->left==NULL){
-report_fatal_error("node->left cannot be NULL if the key was smaller and after splaying the key is larger");
-}
-
-}else{// If after splaying is the same
-if(DispatchToLoadBufferQueueTree->right!=NULL){
-SlotsCompleteAfterDispatch = DispatchToLoadBufferQueueTree->IssueCycles.size()+node_size (DispatchToLoadBufferQueueTree->right);
-}else{
-SlotsCompleteAfterDispatch = DispatchToLoadBufferQueueTree->IssueCycles.size();
-}
-
-}
-}
-
-}else{ // DispatchToLoadBufferQueueTree->key == EarliestDispathCycle. We don't have to splay
-if(DispatchToLoadBufferQueueTree->right != NULL){
-//TODO: Does size include Issue Cycles size??
-        SlotsCompleteAfterDispatch = DispatchToLoadBufferQueueTree->IssueCycles.size()+node_size (DispatchToLoadBufferQueueTree->right);//+DispatchToLoadBufferQueueTree->right->IssueCycles.size();
-}else{
-        SlotsCompleteAfterDispatch = DispatchToLoadBufferQueueTree->IssueCycles.size();
-}
-
-}
-}
-
-
-    DEBUG (dbgs () << "SlotsCompleteAfterDispatch " << SlotsCompleteAfterDispatch << "\n");
- //   dbgs () << "SlotsCompleteAfterDispatch " << SlotsCompleteAfterDispatch << "\n";
-if(SlotsCompleteAfterDispatch > AvailableSlots)
-AvailableSlots =0;
-else    
-AvailableSlots -= SlotsCompleteAfterDispatch;
-
-    DEBUG (dbgs () << "AvailableSlots " << AvailableSlots << "\n");
-  //  dbgs () << "AvailableSlots " << AvailableSlots << "\n";
-    //Compute how many complete before dispatch from the DispatchQueue
-    
-    /*
-     for(vector<uint64_t>::iterator it = LoadBufferCompletionCycles.begin();
-     it != LoadBufferCompletionCycles.end(); ++it){
-     if ((*it) <= EarliestDispatchCycle)
-     counter++;
-     }
-     */
-    uint64_t
-    IssueCycle = 0;
-    // This means that in LB, there are more loads that terminate before or in
-    // my dispatch cycle -> IssueCycle is Earliest
-    if (AvailableSlots > 0) {
-      
-      IssueCycle = EarliestDispatchCycle;
-
-    }
-    else {
-      // if (counter == BufferSize) 
-      DEBUG (dbgs () << "Counter is <= to BufferSize\n");
- //   dbgs () << "Counter is <= to BufferSize\n";
-      // Iterate thtough both, DispatchBufferQueue and LB to determine the smallest
-      // completion cycle which is larger than EarliestDispatchCycle.
-      // Initialize with the Completion cycle of the last element of the
-      // DispatchToLoadBufferQueue
-      //DispatchToLoadBufferQueueTree = splay(EarliestDispatchCycle+1, DispatchToLoadBufferQueueTree);
-      
-      DEBUG (dbgs () << "Find  in DispatchToLoadBufferQueueTree the largest than or equal to " << EarliestDispatchCycle +
-             1 << "\n");
-   //  dbgs () << "Find  in DispatchToLoadBufferQueueTree the largest than or equal to " << EarliestDispatchCycle +
-  //           1 << "\n";
-      ComplexTree < uint64_t > *Node = DispatchToLoadBufferQueueTree;
-     // dbgs() << "Buffer before searching\n";
-//PrintDispatchToLoadBufferTree();
-      while (true) {
-        // This is the mechanism used in the original algorithm to delete the host
-        // node,  decrementing the last_record attribute of the host node, and
-        // the size attribute of all parents nodes.
-        // Node->size = Node->size-1;
-        if (EarliestDispatchCycle + 1 < Node->key) {
-          
-          if (Node->left == NULL)
-            break;
-          if (Node->left->key < EarliestDispatchCycle + 1) {
-            break;
-          }
-          Node = Node->left;
-        }
-        else {
-          if (EarliestDispatchCycle + 1 > Node->key) {
-            if (Node->right == NULL)
-              break;
-            Node = Node->right;
-          }
-          else {		// Last = Node->key, i.e., Node is the host node
-            break;
-          }
-        }
-      }
-      
-      IssueCycle = Node->key;
-      DEBUG (dbgs () << "IssueCycle " << IssueCycle << "\n");
-    //  dbgs () << "IssueCycle " << IssueCycle << "\n";
-  //dbgs() << "Buffer after searching\n";
-PrintDispatchToLoadBufferTree();
-      /*
-       IssueCycle = DispatchToLoadBufferQueue.back().CompletionCycle;
-       for(vector<InstructionDispatchInfo>::iterator it = DispatchToLoadBufferQueue.begin();
-       it != DispatchToLoadBufferQueue.end(); ++it){
-       if ((*it).CompletionCycle > EarliestDispatchCycle)
-       IssueCycle = min(IssueCycle,(*it).CompletionCycle);
-       }
-       */
-      // We have to also iterate over the completion cycles of the LB even
-      // if there are more elements in the DispatchQueue than the size
-      // of the LB. Because it can happen than all the elements of the
-      // DispatchQueue are complemente even before than an element in the
-      // LB which is waiting very long for a resource.
-      // We could, nevertheless, simplify it. We can keep the max and
-      // the min completion cycle always. If the max completion cycle
-      // is smaller than the EarliestDispatchCycle, then it is not necessary
-      // to iterate over the LB.
-      // The root has EraliestDispatchCycle+1 if found, or the smallest otherwise.
-      
-      /*LoadBufferCompletionCyclesTree = splay(IssueCycle, LoadBufferCompletionCyclesTree);
-       if (LoadBufferCompletionCyclesTree->key < IssueCycle && LoadBufferCompletionCyclesTree->key > EarliestDispatchCycle) { */
-      
-      //Get the closest larger than or equal to EarliestaDispatchCycle
-      DEBUG (dbgs () << "The same with LB\n");
-    // dbgs () << "The same with LB\n";
-      
-      SimpleTree < uint64_t > *TmpNode = LoadBufferCompletionCyclesTree;
-      
-      while (true) {
-        // This is the mechanism used in the original algorithm to delete the host
-        // node,  decrementing the last_record attribute of the host node, and
-        // the size attribute of all parents nodes.
-        // Node->size = Node->size-1;
-        if (EarliestDispatchCycle + 1 < TmpNode->key) {
-          
-          if (TmpNode->left == NULL)
-            break;
-          if (TmpNode->left->key < EarliestDispatchCycle + 1) {
-            break;
-          }
-          TmpNode = TmpNode->left;
-        }
-        else {
-          if (EarliestDispatchCycle + 1 > TmpNode->key) {
-            if (TmpNode->right == NULL)
-              break;
-            TmpNode = TmpNode->right;
-          }
-          else {		// Last = Node->key, i.e., Node is the host node
-            break;
-          }
-        }
-      }
-      
-      /*
-       for(vector<uint64_t>::iterator it = LoadBufferCompletionCycles.begin();
-       it != LoadBufferCompletionCycles.end(); ++it){
-       if ((*it) > EarliestDispatchCycle+1)
-       IssueCycle = min(IssueCycle,*it);
-       }
-       */
-      //dbgs() << "TmpNode->key " << TmpNode->key << "\n";
-      //dbgs() << "EarliestDispatchCycle + 1 " << EarliestDispatchCycle + 1<< "\n";
-      // NEW
-      if (TmpNode->key >= EarliestDispatchCycle + 1) {
-        IssueCycle = min (TmpNode->key, IssueCycle);
-        
-      }
-      DEBUG (dbgs () << "IssueCycle " << IssueCycle << "\n");
-    //  dbgs () << "IssueCycle " << IssueCycle << "\n";
-      //}
-      /*}else{
-       dbgs() << "Counter " << counter << "\n";
-       dbgs() << "BufferSize " << BufferSize << "\n";
-       report_fatal_error("Error in Dispatch to Load Buffer Queue");
-       
-       } */
-    }
-    
-    
-    
-    // The idea before was that the lower "BufferSize" elements of the sorted
-    // LB are associated to the dipatch cycles of the elements in the DispatchQueue.
-    // But this sorting is very exepensive.
-    /*
-     if (BufferSize >= (unsigned)LoadBufferSize) {
-     // Iterate from end-LineFillBufferSize
-     uint64_t EarliestCompletion = DispatchToLoadBufferQueue.back().CompletionCycle;
-     for(vector<InstructionDispatchInfo>::iterator it = DispatchToLoadBufferQueue.end()-1;
-     it >= DispatchToLoadBufferQueue.end()-LoadBufferSize; --it){
-     if ((*it).CompletionCycle < EarliestCompletion) {
-     EarliestCompletion =(*it).CompletionCycle;
-     }
-     }
-     return EarliestCompletion;
-     }else{
-     sort(LoadBufferCompletionCycles.begin(), LoadBufferCompletionCycles.end());
-     return LoadBufferCompletionCycles[BufferSize];
-     } */
-//dbgs() << "Returning Issue Cycle " << IssueCycle << "\n";
-
-    return IssueCycle;
-    
-  }
-  
-}
 
 
 
@@ -4948,7 +4457,7 @@ DynamicAnalysis::PrintLoadBufferTreeRecursive (SimpleTree < uint64_t > *p)
     if (p->right)
       PrintLoadBufferTreeRecursive (p->right);
     for(unsigned i = 0; i< p->duplicates;i++)
-//dbgs () << " " << p->key;
+
       DEBUG (dbgs () << " " << p->key);
   }
   else
@@ -4967,13 +4476,13 @@ DynamicAnalysis::PrintDispatchToLoadBufferTreeRecursive (ComplexTree < uint64_t 
     if (key) {
       for(std::vector<uint64_t>::iterator it = p->IssueCycles.begin(); it != p->IssueCycles.end(); ++it) {
         DEBUG (dbgs () << " " << p->key);
-//dbgs () << " " << p->key;
+
       }
     }
     else{
       for(std::vector<uint64_t>::iterator it = p->IssueCycles.begin(); it != p->IssueCycles.end(); ++it) {
         DEBUG (dbgs () << " " << *it);
-       // dbgs () << " " << *it;
+
       }
     }
   }
@@ -4987,18 +4496,12 @@ DynamicAnalysis::PrintDispatchToLoadBufferTreeRecursive (ComplexTree < uint64_t 
 void
 DynamicAnalysis::PrintLoadBufferTree ()
 {
-/*
-  dbgs () << "Load Buffer Tree:\n";
-  PrintLoadBufferTreeRecursive (LoadBufferCompletionCyclesTree);
-  dbgs () << "\n";
-  dbgs () << "Size of Load Buffer Tree: "<< node_size(LoadBufferCompletionCyclesTree)<<"\n";
-  //   printPostOrder(LoadBufferCompletionCyclesTree);
-  */
+
   DEBUG (dbgs () << "Load Buffer Tree:\n");
   PrintLoadBufferTreeRecursive (LoadBufferCompletionCyclesTree);
   DEBUG (dbgs () << "\n");
   DEBUG (dbgs () << "Size of Load Buffer Tree: "<< node_size(LoadBufferCompletionCyclesTree)<<"\n");
-  //   printPostOrder(LoadBufferCompletionCyclesTree);
+
 
 }
 
