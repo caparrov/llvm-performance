@@ -248,6 +248,10 @@ SmallBuffers = false;
   DispatchToLoadBufferQueueTree = NULL;
 }
 */
+
+   LoadBufferCompletionCyclesTree = NULL;
+  DispatchToLoadBufferQueueTree = NULL;
+
   MinLoadBuffer = 0;
   MaxDispatchToLoadBufferQueueTree = 0;
   
@@ -466,7 +470,8 @@ SmallBuffers = false;
         if (this->ExecutionUnitsThroughput[i] != INF) {
           if (this->ExecutionUnitsThroughput[i] < AccessWidth) {
             // if (this->ExecutionUnitsThroughput[i] < this->MemoryWordSize){
-            if (this->ExecutionUnitsThroughput[i] < 1) {
+          //HERE  if (this->ExecutionUnitsThroughput[i] < 1) {
+  if (this->ExecutionUnitsThroughput[i] > 0 && this->ExecutionUnitsThroughput[i] < 1 ) {
               float Inverse = ceil (1 / this->ExecutionUnitsThroughput[i]);
               float Rounded = roundNextPowerOfTwo (Inverse);
               
@@ -526,6 +531,11 @@ SmallBuffers = false;
     AccessWidths.push_back (AccessWidth);
     IssueCycleGranularities.push_back (IssueCycleGranularity);
     DEBUG (dbgs () << "IssueCycleGranularities[" << i << "]=" << IssueCycleGranularities[i] << "\n");
+  if(this->ExecutionUnitsLatency[i] < unsigned (ceil(AccessWidth /(this->ExecutionUnitsThroughput[i] *
+                       this->ExecutionUnitsParallelIssue[i])))){
+this->ExecutionUnitsLatency[i] = unsigned (ceil(AccessWidth /(this->ExecutionUnitsThroughput[i] *this->ExecutionUnitsParallelIssue[i])));
+    report_fatal_error ("Latency cannot be smaller than issue cycle granularity");
+}
   }
   
   
@@ -597,9 +607,9 @@ OverlapsDerivatives.push_back(1);
   
   for (unsigned i = 0; i < nBuffers; i++){
     BuffersOccupancy.push_back (0);
-	BuffersOccupancy90.push_back (0);
    }
   
+	BuffersOccupancyThreshold = 1.0;
   //Initially, FullOccupancyCyclesTree has one element
   //FullOccupancyCyclesTree.push_back(NULL);
   
@@ -1270,12 +1280,22 @@ DynamicAnalysis::FindNextAvailableIssueCyclePortAndThroughtput (unsigned Instruc
                                                                 unsigned ExtendedInstructionType, unsigned NElementsVector)
 {
   
+
+
+
   unsigned ExecutionResource = ExecutionUnit[ExtendedInstructionType];
   unsigned InstructionIssueCycleThroughputAvailable = InstructionIssueCycle;
   uint64_t InstructionIssueCycleFirstTimeAvailable = 0;
   uint64_t InstructionIssueCyclePortAvailable = InstructionIssueCycle;
   uint64_t Port = 0;
   
+if(ExecutionUnitsThroughput[ExecutionResource]==0){
+dbgs() << "Throughput zero for resource " << GetResourceName(ExecutionResource) << "\n";
+report_fatal_error("Throughput value not valid for resource issuing instructions");
+}
+
+
+
   bool FoundInThroughput = false;
   bool FoundInPort;
   if (ConstraintPorts) {
@@ -1545,6 +1565,13 @@ DynamicAnalysis::FindNextAvailableIssueCycleUntilNotInFullOrEnoughBandwidth (uns
                                                                              bool & EnoughBandwidth)
 {
   
+
+if(ExecutionUnitsThroughput[ExecutionResource]==0){
+dbgs() << "Throughput zero for resource " << GetResourceName(ExecutionResource) << "\n";
+report_fatal_error("Throughput value not valid for resource issuing instructions");
+}
+
+
   
   unsigned NextAvailableCycle = NextCycle;
   unsigned OriginalCycle;
@@ -1650,6 +1677,12 @@ DynamicAnalysis::FindNextAvailableIssueCycle (unsigned OriginalCycle, unsigned E
                                               bool TargetLevel)
 {
   
+
+if(ExecutionUnitsThroughput[ExecutionResource]==0){
+dbgs() << "Throughput zero for resource " << GetResourceName(ExecutionResource) << "\n";
+report_fatal_error("Throughput value not valid for resource issuing instructions");
+}
+
   uint64_t NextAvailableCycle = OriginalCycle;
   
   
@@ -2567,6 +2600,7 @@ uint64_t DynamicAnalysis::GetMinCompletionCycleLoadBuffer ()
 
 uint64_t DynamicAnalysis::GetMinCompletionCycleLoadBufferTree ()
 {
+
 
   return MinLoadBuffer; 
   //return min(LoadBufferCompletionCyclesTree);
@@ -3800,7 +3834,7 @@ PrintDispatchToLoadBufferTree();
         if (Cycle >= MinLoadBuffer && LoadBufferCompletionCyclesTree != NULL) {
 
           MinLoadBuffer = min (LoadBufferCompletionCyclesTree);
-
+		        DEBUG(dbgs() << "Removing element from Load Buffer Tree. Updating MinLoadBuffer to "<<MinLoadBuffer<<"\n");
           // MinLoadBuffer = LoadBufferCompletionCyclesTree->key;
         }
 	if(LoadBufferCompletionCyclesTree==NULL)
@@ -3935,16 +3969,17 @@ return;
   if(condition==true){
 
     //if (n->IssueCycle <= i && n->IssueCycle != 0)
-    if (node_size (LoadBufferCompletionCyclesTree) == 0) {
+    /*if (node_size (LoadBufferCompletionCyclesTree) == 0) {
 
       MinLoadBuffer = n->key;
-
+		        DEBUG(dbgs() << "inOrder. Updating MinLoadBuffer to "<<MinLoadBuffer<<"\n");
     }
     else {
       MinLoadBuffer = min (MinLoadBuffer, n->key);
+		        DEBUG(dbgs() << "inOrder. Updating MinLoadBuffer to "<<MinLoadBuffer<<"\n");
 
     }
-   
+   */
 
    // dbgs () << "Iterating thought issue cycles\n";
    // dbgs () << "Size of issue cycles "<<  n->IssueCycles.size()<<"\n";
@@ -3958,17 +3993,33 @@ return;
     //  dbgs () << "Issue cycle "<< *it<<"\n";
      // if(*it == i)
             if (*it <= i && *it != 0) {
+		// Insert only if completion cycle is not smaller than i
+if(n->key > i){
         //  DEBUG (dbgs () << "Inserting into LB node with issue cycle " << n->IssueCycle << " and key " << n->key << "\n");
+if (node_size (LoadBufferCompletionCyclesTree) == 0) {
+
+      MinLoadBuffer = n->key;
+		        DEBUG(dbgs() << "inOrder. Updating MinLoadBuffer to "<<MinLoadBuffer<<"\n");
+    }
+    else {
+      MinLoadBuffer = min (MinLoadBuffer, n->key);
+		        DEBUG(dbgs() << "inOrder. Updating MinLoadBuffer to "<<MinLoadBuffer<<"\n");
+
+    }
+
         LoadBufferCompletionCyclesTree = insert_node (n->key, LoadBufferCompletionCyclesTree);
         //Bofore: n->IssueCycle instead of i
-        DEBUG (dbgs () << "Removing from dispatch\n");
+        DEBUG (dbgs () << "Inserting into LoadBufferCompletionCYclesTree\n");
      //   dbgs () << "Removing from dispatch\n";
 
+
+
+}
 	   if(n->IssueCycles.size()==1){
 		StopChecking = true;
 }
-//dbgs() << "Storing into DispatchToLoadBufferQueueTreeCyclesToRemove pair " << n->key << ", " << i<< "\n";
-DispatchToLoadBufferQueueTreeCyclesToRemove.push_back(std::make_pair(n->key,i));
+DEBUG(dbgs() << "Storing into DispatchToLoadBufferQueueTreeCyclesToRemove pair " << n->key << ", " << i<< "\n");
+DispatchToLoadBufferQueueTreeCyclesToRemove.push_back(std::make_pair(n->key,*it));
       //  DispatchToLoadBufferQueueTree = delete_node (n->key,i, DispatchToLoadBufferQueueTree);
         //dbgs() << "Removing from dispatch\n";
              // dbgs () << "Checking StopChecking\n";
@@ -4024,9 +4075,13 @@ DynamicAnalysis::DispatchToLoadBufferTree (uint64_t Cycle)
   //  dbgs() << "****Before removing\n";
 //PrintDispatchToLoadBufferTree();
 for(unsigned int i = 0; i< DispatchToLoadBufferQueueTreeCyclesToRemove.size();i++){
-//dbgs() << "Removing  pair " << DispatchToLoadBufferQueueTreeCyclesToRemove[i].first << ", " << DispatchToLoadBufferQueueTreeCyclesToRemove[i].second<< "\n";
+#ifdef DEBUG_OOO_BUFFERS
+DEBUG(dbgs() << "Removing  pair " << DispatchToLoadBufferQueueTreeCyclesToRemove[i].first << ", " << DispatchToLoadBufferQueueTreeCyclesToRemove[i].second<< "\n");
+#endif
+
 DispatchToLoadBufferQueueTree = delete_node (DispatchToLoadBufferQueueTreeCyclesToRemove[i].first,DispatchToLoadBufferQueueTreeCyclesToRemove[i].second, 
 DispatchToLoadBufferQueueTree);
+
 }
 
 }
@@ -4216,7 +4271,7 @@ if(CompletedAfterCounter < LoadBufferSize){
 uint64_t DynamicAnalysis::FindIssueCycleWhenLoadBufferTreeIsFull ()
 {
   
-  
+      DEBUG (dbgs () << "Finding issue cycle when load buffer tree is full\n");
   
   // size_t BufferSize = DispatchToLoadBufferQueue.size();
   size_t
@@ -5217,6 +5272,8 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
         }
         
       }
+
+
       
       
       //================= Update Fetch Cycle, remove insts from buffers =========//
@@ -5265,6 +5322,9 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
           
         }
       }
+
+
+
       
       //==================== Handle special cases ===============================//
       switch (OpCode) {
@@ -5502,13 +5562,15 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
             //Calculate issue cycle depending on buffer Occupancy.
             if (LoadBufferSize > 0) {
               
-
+            DEBUG(dbgs () << "Checking buffers\n");
 bool BufferFull=false;
 if(SmallBuffers){
 if (LoadBufferCompletionCycles.size() == LoadBufferSize)
 BufferFull = true;
 }else{
+            DEBUG(dbgs () << "checking node size\n");
 if (node_size (LoadBufferCompletionCyclesTree) == LoadBufferSize)
+            DEBUG(dbgs () << "Sstting nde size to full\n");
 BufferFull = true;
 }
 
@@ -5530,6 +5592,7 @@ else
                 }
               }
               else {		// If the Load Buffer is not fulll...
+            DEBUG(dbgs () << "Buffer not full\n");
                 if (ExtendedInstructionType >= L2_LOAD_NODE && LineFillBufferSize > 0) {	// If it has to go to the LFS...
                   
                   if (LineFillBufferCompletionCycles.size () == LineFillBufferSize || !DispatchToLineFillBufferQueue.empty ()) {
@@ -5548,6 +5611,8 @@ else
             }
             
 #endif
+
+            DEBUG(dbgs () << "Get address issue cycle\n");
             // If there is Load buffer, the instruction can be dispatched as soon as
             // the buffer is available. Otherwise, both the AGU and the execution resource
             // must be available
@@ -5556,7 +5621,7 @@ else
             // New for memory model
             if (x86MemoryModel)
               InstructionIssueMemoryModel = LastLoadIssueCycle;
-            
+                        DEBUG(dbgs () << "Get  issue cycle\n");
             InstructionIssueCycle =
             max (max
                  (max
@@ -6402,6 +6467,7 @@ if(SmallBuffers)
                  CycleInsertReservationStation = FindIssueCycleWhenLoadBufferIsFull();
 else
               CycleInsertReservationStation = FindIssueCycleWhenLoadBufferTreeIsFull ();
+
 if(InstructionIssueLoadBufferAvailable != CycleInsertReservationStation)
 report_fatal_error("InstructionIssueLoadBufferAvailable != CycleInsertReservationStation");
      //  CycleInsertReservationStation =  InstructionIssueLoadBufferAvailable;
@@ -6427,7 +6493,9 @@ if(SmallBuffers){
               }
               
 #ifdef DEBUG_OOO_BUFFERS
-              DEBUG (dbgs () << "Inserting  " << NewInstructionIssueCycle + Latency << " to DispatchToLoadBufferQueue, whith dispatch cycle "<<CycleInsertReservationStation <<"\n");
+              DEBUG (dbgs () << "MaxDispatchToLoadBufferQueueTree  " << MaxDispatchToLoadBufferQueueTree <<"\n");
+              DEBUG (dbgs () << "CycleInsertReservationStation  " << CycleInsertReservationStation <<"\n");
+              DEBUG (dbgs () << "Inserting  " << NewInstructionIssueCycle + Latency << " to DispatchToLoadBufferQueue, whith dispatch cycle "<<MaxDispatchToLoadBufferQueueTree <<"\n");
   // dbgs () << "Inserting  " << NewInstructionIssueCycle + Latency << " to DispatchToLoadBufferQueue, whith dispatch cycle "<<CycleInsertReservationStation <<"\n";
 
 #endif
@@ -6436,7 +6504,7 @@ if(SmallBuffers){
 //PrintDispatchToLoadBufferTree();
 
               DispatchToLoadBufferQueueTree =
-              insert_node (NewInstructionIssueCycle + Latency, CycleInsertReservationStation, DispatchToLoadBufferQueueTree);
+              insert_node (NewInstructionIssueCycle + Latency, MaxDispatchToLoadBufferQueueTree, DispatchToLoadBufferQueueTree);
 //	PrintLoadBufferTree();
 //PrintDispatchToLoadBufferTree();
 
@@ -6542,10 +6610,11 @@ else{
 #endif
                 if (node_size (LoadBufferCompletionCyclesTree) == 0) {
                   MinLoadBuffer = NewInstructionIssueCycle + Latency;
-
+					        DEBUG(dbgs() << "Inserting node. Updating MinLoadBuffer to "<<MinLoadBuffer<<"\n");
                 }
                 else {
                   MinLoadBuffer = min (MinLoadBuffer, NewInstructionIssueCycle + Latency);
+					        DEBUG(dbgs() << "Inserting node. Updating MinLoadBuffer to "<<MinLoadBuffer<<"\n");
 
                 }
                 LoadBufferCompletionCyclesTree =
