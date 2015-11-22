@@ -2345,8 +2345,8 @@ void Interpreter::run() {
   bool TargetFunctionExecuted = false;
   
   //================== Code inserted into the interpreter ================
-  clock_t tStart, tEnd, tStartPostProcessing, tEndPostProcessing;
-  float Cycles, ExecutionTime, CyclesPostProcessing, ExecutionTimePostProcessing;
+  clock_t tStart, tEnd, tStartPostProcessing, tEndPostProcessing, tStartCacheWarmed, tEndCacheWarmed ;
+  float Cycles, ExecutionTime, CyclesPostProcessing, ExecutionTimePostProcessing, ExecutionTimeActualSimulation;
   
 
   Analyzer = new DynamicAnalysis(TargetFunction, Microarchitecture, MemoryWordSize, CacheLineSize, L1CacheSize, L2CacheSize, LLCCacheSize, ExecutionUnitsLatency, ExecutionUnitsThroughput, ExecutionUnitsParallelIssue, MemAccessGranularity, AddressGenerationUnits, IFB, ReservationStation, ReorderBuffer, LoadBuffer, StoreBuffer, LineFillBuffer, WarmCache, x86MemoryModel, SpatialPrefetcher, ConstraintPorts, BlockPorts, ConstraintAGUs, 0, InOrderExecution,ReportOnlyPerformance,PrefetchLevel, PrefetchDispatch, PrefetchTarget);
@@ -2437,6 +2437,13 @@ void Interpreter::run() {
           ExecutionTime = Cycles / CLOCKS_PER_SEC;
           if (!(WarmCache && Analyzer->rep == 0)) {
 
+tEndCacheWarmed = clock();
+//CyclesActualSimulation=(tEndCacheWarmed - tStartCacheWarmed);
+ // ExecutionTimeActualSimulation = CyclesActualSimulation / ((float)CLOCKS_PER_SEC);
+ExecutionTimeActualSimulation = ((double) (tEndCacheWarmed - tStartCacheWarmed)) / CLOCKS_PER_SEC;
+            dbgs() << "Execution time actual simulation " << ExecutionTimeActualSimulation << " s\n";
+
+
              tStartPostProcessing = clock();
             Analyzer->finishAnalysis();
             tEndPostProcessing = clock();
@@ -2461,7 +2468,7 @@ void Interpreter::run() {
 
            
           }else{
-
+tStartCacheWarmed = clock();
       TargetFunctionExecuted= true;
 	 Analyzer->rep = 1;
       //Reset all variaables ot initial values

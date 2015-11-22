@@ -44,15 +44,15 @@
 #define NORMAL_REUSE_DISTRIBUTION
 
 
-#define DEBUG_SOURCE_CODE_LINE_ANALYSIS
-#define DEBUG_MEMORY_TRACES
-#define DEBUG_REUSE_DISTANCE
-#define DEBUG_GENERIC
+//#define DEBUG_SOURCE_CODE_LINE_ANALYSIS
+//#define DEBUG_MEMORY_TRACES
+//#define DEBUG_REUSE_DISTANCE
+//#define DEBUG_GENERIC
 //#define DEBUG_DEPS_FUNCTION_CALL
 //#define DEBUG_SPAN_CALCULATION
 //#define DEBUG_AGU
-#define DEBUG_OOO_BUFFERS
-#define DEBUG_ISSUE_CYCLE
+//#define DEBUG_OOO_BUFFERS
+//#define DEBUG_ISSUE_CYCLE
 //#define DEBUG_PHI_NODE
 //#define DEBUG_FUNCTION_CALL_STACK
 //#define DEBUG_PREFETCHER
@@ -351,7 +351,7 @@ using namespace ComplexSplayTree;
 // Each element of the vector contains the elements of the tree in a corresponding
 // rage.
 static const int SplitTreeRange = 131072;
-
+//static const int SplitTreeRange = 32768;
 
 struct CacheLineInfo{
   uint64_t IssueCycle;
@@ -434,7 +434,7 @@ private:
   vector< TBV> act_vec;
   
 public:
-  bool get_node(uint64_t, unsigned);
+  bool get_node_ACT(uint64_t, unsigned);
   void push_back(ACTNode*, unsigned);
   void DebugACT();
   size_t size();
@@ -531,7 +531,7 @@ public:
   vector<uint64_t> LineFillBufferCompletionCycles;
   vector<InstructionDispatchInfo> DispatchToLoadBufferQueue;
   ComplexTree<uint64_t> *DispatchToLoadBufferQueueTree;
-vector<pair<uint64_t,uint64_t>> DispatchToLoadBufferQueueTreeCyclesToRemove;
+vector<pair<uint64_t,uint64_t> > DispatchToLoadBufferQueueTreeCyclesToRemove;
 
 	
 	bool SmallBuffers;

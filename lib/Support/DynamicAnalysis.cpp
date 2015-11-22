@@ -3818,10 +3818,11 @@ DynamicAnalysis::RemoveFromLoadBuffer (uint64_t Cycle)
 void
 DynamicAnalysis::RemoveFromLoadBufferTree (uint64_t Cycle)
 {
-  PrintLoadBufferTree();
-  PrintDispatchToLoadBufferTree();
+ 
   
 #ifdef DEBUG_OOO_BUFFERS
+ //PrintLoadBufferTree();
+  //PrintDispatchToLoadBufferTree();
   //  dbgs() << "Removing element with Cycle "<< Cycle <<" from LoadBufferTree\n";
   DEBUG(dbgs() << "Removing element with Cycle "<< Cycle <<" from LoadBufferTree\n");
   DEBUG(dbgs() << "Size before removing "<< node_size(LoadBufferCompletionCyclesTree) <<"\n");
@@ -3838,7 +3839,7 @@ DynamicAnalysis::RemoveFromLoadBufferTree (uint64_t Cycle)
   while (LoadBufferCompletionCyclesTree!=NULL && (CycleFound == true || Cycle >= MinLoadBuffer)) {
     
     
-    if (LoadBufferCompletionCyclesTree != NULL) {
+  //  if (LoadBufferCompletionCyclesTree != NULL) {
       
       LoadBufferCompletionCyclesTree = splay (Cycle, LoadBufferCompletionCyclesTree);
       
@@ -3876,10 +3877,10 @@ DynamicAnalysis::RemoveFromLoadBufferTree (uint64_t Cycle)
       }
       
       
-    }
-    else {
+  //  }
+  //  else {
       CycleFound = false;
-    }
+  //  }
     
   }
   
@@ -8268,7 +8269,7 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
   DynamicAnalysis::IsEmptyLevelFinal (unsigned ExecutionResource, uint64_t Level)
   {
     if (ExecutionResource <= nExecutionUnits) {
-      if (ACTFinal.get_node (Level, ExecutionResource)) {
+      if (ACTFinal.get_node_ACT (Level, ExecutionResource)) {
         return false;
       }
     }
@@ -8788,7 +8789,7 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
   }
   
   bool
-  ACT::get_node (uint64_t key, unsigned BitPosition)
+  ACT::get_node_ACT (uint64_t key, unsigned BitPosition)
   {
     uint64_t TreeChunk = key / SplitTreeRange;
     if (TreeChunk >= act_vec.size ()) {

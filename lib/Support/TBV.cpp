@@ -53,6 +53,8 @@ bool TBV::get_node(uint64_t key, unsigned bitPosition)
 {
     if (empty()) return false;
     key = key % SplitTreeRange;
+//key = key & (SplitTreeRange-1);
+	//key = key - SplitTreeRange;
     return (tbv_map[key].BitVector[bitPosition] == 1);
 }
 
