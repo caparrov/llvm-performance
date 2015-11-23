@@ -10,7 +10,7 @@
 #define LLVM_SUPPORT_DYNAMIC_ANALYSIS_H
 
 //#define INTERPRETER
-
+#define EFF_TBV
 
 #include "../../../lib/ExecutionEngine/Interpreter/Interpreter.h"
 #include "llvm/IR/Instructions.h"
@@ -47,7 +47,7 @@
 //#define DEBUG_SOURCE_CODE_LINE_ANALYSIS
 //#define DEBUG_MEMORY_TRACES
 //#define DEBUG_REUSE_DISTANCE
-//#define DEBUG_GENERIC
+#define DEBUG_GENERIC
 //#define DEBUG_DEPS_FUNCTION_CALL
 //#define DEBUG_SPAN_CALCULATION
 //#define DEBUG_AGU
@@ -350,7 +350,7 @@ using namespace ComplexSplayTree;
 // For FullOccupancyCyles, the vector has a different meaning that for AvailableCycles.
 // Each element of the vector contains the elements of the tree in a corresponding
 // rage.
-static const int SplitTreeRange = 131072;
+static const int SplitTreeRange = 1024;
 //static const int SplitTreeRange = 32768;
 
 struct CacheLineInfo{
@@ -389,9 +389,13 @@ struct StructMemberLessThanOrEqualThanValuePred
 class TBV {
   class TBV_node {
   public:
-    TBV_node():BitVector(MAX_RESOURCE_VALUE) {
-      
+#ifdef EFF_TBV
+    TBV_node():BitVector(SplitTreeRange) {
     }
+#else
+TBV_node():BitVector(MAX_RESOURCE_VALUE) {
+    }
+#endif
   //  vector<bool> BitVector;
   dynamic_bitset<> BitVector; // from boost
 #ifdef SOURCE_CODE_ANALYSIS
@@ -410,6 +414,8 @@ public:
   TBV();
   void insert_source_code_line(uint64_t key, unsigned SourceCodeLine, unsigned Resource);
 vector<pair<unsigned,unsigned> >  get_source_code_lines(uint64_t key);
+bool get_size();
+void resize();
   bool get_node(uint64_t key, unsigned bitPosition);
   bool get_node_nb(uint64_t key, unsigned bitPosition);
   void insert_node(uint64_t key, unsigned bitPosition);
@@ -633,8 +639,9 @@ bool VectorCode;
   
   vector< Tree<uint64_t> * > AvailableCyclesTree;
   
-  vector< TBV> FullOccupancyCyclesTree;
-  
+
+ 
+ vector< TBV> FullOccupancyCyclesTree;
   
   vector <Tree<uint64_t> * > StallCycles;
   vector <uint64_t> NInstructionsStalled;
@@ -750,8 +757,11 @@ unsigned GetOneToAllOverlapCyclesFinal(vector < int >&ResourcesVector);
   
   
   uint64_t GetLastIssueCycle(unsigned ExecutionResource, bool WithPrefetch = false);
-  
+#ifdef EFF_TBV
+  uint64_t GetTreeChunk (uint64_t i, unsigned int ExecutionResource);
+#else
   uint64_t GetTreeChunk(uint64_t i);
+#endif
   
   vector<unsigned> IssuePorts;
 

@@ -14,16 +14,35 @@ TBV::TBV()
     e = true;
 }
 
+
+
 bool TBV::empty()
 {
     return e;
 }
 
+
+bool  TBV::get_size(){
+return tbv_map.size();
+}
+
+void TBV::resize(){
+ //tbv_map.resize(new_size);
+tbv_map.push_back(TBV_node());
+}
+
+
+
 void TBV::insert_node(uint64_t key, unsigned bitPosition)
 {
+#ifdef EFF_TVB
+ e = false;
+ tbv_map[key].BitVector[bitPosition] = 1;
+#else
     key = key % SplitTreeRange;
     e = false;
     tbv_map[key].BitVector[bitPosition] = 1;
+#endif
 }
 
 
@@ -51,11 +70,16 @@ void TBV::delete_node(uint64_t key, unsigned bitPosition)
 
 bool TBV::get_node(uint64_t key, unsigned bitPosition)
 {
-    if (empty()) return false;
+  if (empty()) return false;
+#ifdef EFF_TBV
+ return (tbv_map[key].BitVector[bitPosition] == 1);
+#else
+  
     key = key % SplitTreeRange;
 //key = key & (SplitTreeRange-1);
 	//key = key - SplitTreeRange;
     return (tbv_map[key].BitVector[bitPosition] == 1);
+#endif
 }
 
 bool TBV::get_node_nb(uint64_t key, unsigned bitPosition)
