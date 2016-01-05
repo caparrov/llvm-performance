@@ -157,7 +157,7 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
     
     emptyVector.clear ();
     emptyVector.push_back (PORT_2);
-    emptyVector.push_back (PORT_3);
+   // emptyVector.push_back (PORT_3);
     DispatchPort[L1_LOAD_NODE] = emptyVector;
     DispatchPort[L2_LOAD_NODE] = emptyVector;
     DispatchPort[L3_LOAD_NODE] = emptyVector;
@@ -257,7 +257,7 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
   BitsPerCacheLine = log2 (this->CacheLineSize * (this->MemoryWordSize));
   
   
-  // In reality is if L2, but need to specify the size for the reuse disrance
+  // In reality is if L2, but need to specify the size for the reuse distance
   switch (PrefetchLevel) {
     case 1:
       this->PrefetchLevel = 0;
@@ -321,7 +321,7 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
       ExecutionUnitsParallelIssue.push_back (-1);
     }
   }
-  
+  /*
   for (unsigned i = 0; i < nArithmeticNodes + nMovNodes + nMemNodes; i++) {	// Dispatch ports are associated to nodes
     if (ExecutionUnitsParallelIssue[ExecutionUnit[i]] > 0
         && DispatchPort[i].size () < (unsigned) ExecutionUnitsParallelIssue[ExecutionUnit[i]]) {
@@ -331,6 +331,7 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
       report_fatal_error ("There are more execution units that ports that can dispatch them\n");
     }
   }
+	*/
   if (!MemAccessGranularity.empty ()
       && MemAccessGranularity.size () != nMemExecutionUnits)
     report_fatal_error ("Mem access granularities do not match the number of memory execution units");
@@ -421,7 +422,7 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
   for (unsigned i = 0; i < nPorts; i++) {
     this->ExecutionUnitsLatency.push_back (1);	//Default value for latency
     if (ConstraintPorts) {
-      this->ExecutionUnitsThroughput.push_back (1);	// Infinite throughput
+      this->ExecutionUnitsThroughput.push_back (1);	
       this->ExecutionUnitsParallelIssue.push_back (1);
     }
     else {
@@ -430,7 +431,17 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
     }
     AccessGranularities.push_back (1);
   }
-  
+
+  	// New:  The parallel issue of each port is equal to the maximum of the parallel issue 
+	// of the nodes dispatched on that port. So, for each port, we have to find which
+	// nodes are dispatched there, and get the maximum parallel issue.
+     for (unsigned i = 0; i < nArithmeticNodes + nMovNodes + nMemNodes; i++){
+		for (unsigned j = 0; j< DispatchPort[i].size(); j++){
+
+			if( this->ExecutionUnitsParallelIssue[i] >  this->ExecutionUnitsParallelIssue[DispatchPort[i][j]])
+				 this->ExecutionUnitsParallelIssue[DispatchPort[i][j]] = this->ExecutionUnitsParallelIssue[i];
+		}     
+	}
   
   // We need AccessWidth and Throughput for every resource for which we calculte
   // span, including ports
@@ -500,25 +511,26 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
         AccessWidth = 1;
       }
     }
-    
+
     if (this->ExecutionUnitsThroughput[i] > 0) {
+	  	        
       if (i < nArithmeticExecutionUnits + nMovExecutionUnits) {
-        
-        DEBUG (dbgs () << "AccessWidth " << AccessWidth << "\n");
-        DEBUG (dbgs () << "ExecutionUnitsThroughput[i] " << this->ExecutionUnitsThroughput[i] << "\n");
-        DEBUG (dbgs () << "IssueCycleGranularity " << int (ceil (AccessWidth / (this->ExecutionUnitsThroughput[i]))) <<
-               "\n");
+      //  DEBUG (dbgs () << "AccessWidth " << AccessWidth << "\n");
+    	 //  DEBUG (dbgs () << "ExecutionUnitsParallelIssue " << this->ExecutionUnitsParallelIssue[i] << "\n");        	
+      //  DEBUG (dbgs () << "ExecutionUnitsThroughput " << this->ExecutionUnitsThroughput[i] << "\n");
+      //  DEBUG (dbgs () << "IssueCycleGranularity " << int (ceil (AccessWidth / (this->ExecutionUnitsThroughput[i]))) <<
+       //        "\n");
         IssueCycleGranularity = int (ceil (AccessWidth / (this->ExecutionUnitsThroughput[i])));
       }
       else {
         // If we allow parallel issue to be shared
-        DEBUG (dbgs () << "AccessWidth " << AccessWidth << "\n");
-        DEBUG (dbgs () << "ExecutionUnitsThroughput[i] " << this->ExecutionUnitsThroughput[i] << "\n");
+       /* DEBUG (dbgs () << "AccessWidth " << AccessWidth << "\n");
+        DEBUG (dbgs () << "ExecutionUnitsThroughput " << this->ExecutionUnitsThroughput[i] << "\n");
         DEBUG (dbgs () << "IssueCycleGranularity " <<
                int (ceil (AccessWidth / (this->ExecutionUnitsThroughput[i] * max(this->ExecutionUnitsParallelIssue[i],1)))) <<
                "\n");
         
-
+*/
         IssueCycleGranularity =
         int (ceil (AccessWidth / (this->ExecutionUnitsThroughput[i] * max(this->ExecutionUnitsParallelIssue[i],1))));
         
@@ -529,7 +541,11 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
     
     AccessWidths.push_back (AccessWidth);
     IssueCycleGranularities.push_back (IssueCycleGranularity);
-    DEBUG (dbgs () << "IssueCycleGranularities[" << i << "]=" << IssueCycleGranularities[i] << "\n");
+	     DEBUG (dbgs () << "______________ " << GetResourceName(i) << " __________\n");
+    DEBUG (dbgs () << "AccessWidth " << AccessWidth << "\n");
+    DEBUG (dbgs () << "ExecutionUnitsParallelIssue " << this->ExecutionUnitsParallelIssue[i] << "\n");        	
+    DEBUG (dbgs () << "ExecutionUnitsThroughput " << this->ExecutionUnitsThroughput[i] << "\n");        
+    DEBUG (dbgs () << "IssueCycleGranularitiy " << IssueCycleGranularities[i] << "\n");
     /*if((this->ExecutionUnitsThroughput[i] * this->ExecutionUnitsParallelIssue[i]) > 0 && 
        this->ExecutionUnitsLatency[i] < unsigned (ceil(AccessWidth /(this->ExecutionUnitsThroughput[i] *
                                                                      this->ExecutionUnitsParallelIssue[i])))){
@@ -537,7 +553,7 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
 	if(this->ExecutionUnitsLatency[i] != 0 && this->ExecutionUnitsLatency[i] < IssueCycleGranularity ){
 	 dbgs() << "Resource " << GetResourceName(i) << "\n";
       dbgs() << "Latency " << this->ExecutionUnitsLatency[i] << "\n";
-	 dbgs() << "IssueCycleGranularities" << IssueCycleGranularity << "\n";
+	 dbgs() << "IssueCycleGranularity " << IssueCycleGranularity << "\n";
       report_fatal_error ("Latency cannot be smaller than issue cycle granularity");
     }
   }
@@ -1347,7 +1363,8 @@ DynamicAnalysis::FindNextAvailableIssueCyclePortAndThroughtput (unsigned Instruc
     InstructionIssueCycleThroughputAvailable =
     FindNextAvailableIssueCycle (InstructionIssueCyclePortAvailable, ExecutionResource, NElementsVector);
         DEBUG (dbgs () << "Throughput available in cycle " << InstructionIssueCycleThroughputAvailable << "\n");
-    if (InstructionIssueCycleThroughputAvailable == InstructionIssueCyclePortAvailable)
+	   DEBUG(dbgs() << "InstructionIssueCyclePortAvailable " << InstructionIssueCyclePortAvailable << "\n");
+    if (InstructionIssueCycleThroughputAvailable >=``` InstructionIssueCyclePortAvailable)
       FoundInThroughput = true;
     
 
