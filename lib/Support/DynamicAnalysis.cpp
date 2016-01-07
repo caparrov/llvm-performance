@@ -1364,7 +1364,7 @@ DynamicAnalysis::FindNextAvailableIssueCyclePortAndThroughtput (unsigned Instruc
     FindNextAvailableIssueCycle (InstructionIssueCyclePortAvailable, ExecutionResource, NElementsVector);
         DEBUG (dbgs () << "Throughput available in cycle " << InstructionIssueCycleThroughputAvailable << "\n");
 	   DEBUG(dbgs() << "InstructionIssueCyclePortAvailable " << InstructionIssueCyclePortAvailable << "\n");
-    if (InstructionIssueCycleThroughputAvailable >=``` InstructionIssueCyclePortAvailable)
+    if (InstructionIssueCycleThroughputAvailable >= InstructionIssueCyclePortAvailable)
       FoundInThroughput = true;
     
 
@@ -6349,6 +6349,7 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
         default:
           if (InstructionType == 0 || forceAnalyze == true) {
             OriginalInstructionIssueCycle = getInstructionValueIssueCycle (&I);
+	       dbgs() << "Original Instruction issue cycle " << OriginalInstructionIssueCycle << "\n";
             InstructionIssueCycle = max (max (InstructionFetchCycle, BasicBlockBarrier), OriginalInstructionIssueCycle);
             
             ExtendedInstructionType = GetExtendedInstructionType (OpCode);
@@ -6370,6 +6371,7 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
 #ifdef DEBUG_GENERIC
             DEBUG (dbgs () << "*********** Checking availability in Resource *******************\n");
 #endif
+		  dbgs() << "Starting issue cycle " << InstructionIssueCycle << "\n";
             InstructionIssueThroughputAvailable =
             FindNextAvailableIssueCyclePortAndThroughtput (InstructionIssueCycle, ExtendedInstructionType, NElementsVector);
             
