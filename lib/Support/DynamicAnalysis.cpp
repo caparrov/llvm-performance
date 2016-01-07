@@ -527,12 +527,16 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
        /* DEBUG (dbgs () << "AccessWidth " << AccessWidth << "\n");
         DEBUG (dbgs () << "ExecutionUnitsThroughput " << this->ExecutionUnitsThroughput[i] << "\n");
         DEBUG (dbgs () << "IssueCycleGranularity " <<
-               int (ceil (AccessWidth / (this->ExecutionUnitsThroughput[i] * max(this->ExecutionUnitsParallelIssue[i],1)))) <<
+               int (ceil (AccessWidth / (this->ExecutionUnitsThroughput[i] * this->ExecutionUnitsParallelIssue[i]))) <<
                "\n");
         
+<<<<<<< HEAD
 */
+=======
+        DEBUG (dbgs () << "Product " << this->ExecutionUnitsThroughput[i] * this->ExecutionUnitsParallelIssue[i] << "\n");
+>>>>>>> parent of 4fef524... [MODIFIED] DynamicAnalysis to fix an error when ParallelIssue in INF
         IssueCycleGranularity =
-        int (ceil (AccessWidth / (this->ExecutionUnitsThroughput[i] * max(this->ExecutionUnitsParallelIssue[i],1))));
+        int (ceil (AccessWidth / (this->ExecutionUnitsThroughput[i] * this->ExecutionUnitsParallelIssue[i])));
         
       }
     }
@@ -541,6 +545,7 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
     
     AccessWidths.push_back (AccessWidth);
     IssueCycleGranularities.push_back (IssueCycleGranularity);
+<<<<<<< HEAD
 	     DEBUG (dbgs () << "______________ " << GetResourceName(i) << " __________\n");
     DEBUG (dbgs () << "AccessWidth " << AccessWidth << "\n");
     DEBUG (dbgs () << "ExecutionUnitsParallelIssue " << this->ExecutionUnitsParallelIssue[i] << "\n");        	
@@ -554,6 +559,12 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
 	 dbgs() << "Resource " << GetResourceName(i) << "\n";
       dbgs() << "Latency " << this->ExecutionUnitsLatency[i] << "\n";
 	 dbgs() << "IssueCycleGranularity " << IssueCycleGranularity << "\n";
+=======
+    DEBUG (dbgs () << "IssueCycleGranularities[" << i << "]=" << IssueCycleGranularities[i] << "\n");
+    if(this->ExecutionUnitsLatency[i] < unsigned (ceil(AccessWidth /(this->ExecutionUnitsThroughput[i] *
+                                                                     this->ExecutionUnitsParallelIssue[i])))){
+      this->ExecutionUnitsLatency[i] = unsigned (ceil(AccessWidth /(this->ExecutionUnitsThroughput[i] *this->ExecutionUnitsParallelIssue[i])));
+>>>>>>> parent of 4fef524... [MODIFIED] DynamicAnalysis to fix an error when ParallelIssue in INF
       report_fatal_error ("Latency cannot be smaller than issue cycle granularity");
     }
   }
@@ -634,7 +645,7 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
   //FullOccupancyCyclesTree.push_back(NULL);
 #ifdef EFF_TBV
 for (int i = 0; i< MAX_RESOURCE_VALUE; i++)
- FullOccupancyCyclesTree.push_back(TBV_node());
+ FullOccupancyCyclesTree.push_back(TBV());
 
 #endif 
   
@@ -1285,17 +1296,26 @@ DynamicAnalysis::insertMemoryAddressIssueCycle (uint64_t v, uint64_t Cycle)
 
 #ifdef EFF_TBV
 
-void DynamicAnalysis::GetTreeChunk (uint64_t i, unsigned int ExecutionResource)
+uint64_t DynamicAnalysis::GetTreeChunk (uint64_t i, unsigned int ExecutionResource)
 {
   
-unsigned int size = FullOccupancyCyclesTree[ExecutionResource].BitVector.size();
- if(i >= size){
-     FullOccupancyCyclesTree[ExecutionResource].BitVector.resize(i+ SplitTreeRange);
-}
+  uint64_t TreeChunk = i / SplitTreeRange;
+
+  if (TreeChunk >= FullOccupancyCyclesTree[ExecutionResource].get_size()) {
+   // FullOccupancyCyclesTree[ExecutionResource].resize (TreeChunk + 1);
+for (unsigned j = FullOccupancyCyclesTree[ExecutionResource].get_size(); j<= TreeChunk; j++) {
 
 
+   FullOccupancyCyclesTree[ExecutionResource].resize();
+   }
 
-
+  }
+  /*if (TreeChunk >= FullOccupancyCyclesTree.size()) {
+   for (unsigned j = FullOccupancyCyclesTree.size(); j<= TreeChunk; j++) {
+   FullOccupancyCyclesTree.push_back(NULL);
+   }
+   } */
+  return TreeChunk;
 }
 
 
@@ -1362,9 +1382,14 @@ DynamicAnalysis::FindNextAvailableIssueCyclePortAndThroughtput (unsigned Instruc
     // First, find next available issue cycle based on node throughput
     InstructionIssueCycleThroughputAvailable =
     FindNextAvailableIssueCycle (InstructionIssueCyclePortAvailable, ExecutionResource, NElementsVector);
+<<<<<<< HEAD
         DEBUG (dbgs () << "Throughput available in cycle " << InstructionIssueCycleThroughputAvailable << "\n");
 	   DEBUG(dbgs() << "InstructionIssueCyclePortAvailable " << InstructionIssueCyclePortAvailable << "\n");
     if (InstructionIssueCycleThroughputAvailable >= InstructionIssueCyclePortAvailable)
+=======
+    
+    if (InstructionIssueCycleThroughputAvailable == InstructionIssueCyclePortAvailable)
+>>>>>>> parent of 4fef524... [MODIFIED] DynamicAnalysis to fix an error when ParallelIssue in INF
       FoundInThroughput = true;
     
 
@@ -1382,7 +1407,6 @@ DynamicAnalysis::FindNextAvailableIssueCyclePortAndThroughtput (unsigned Instruc
           FindNextAvailableIssueCycle (InstructionIssueCycleThroughputAvailable, DispatchPort[ExtendedInstructionType][i]);
 #ifdef DEBUG_GENERIC
           DEBUG (dbgs () << "Port available in cycle " << InstructionIssueCyclePortAvailable << "\n");
-
 #endif
           if (InstructionIssueCyclePortAvailable != InstructionIssueCycleThroughputAvailable) {
             if (i == 0 || IssuePorts.size () != 0)	// TODO: FIX this!!!!!!
@@ -1403,7 +1427,7 @@ DynamicAnalysis::FindNextAvailableIssueCyclePortAndThroughtput (unsigned Instruc
             // If Node is NULL, it is available for sure.
 #ifdef DEBUG_GENERIC
 
-            DEBUG (dbgs () << "Node is NULL, so port is " << GetResourceName(DispatchPort[ExtendedInstructionType][i]) << "\n");
+            DEBUG (dbgs () << "Node is NULL, so port is " << DispatchPort[ExtendedInstructionType][i] << "\n");
 #endif
             FoundInPort = true;
             Port = i;
@@ -1431,47 +1455,23 @@ DynamicAnalysis::ThereIsAvailableBandwidth (unsigned NextAvailableCycle, unsigne
                                             bool TargetLevel)
 {
   
-#ifndef EFF_TBV
- unsigned  TmpTreeChunk = 0;
-#endif
   bool EnoughBandwidth;
  // float AvailableBandwidth;
   unsigned AccessWidth;
   unsigned IssueCycleGranularity = 0;
-
+  unsigned TmpTreeChunk;
   unsigned LevelOccupancy;
   Tree < uint64_t > *Node;
   if (TargetLevel == true && FoundInFullOccupancyCyclesTree == false) {
     AccessWidth = AccessWidths[ExecutionResource];
    // AvailableBandwidth = ExecutionUnitsThroughput[ExecutionResource];
-    if (this->ExecutionUnitsThroughput[ExecutionResource]< 0 && this->ExecutionUnitsParallelIssue[ExecutionResource] < 0){
-      IssueCycleGranularity = IssueCycleGranularities[ExecutionResource];
-    }else{
-   if (this->ExecutionUnitsThroughput[ExecutionResource]< 0){
-      IssueCycleGranularity =
-    max (IssueCycleGranularities[ExecutionResource],
-         unsigned (ceil
-                   (AccessWidth * NElementsVector /
-                    (this->ExecutionUnitsParallelIssue[ExecutionResource]))));
-}else{    
-   if (this->ExecutionUnitsParallelIssue[ExecutionResource] < 0){
- IssueCycleGranularity =
-    max (IssueCycleGranularities[ExecutionResource],
-         unsigned (ceil
-                   (AccessWidth * NElementsVector /
-                    (this->ExecutionUnitsThroughput[ExecutionResource] 
-                     ))));
-}else{
     IssueCycleGranularity =
     max (IssueCycleGranularities[ExecutionResource],
          unsigned (ceil
                    (AccessWidth * NElementsVector /
                     (this->ExecutionUnitsThroughput[ExecutionResource] *
-                     max(1,this->ExecutionUnitsParallelIssue[ExecutionResource])))));
-}    
-}
-}
-
+                     this->ExecutionUnitsParallelIssue[ExecutionResource]))));
+    
 #ifdef DEBUG_GENERIC
     DEBUG (dbgs () << "Making sure there is also enough bandwidth in cycle " << NextAvailableCycle << "\n");
     DEBUG (dbgs () << "AccessWidth " << AccessWidth << "\n");
@@ -1483,7 +1483,7 @@ DynamicAnalysis::ThereIsAvailableBandwidth (unsigned NextAvailableCycle, unsigne
            unsigned (ceil
                      (AccessWidth * NElementsVector /
                       (this->ExecutionUnitsThroughput[ExecutionResource] *
-                       max(1,this->ExecutionUnitsParallelIssue[ExecutionResource])))) << "\n");
+                       this->ExecutionUnitsParallelIssue[ExecutionResource]))) << "\n");
 #endif
     // Assume initially that there is enough bandwidth
     EnoughBandwidth = true;
@@ -1497,7 +1497,7 @@ DynamicAnalysis::ThereIsAvailableBandwidth (unsigned NextAvailableCycle, unsigne
         LevelOccupancy = Node->widthOccupancy;
         
         if (LevelOccupancy > 0 && ExecutionUnitsThroughput[ExecutionResource] >= 1) {
-          if (ExecutionUnitsThroughput[ExecutionResource] * max(1,ExecutionUnitsParallelIssue[ExecutionResource]) -
+          if (ExecutionUnitsThroughput[ExecutionResource] * ExecutionUnitsParallelIssue[ExecutionResource] -
               Node->widthOccupancy < AccessWidth * NElementsVector)
             EnoughBandwidth = false;
           
@@ -1505,7 +1505,7 @@ DynamicAnalysis::ThereIsAvailableBandwidth (unsigned NextAvailableCycle, unsigne
           DEBUG (dbgs () << "Level Occupacy " << LevelOccupancy << "\n");
           DEBUG (dbgs () << "AccessWidth " << AccessWidth * NElementsVector << "\n");
           DEBUG (dbgs () << "Total Available width " << ExecutionUnitsThroughput[ExecutionResource] *
-                 max(1,ExecutionUnitsParallelIssue[ExecutionResource]) - Node->widthOccupancy << "\n");
+                 ExecutionUnitsParallelIssue[ExecutionResource] - Node->widthOccupancy << "\n");
           DEBUG (dbgs () << "EnoughBW = false\n");
           
 #endif
@@ -1540,19 +1540,17 @@ DynamicAnalysis::ThereIsAvailableBandwidth (unsigned NextAvailableCycle, unsigne
       for (uint64_t i = StartingCycle; i < NextAvailableCycle; i++) {
  
 #ifdef EFF_TBV
- GetTreeChunk(i,ExecutionResource);
+TmpTreeChunk = GetTreeChunk (i,ExecutionResource);
 #else
-      TmpTreeChunk = GetTreeChunk (i);
+        TmpTreeChunk = GetTreeChunk (i);
 #endif        
         //FullOccupancyCyclesTree[TmpTreeChunk] = splay(i,  FullOccupancyCyclesTree[TmpTreeChunk]);
         
         /*if ( FullOccupancyCyclesTree[TmpTreeChunk] != NULL &&
          FullOccupancyCyclesTree[TmpTreeChunk]->key == i      &&
          FullOccupancyCyclesTree[TmpTreeChunk]->BitVector[ExecutionResource]==1) { */
-
-// If corresponding cycle, for the corresponding resource, is full
 #ifdef EFF_TBV
-    if (FullOccupancyCyclesTree[ExecutionResource].get_node(i)) {
+    if (FullOccupancyCyclesTree[ExecutionResource].get_node (TmpTreeChunk, i%SplitTreeRange)) {
 #else    
     if (FullOccupancyCyclesTree[TmpTreeChunk].get_node (i, ExecutionResource)) {
 #endif          
@@ -1596,7 +1594,7 @@ DynamicAnalysis::ThereIsAvailableBandwidth (unsigned NextAvailableCycle, unsigne
 #endif
 
 #ifdef EFF_TBV
-      GetTreeChunk (i, ExecutionResource);
+      TmpTreeChunk = GetTreeChunk (i, ExecutionResource);
 #else
         TmpTreeChunk = GetTreeChunk (i);
 #endif        
@@ -1606,8 +1604,7 @@ DynamicAnalysis::ThereIsAvailableBandwidth (unsigned NextAvailableCycle, unsigne
          FullOccupancyCyclesTree[TmpTreeChunk]->key == i      &&
          FullOccupancyCyclesTree[TmpTreeChunk]->BitVector[ExecutionResource]==1) { */
 #ifdef EFF_TBV
-if(FullOccupancyCyclesTree[ExecutionResource].get_node(i)){
- // if (FullOccupancyCyclesTree[ExecutionResource].get_node (TmpTreeChunk, i%SplitTreeRange)) {
+  if (FullOccupancyCyclesTree[ExecutionResource].get_node (TmpTreeChunk, i%SplitTreeRange)) {
 #else      
   if (FullOccupancyCyclesTree[TmpTreeChunk].get_node (i, ExecutionResource)) {
 #endif
@@ -1775,13 +1772,12 @@ DynamicAnalysis::FindNextAvailableIssueCycle (unsigned OriginalCycle, unsigned E
   
   bool FoundInFullOccupancyCyclesTree = true;
   bool EnoughBandwidth = false;
-  unsigned TreeChunk = 0;
   // Get the node, if any, corresponding to this issue cycle.
 
 #ifdef EFF_TBV
-       GetTreeChunk (NextAvailableCycle, ExecutionResource);
+        unsigned TreeChunk = GetTreeChunk (NextAvailableCycle, ExecutionResource);
 #else
-          TreeChunk = GetTreeChunk (NextAvailableCycle);
+          unsigned TreeChunk = GetTreeChunk (NextAvailableCycle);
 #endif  
 
 
@@ -1804,8 +1800,7 @@ DynamicAnalysis::FindNextAvailableIssueCycle (unsigned OriginalCycle, unsigned E
     // Check if it is in full, but first make sure full is not NULL (it could happen it is NULL after
     // changing the NextAvailableCycle).
 #ifdef EFF_TBV
-if(FullOccupancyCyclesTree[ExecutionResource].get_node(NextAvailableCycle)){
-//    if (FullOccupancyCyclesTree[ExecutionResource].get_node (TreeChunk, NextAvailableCycle%SplitTreeRange)) {
+    if (FullOccupancyCyclesTree[ExecutionResource].get_node (TreeChunk, NextAvailableCycle%SplitTreeRange)) {
 #else
     if (FullOccupancyCyclesTree[TreeChunk].get_node (NextAvailableCycle, ExecutionResource)) {
 #endif
@@ -1861,7 +1856,7 @@ if(FullOccupancyCyclesTree[ExecutionResource].get_node(NextAvailableCycle)){
             
             // NextAvailableCycle has changed, possibly moving to a different chunk
 #ifdef EFF_TBV
-        GetTreeChunk (NextAvailableCycle, ExecutionResource);
+         TreeChunk = GetTreeChunk (NextAvailableCycle, ExecutionResource);
 #else
            TreeChunk = GetTreeChunk (NextAvailableCycle);
 #endif  
@@ -1880,8 +1875,7 @@ if(FullOccupancyCyclesTree[ExecutionResource].get_node(NextAvailableCycle)){
           //FullOccupancyCyclesTree[TreeChunk] = splay(NextAvailableCycle, FullOccupancyCyclesTree[TreeChunk]);
           //Check if it is in full
 #ifdef EFF_TBV
-if(FullOccupancyCyclesTree[ExecutionResource].get_node(NextAvailableCycle)){
- //  if (FullOccupancyCyclesTree[ExecutionResource].get_node (TreeChunk, NextAvailableCycle % SplitTreeRange)) {
+   if (FullOccupancyCyclesTree[ExecutionResource].get_node (TreeChunk, NextAvailableCycle % SplitTreeRange)) {
 #else   
           if (FullOccupancyCyclesTree[TreeChunk].get_node (NextAvailableCycle, ExecutionResource)) {
 #endif
@@ -1891,7 +1885,7 @@ if(FullOccupancyCyclesTree[ExecutionResource].get_node(NextAvailableCycle)){
             // Try next cycle
             NextAvailableCycle++;
 #ifdef EFF_TBV
-        GetTreeChunk (NextAvailableCycle, ExecutionResource);
+         TreeChunk = GetTreeChunk (NextAvailableCycle, ExecutionResource);
 #else
            TreeChunk = GetTreeChunk (NextAvailableCycle);
 #endif  
@@ -1953,7 +1947,7 @@ DynamicAnalysis::InsertNextAvailableIssueCycle (uint64_t NextAvailableCycle, uns
   bool LevelGotFull = false;
   
 #ifdef EFF_TBV
-        GetTreeChunk (NextAvailableCycle, ExecutionResource);
+        unsigned TreeChunk = GetTreeChunk (NextAvailableCycle, ExecutionResource);
 #else
           unsigned TreeChunk = GetTreeChunk (NextAvailableCycle);
 #endif  
@@ -2195,7 +2189,7 @@ DynamicAnalysis::InsertNextAvailableIssueCycle (uint64_t NextAvailableCycle, uns
                               unsigned (ceil
                                         (AccessWidth * NElementsVector /
                                          (this->ExecutionUnitsThroughput[ExecutionResource] *
-                                          max(1,this->ExecutionUnitsParallelIssue[ExecutionResource])))));
+                                          this->ExecutionUnitsParallelIssue[ExecutionResource]))));
 #ifdef DEBUG_GENERIC
     DEBUG (dbgs () << "AccessWidth " << AccessWidth << "\n");
     DEBUG (dbgs () << "Next Cycle " << NextCycle << "\n");
@@ -2210,8 +2204,7 @@ DynamicAnalysis::InsertNextAvailableIssueCycle (uint64_t NextAvailableCycle, uns
 #endif
     
 #ifdef EFF_TBV
- FullOccupancyCyclesTree[ExecutionResource].insert_node ( NextAvailableCycle);
-// FullOccupancyCyclesTree[ExecutionResource].insert_node (TreeChunk, NextAvailableCycle%SplitTreeRange);
+ FullOccupancyCyclesTree[ExecutionResource].insert_node (TreeChunk, NextAvailableCycle%SplitTreeRange);
 #else
     FullOccupancyCyclesTree[TreeChunk].insert_node (NextAvailableCycle, ExecutionResource);
 #endif
@@ -2239,7 +2232,7 @@ DynamicAnalysis::InsertNextAvailableIssueCycle (uint64_t NextAvailableCycle, uns
 #endif
     
 #ifdef EFF_TBV
-    GetTreeChunk (NextAvailableCycle + NextCycle, ExecutionResource);
+    TreeChunk = GetTreeChunk (NextAvailableCycle + NextCycle, ExecutionResource);
 #else
     TreeChunk = GetTreeChunk (NextAvailableCycle + NextCycle);
 #endif  
@@ -2248,7 +2241,7 @@ DynamicAnalysis::InsertNextAvailableIssueCycle (uint64_t NextAvailableCycle, uns
     
 #ifdef DEBUG_GENERIC
     DEBUG (dbgs () << "FullOccupancyCyclesTree.size() " << FullOccupancyCyclesTree.size () << "\n");
-
+    DEBUG (dbgs () << "TreeChunk " << TreeChunk << "\n");
 #endif
     // Instead of splay, we need insert_node
     //FullOccupancyCyclesTree[TreeChunk] = splay(NextAvailableCycle+NextCycle/*1*/,  FullOccupancyCyclesTree[TreeChunk]);
@@ -2258,8 +2251,7 @@ DynamicAnalysis::InsertNextAvailableIssueCycle (uint64_t NextAvailableCycle, uns
      !(FullOccupancyCyclesTree[TreeChunk]->key == NextAvailableCycle+NextCycle &&
      FullOccupancyCyclesTree[TreeChunk]->BitVector[ExecutionResource] == 1) )) { */
 #ifdef EFF_TBV
-//if (	 !FullOccupancyCyclesTree[ExecutionResource].get_node(TreeChunk, (NextAvailableCycle + NextCycle)%SplitTreeRange)) {
-if (	 !FullOccupancyCyclesTree[ExecutionResource].get_node((NextAvailableCycle + NextCycle))) {
+if (	 !FullOccupancyCyclesTree[ExecutionResource].get_node(TreeChunk, (NextAvailableCycle + NextCycle)%SplitTreeRange)) {
 #else
     if (			//FullOccupancyCyclesTree[TreeChunk].empty() || // get_node also checks for empty
         !FullOccupancyCyclesTree[TreeChunk].get_node ((NextAvailableCycle + NextCycle), ExecutionResource)) {
@@ -2851,11 +2843,10 @@ DynamicAnalysis::IsEmptyLevel (unsigned ExecutionResource, uint64_t Level, bool 
    IsInFullOccupancyCyclesTree = true;
    }
    } */
-
-#ifdef EFF_TBV
-  IsInFullOccupancyCyclesTree = FullOccupancyCyclesTree[ExecutionResource].get_node (Level);
-#else
   int TreeChunk = Level / SplitTreeRange;
+#ifdef EFF_TBV
+  IsInFullOccupancyCyclesTree = FullOccupancyCyclesTree[ExecutionResource].get_node (TreeChunk, Level % SplitTreeRange);
+#else
   IsInFullOccupancyCyclesTree = FullOccupancyCyclesTree[TreeChunk].get_node (Level, ExecutionResource);
   #endif
   if (IsInFullOccupancyCyclesTree == false && IsInAvailableCyclesTree == false) {
@@ -3324,21 +3315,12 @@ DynamicAnalysis::GetLastIssueCycle (unsigned ExecutionResource, bool WithPrefetc
     AvailableCyclesTree[ExecutionResource] = splay (LastCycle, AvailableCyclesTree[ExecutionResource]);
     NodeAvailable = AvailableCyclesTree[ExecutionResource];
     
-
+    int TreeChunk = LastCycle / SplitTreeRange;
     //FullOccupancyCyclesTree[TreeChunk] = splay(LastCycle,FullOccupancyCyclesTree[TreeChunk]);
     //NodeFull = FullOccupancyCyclesTree[TreeChunk];
     if (isPrefetchType) {
-#ifdef EFF_TBV
- if ((NodeAvailable != NULL && NodeAvailable->key == LastCycle && NodeAvailable->occupancyPrefetch == 0)
-          || (FullOccupancyCyclesTree[ExecutionResource].get_node_nb (LastCycle))) {
-
-#else
-    int TreeChunk = LastCycle / SplitTreeRange;
-  if ((NodeAvailable != NULL && NodeAvailable->key == LastCycle && NodeAvailable->occupancyPrefetch == 0)
+      if ((NodeAvailable != NULL && NodeAvailable->key == LastCycle && NodeAvailable->occupancyPrefetch == 0)
           || (FullOccupancyCyclesTree[TreeChunk].get_node_nb (LastCycle, ExecutionResource))) {
-
-#endif
-    
         //( NodeFull != NULL && NodeFull->key== LastCycle && NodeFull->BitVector[ExecutionResource]==0 ) ) {
 #ifdef DEBUG_GENERIC
         DEBUG (dbgs () << "Reducing last cycle " << LastCycle << " by issuegranularity\n");
@@ -3377,7 +3359,7 @@ DynamicAnalysis::CollectSourceCodeLineStatistics (uint64_t ResourceType,
   typedef unordered_map < uint64_t, set < uint64_t > >::iterator it_type;
 
 #ifdef EFF_TBV
-  GetTreeChunk (Cycle, ResourceType);
+  unsigned TreeChunk = GetTreeChunk (Cycle, ResourceType);
 #else
   unsigned TreeChunk = GetTreeChunk (Cycle);
 #endif   
@@ -4478,7 +4460,7 @@ uint64_t DynamicAnalysis::FindIssueCycleWhenLoadBufferTreeIsFull ()
   }
   else {
     uint64_t EarliestDispatchCycle = 0;
-
+    bool AvailableSlots = false;
     uint64_t SlotsLoadBufferCompleteBeforeEarliestDispatch = 0;
     uint64_t SlotsDispatchCompleteBeforeEarliest = 0;
     uint64_t SlotsDispatchCompleteAfterEarliest = 0;
@@ -4514,7 +4496,7 @@ uint64_t DynamicAnalysis::FindIssueCycleWhenLoadBufferTreeIsFull ()
     
     TotalCyclesCompleteAfter = LoadBufferSize - SlotsLoadBufferCompleteBeforeEarliestDispatch;
     
-
+    AvailableSlots = SlotsLoadBufferCompleteBeforeEarliestDispatch;
     
     //   dbgs () << "AvailableSlots " << AvailableSlots << "\n";
     // Traverse DispatchToLoadBufferQueuteTree and count how many
@@ -4534,8 +4516,7 @@ uint64_t DynamicAnalysis::FindIssueCycleWhenLoadBufferTreeIsFull ()
     else
       SlotsDispatchCompleteAfterEarliest+=  DispatchToLoadBufferQueueTree->IssueCycles.size();
 #ifdef DEBUG_OOO_BUFFERS
-    bool AvailableSlots = false;
-    AvailableSlots = SlotsLoadBufferCompleteBeforeEarliestDispatch;
+
     DEBUG (dbgs () << "AvailableSlots " << AvailableSlots << "\n");
 #endif
     TotalCyclesCompleteAfter+=SlotsDispatchCompleteAfterEarliest;
@@ -4876,11 +4857,8 @@ void
 DynamicAnalysis::IncreaseInstructionFetchCycle (bool EmptyBuffers)
 {
   
-#ifndef EFF_TBV
-unsigned TreeChunk = 0;
-#endif
   bool OOOBufferFull = false;
-
+  unsigned TreeChunk = 0;
   uint64_t OriginalInstructionFetchCycle = InstructionFetchCycle;
   
 #ifdef DEBUG_GENERIC 
@@ -4980,11 +4958,10 @@ unsigned TreeChunk = 0;
 
 //TODO: FIX!
 #ifdef EFF_TBV
-GetTreeChunk (i,RS_STALL );
-   FullOccupancyCyclesTree[RS_STALL].insert_node ( i);
+TreeChunk = GetTreeChunk (i,RS_STALL );
+   FullOccupancyCyclesTree[RS_STALL].insert_node ( TreeChunk, i%SplitTreeRange);
 #else
-
- TreeChunk = GetTreeChunk (i);
+TreeChunk = GetTreeChunk (i);
       FullOccupancyCyclesTree[TreeChunk].insert_node (i, RS_STALL);
 #endif   
       
@@ -5021,8 +4998,8 @@ GetTreeChunk (i,RS_STALL );
     for (uint64_t i = CurrentInstructionFetchCycle + 1; i < InstructionFetchCycle; i++) {
       // Get the node, if any, corresponding to this issue cycle.
 #ifdef EFF_TBV
-  GetTreeChunk (i,ROB_STALL);
-      FullOccupancyCyclesTree[ROB_STALL].insert_node (i);  
+  TreeChunk = GetTreeChunk (i,ROB_STALL);
+      FullOccupancyCyclesTree[ROB_STALL].insert_node (TreeChunk,i%SplitTreeRange);  
 #else
       TreeChunk = GetTreeChunk (i);
       FullOccupancyCyclesTree[TreeChunk].insert_node (i, ROB_STALL);  
@@ -5174,8 +5151,8 @@ GetTreeChunk (i,RS_STALL );
       InstructionsLastIssueCycle[LFB_STALL] = PrevInstructionFetchCycle;
       //FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange] = insert_node(PrevInstructionFetchCycle, LFB_STALL, FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange]);
 #ifdef EFF_TBV
-   GetTreeChunk (PrevInstructionFetchCycle, LFB_STALL);
-      FullOccupancyCyclesTree[LFB_STALL].insert_node (PrevInstructionFetchCycle);
+   TreeChunk = GetTreeChunk (PrevInstructionFetchCycle, LFB_STALL);
+      FullOccupancyCyclesTree[LFB_STALL].insert_node (TreeChunk,PrevInstructionFetchCycle% SplitTreeRange);
 #else
       TreeChunk = GetTreeChunk (PrevInstructionFetchCycle);
       FullOccupancyCyclesTree[TreeChunk].insert_node (PrevInstructionFetchCycle, LFB_STALL);
@@ -5212,8 +5189,8 @@ GetTreeChunk (i,RS_STALL );
       InstructionsLastIssueCycle[LB_STALL] = PrevInstructionFetchCycle;
       //FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange] = insert_node(PrevInstructionFetchCycle, LB_STALL, FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange]);
 #ifdef EFF_TBV
-    GetTreeChunk (PrevInstructionFetchCycle,LB_STALL);
-      FullOccupancyCyclesTree[LB_STALL].insert_node (PrevInstructionFetchCycle);
+   TreeChunk = GetTreeChunk (PrevInstructionFetchCycle,LB_STALL);
+      FullOccupancyCyclesTree[LB_STALL].insert_node (TreeChunk, PrevInstructionFetchCycle%SplitTreeRange);
 #else
       TreeChunk = GetTreeChunk (PrevInstructionFetchCycle);
       FullOccupancyCyclesTree[TreeChunk].insert_node (PrevInstructionFetchCycle, LB_STALL);
@@ -5247,8 +5224,8 @@ GetTreeChunk (i,RS_STALL );
 #endif
       //FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange] = insert_node(PrevInstructionFetchCycle, SB_STALL,FullOccupancyCyclesTree[PrevInstructionFetchCycle/SplitTreeRange]);
 #ifdef EFF_TBV
- GetTreeChunk (PrevInstructionFetchCycle, SB_STALL);
-      FullOccupancyCyclesTree[SB_STALL].insert_node (PrevInstructionFetchCycle);
+TreeChunk = GetTreeChunk (PrevInstructionFetchCycle, SB_STALL);
+      FullOccupancyCyclesTree[SB_STALL].insert_node (TreeChunk, PrevInstructionFetchCycle%SplitTreeRange);
 #else     
   TreeChunk = GetTreeChunk (PrevInstructionFetchCycle);
       FullOccupancyCyclesTree[TreeChunk].insert_node (PrevInstructionFetchCycle, SB_STALL);
@@ -5476,7 +5453,6 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
       
       
       if (InstructionType >= 0 || forceAnalyze == true) {
-
         DEBUG (dbgs () << I << " (" << &I << ")\n");
         // Determine instruction width
         int NumOperands = I.getNumOperands ();
@@ -8471,14 +8447,9 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
       }
     }
     
-
-#ifdef EFF_TBV
-    return !FullOccupancyCyclesTree[ExecutionResource].get_node (Level);
-#else
     int TreeChunk = Level / SplitTreeRange;
     return !FullOccupancyCyclesTree[TreeChunk].get_node (Level, ExecutionResource);
-#endif 
- }
+  }
   
   
   unsigned DynamicAnalysis::CalculateLatencySpanFinal(unsigned i){

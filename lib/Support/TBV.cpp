@@ -15,15 +15,7 @@ TBV::TBV()
 }
 
 
-#ifdef EFF_TBV
-bool  TBV_node::empty()
-{
-return e;
-    //return (BitVector.size()==SplitTreeRange && BitVector.count()==0);
-}
 
-
-#endif
 bool TBV::empty()
 {
     return e;
@@ -41,25 +33,16 @@ tbv_map.push_back(TBV_node());
 
 
 
-#ifdef EFF_TBV
-
-void  TBV_node::insert_node( uint64_t bitPosition)
-{
-e = true;
-   BitVector[bitPosition] = 1;
-
-}
-
-
-#endif
-
-
 void TBV::insert_node(uint64_t key, unsigned bitPosition)
 {
+#ifdef EFF_TVB
+ e = false;
+ tbv_map[key].BitVector[bitPosition] = 1;
+#else
     key = key % SplitTreeRange;
     e = false;
     tbv_map[key].BitVector[bitPosition] = 1;
-
+#endif
 }
 
 
@@ -85,50 +68,27 @@ void TBV::delete_node(uint64_t key, unsigned bitPosition)
     tbv_map[key].BitVector[bitPosition] = 0;
 }
 
-
-#ifdef EFF_TBV
-
-bool  TBV_node::get_node(uint64_t bitPosition)
-{
-  if (empty()) return false;
-
-  return BitVector[bitPosition] == 1;
-
-}
-#endif
-
-
 bool TBV::get_node(uint64_t key, unsigned bitPosition)
 {
   if (empty()) return false;
+#ifdef EFF_TBV
+ return (tbv_map[key].BitVector[bitPosition] == 1);
+#else
   
     key = key % SplitTreeRange;
 //key = key & (SplitTreeRange-1);
 	//key = key - SplitTreeRange;
     return (tbv_map[key].BitVector[bitPosition] == 1);
-
+#endif
 }
 
-
-
-
-#ifdef EFF_TBV
-
-bool  TBV_node::get_node_nb(uint64_t bitPosition)
-{
-  if (empty()) return false;
-
-  return BitVector[bitPosition] == 0;
-
-}
-#else
 bool TBV::get_node_nb(uint64_t key, unsigned bitPosition)
 {
     if (empty()) return false;
     key = key % SplitTreeRange;
     return (tbv_map[key].BitVector[bitPosition] == 0);
 }
-#endif
+
 uint64_t BitScan(vector< TBV> &FullOccupancyCyclesTree, uint64_t key, unsigned bitPosition)
 {
     uint64_t kLocal = key % SplitTreeRange;

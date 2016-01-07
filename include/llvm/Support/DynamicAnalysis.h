@@ -10,7 +10,7 @@
 #define LLVM_SUPPORT_DYNAMIC_ANALYSIS_H
 
 //#define INTERPRETER
-//#define EFF_TBV
+#define EFF_TBV
 
 #include "../../../lib/ExecutionEngine/Interpreter/Interpreter.h"
 #include "llvm/IR/Instructions.h"
@@ -45,14 +45,14 @@
 
 
 //#define DEBUG_SOURCE_CODE_LINE_ANALYSIS
-#define DEBUG_MEMORY_TRACES
+//#define DEBUG_MEMORY_TRACES
 //#define DEBUG_REUSE_DISTANCE
 #define DEBUG_GENERIC
 //#define DEBUG_DEPS_FUNCTION_CALL
 //#define DEBUG_SPAN_CALCULATION
 //#define DEBUG_AGU
 //#define DEBUG_OOO_BUFFERS
-#define DEBUG_ISSUE_CYCLE
+//#define DEBUG_ISSUE_CYCLE
 //#define DEBUG_PHI_NODE
 //#define DEBUG_FUNCTION_CALL_STACK
 //#define DEBUG_PREFETCHER
@@ -350,8 +350,7 @@ using namespace ComplexSplayTree;
 // For FullOccupancyCyles, the vector has a different meaning that for AvailableCycles.
 // Each element of the vector contains the elements of the tree in a corresponding
 // rage.
-static const unsigned SplitTreeRange = 131072;
-//static const unsigned SplitTreeRange = 262144;
+static const int SplitTreeRange = 1024;
 //static const int SplitTreeRange = 32768;
 
 struct CacheLineInfo{
@@ -387,23 +386,18 @@ struct StructMemberLessThanOrEqualThanValuePred
   }
 };
 
-
+class TBV {
   class TBV_node {
   public:
 #ifdef EFF_TBV
     TBV_node():BitVector(SplitTreeRange) {
     }
-bool e;
 #else
 TBV_node():BitVector(MAX_RESOURCE_VALUE) {
     }
 #endif
   //  vector<bool> BitVector;
   dynamic_bitset<> BitVector; // from boost
-  bool get_node(uint64_t bitPosition);
-   void insert_node(uint64_t bitPosition);
-bool get_node_nb(uint64_t bitPosition);
-bool empty();
 #ifdef SOURCE_CODE_ANALYSIS
 //    set<uint64_t> SourceCodeLines;
     vector<pair<unsigned,unsigned>> SourceCodeLinesOperationPair;
@@ -411,10 +405,6 @@ bool empty();
     
 
   };
-
-
-class TBV {
-
   
 private:
   vector<TBV_node> tbv_map;
@@ -426,12 +416,9 @@ public:
 vector<pair<unsigned,unsigned> >  get_source_code_lines(uint64_t key);
 bool get_size();
 void resize();
-
   bool get_node(uint64_t key, unsigned bitPosition);
-   void insert_node(uint64_t key, unsigned bitPosition);
-
   bool get_node_nb(uint64_t key, unsigned bitPosition);
-
+  void insert_node(uint64_t key, unsigned bitPosition);
   void delete_node(uint64_t key, unsigned bitPosition);
   bool empty();
 };
@@ -653,11 +640,9 @@ bool VectorCode;
   vector< Tree<uint64_t> * > AvailableCyclesTree;
   
 
- #ifdef EFF_TBV
- vector< TBV_node> FullOccupancyCyclesTree;
-#else
+ 
  vector< TBV> FullOccupancyCyclesTree;
-  #endif
+  
   vector <Tree<uint64_t> * > StallCycles;
   vector <uint64_t> NInstructionsStalled;
   
@@ -773,7 +758,7 @@ unsigned GetOneToAllOverlapCyclesFinal(vector < int >&ResourcesVector);
   
   uint64_t GetLastIssueCycle(unsigned ExecutionResource, bool WithPrefetch = false);
 #ifdef EFF_TBV
-  void GetTreeChunk (uint64_t i, unsigned int ExecutionResource);
+  uint64_t GetTreeChunk (uint64_t i, unsigned int ExecutionResource);
 #else
   uint64_t GetTreeChunk(uint64_t i);
 #endif
