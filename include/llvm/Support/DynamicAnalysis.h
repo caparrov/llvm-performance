@@ -619,6 +619,7 @@ bool VectorCode;
   vector<uint64_t> InstructionsSpan;
   vector<uint64_t> InstructionsLastIssueCycle;
   vector<uint64_t> IssueSpan;
+  vector<uint64_t> LatencySpan;
   vector<uint64_t> SpanGaps;
   vector<uint64_t> FirstNonEmptyLevel;
   vector<uint64_t> BuffersOccupancy;
@@ -684,6 +685,7 @@ bool VectorCode;
   unsigned CalculateLatencySpanFinal(unsigned i);
   unsigned GetGroupOverlapCyclesFinal(vector<int> & ResourcesVector);
 unsigned GetOneToAllOverlapCyclesFinal(vector < int >&ResourcesVector);
+unsigned GetOneToAllOverlapCyclesFinal(vector < int >&ResourcesVector, bool Issue);
   unsigned GetLatencyIssueOverlap(unsigned i);
   //---------------- CONTECH----------------------
 

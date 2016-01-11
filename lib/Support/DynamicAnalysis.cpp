@@ -157,7 +157,7 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
     
     emptyVector.clear ();
     emptyVector.push_back (PORT_2);
-    emptyVector.push_back (PORT_3);
+  //  emptyVector.push_back (PORT_3);
     DispatchPort[L1_LOAD_NODE] = emptyVector;
     DispatchPort[L2_LOAD_NODE] = emptyVector;
     DispatchPort[L3_LOAD_NODE] = emptyVector;
@@ -321,7 +321,7 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
       ExecutionUnitsParallelIssue.push_back (-1);
     }
   }
-  
+  /*
   for (unsigned i = 0; i < nArithmeticNodes + nMovNodes + nMemNodes; i++) {	// Dispatch ports are associated to nodes
     if (ExecutionUnitsParallelIssue[ExecutionUnit[i]] > 0
         && DispatchPort[i].size () < (unsigned) ExecutionUnitsParallelIssue[ExecutionUnit[i]]) {
@@ -331,6 +331,7 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
       report_fatal_error ("There are more execution units that ports that can dispatch them\n");
     }
   }
+*/
   if (!MemAccessGranularity.empty ()
       && MemAccessGranularity.size () != nMemExecutionUnits)
     report_fatal_error ("Mem access granularities do not match the number of memory execution units");
@@ -431,6 +432,18 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
     AccessGranularities.push_back (1);
   }
   
+
+  	// New:  The parallel issue of each port is equal to the maximum of the parallel issue 
+	// of the nodes dispatched on that port. So, for each port, we have to find which
+	// nodes are dispatched there, and get the maximum parallel issue.
+     for (unsigned i = 0; i < nArithmeticNodes + nMovNodes + nMemNodes; i++){
+		for (unsigned j = 0; j< DispatchPort[i].size(); j++){
+
+			if( this->ExecutionUnitsParallelIssue[i] >  this->ExecutionUnitsParallelIssue[DispatchPort[i][j]])
+				 this->ExecutionUnitsParallelIssue[DispatchPort[i][j]] = this->ExecutionUnitsParallelIssue[i];
+		}     
+	}
+
   
   // We need AccessWidth and Throughput for every resource for which we calculte
   // span, including ports
@@ -503,21 +516,23 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
     
     if (this->ExecutionUnitsThroughput[i] > 0) {
       if (i < nArithmeticExecutionUnits + nMovExecutionUnits) {
-        
+      /*  
         DEBUG (dbgs () << "AccessWidth " << AccessWidth << "\n");
         DEBUG (dbgs () << "ExecutionUnitsThroughput[i] " << this->ExecutionUnitsThroughput[i] << "\n");
         DEBUG (dbgs () << "IssueCycleGranularity " << int (ceil (AccessWidth / (this->ExecutionUnitsThroughput[i]))) <<
                "\n");
-        IssueCycleGranularity = int (ceil (AccessWidth / (this->ExecutionUnitsThroughput[i])));
+*/      
+  IssueCycleGranularity = int (ceil (AccessWidth / (this->ExecutionUnitsThroughput[i])));
       }
       else {
+/*
         // If we allow parallel issue to be shared
         DEBUG (dbgs () << "AccessWidth " << AccessWidth << "\n");
         DEBUG (dbgs () << "ExecutionUnitsThroughput[i] " << this->ExecutionUnitsThroughput[i] << "\n");
         DEBUG (dbgs () << "IssueCycleGranularity " <<
                int (ceil (AccessWidth / (this->ExecutionUnitsThroughput[i] * max(this->ExecutionUnitsParallelIssue[i],1)))) <<
                "\n");
-        
+  */      
 
         IssueCycleGranularity =
         int (ceil (AccessWidth / (this->ExecutionUnitsThroughput[i] * max(this->ExecutionUnitsParallelIssue[i],1))));
@@ -529,7 +544,11 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
     
     AccessWidths.push_back (AccessWidth);
     IssueCycleGranularities.push_back (IssueCycleGranularity);
-    DEBUG (dbgs () << "IssueCycleGranularities[" << i << "]=" << IssueCycleGranularities[i] << "\n");
+     DEBUG (dbgs () << "______________ " << GetResourceName(i) << " __________\n");
+    DEBUG (dbgs () << "AccessWidth " << AccessWidth << "\n");
+    DEBUG (dbgs () << "ExecutionUnitsParallelIssue " << this->ExecutionUnitsParallelIssue[i] << "\n");        	
+    DEBUG (dbgs () << "ExecutionUnitsThroughput " << this->ExecutionUnitsThroughput[i] << "\n");        
+    DEBUG (dbgs () << "IssueCycleGranularitiy " << IssueCycleGranularities[i] << "\n");
     /*if((this->ExecutionUnitsThroughput[i] * this->ExecutionUnitsParallelIssue[i]) > 0 && 
        this->ExecutionUnitsLatency[i] < unsigned (ceil(AccessWidth /(this->ExecutionUnitsThroughput[i] *
                                                                      this->ExecutionUnitsParallelIssue[i])))){
@@ -595,6 +614,7 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
     InstructionsSpan.push_back (0);
     InstructionsLastIssueCycle.push_back (0);
     IssueSpan.push_back (0);
+    LatencySpan.push_back (0);
     SpanGaps.push_back (0);
     FirstNonEmptyLevel.push_back (0);
     DAGLevelsOccupancy.push_back (emptyVector);
@@ -7118,7 +7138,10 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
       TmpResourcesVector.push_back (j);
       IssueSpan[j] = CalculateIssueSpan (TmpResourcesVector);
     }
-    
+    for (unsigned j = 0; j < nExecutionUnits; j++) {
+      LatencySpan[j] = CalculateLatencySpanFinal(j);
+    }
+
     
     
     // We have this loop in case we want to print out stats with all computation nodes
@@ -8464,13 +8487,25 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
   
   unsigned DynamicAnalysis::CalculateLatencySpanFinal(unsigned i){
     
+
     CLSFCache[i].resize(LastIssueCycleFinal + 100);
+//CLSFCache[i].resize(2783370);
+
+
     if(ExecutionUnitsLatency[i] > 1){
-      CLSFCache[i] |= (CISFCache[i]>>1);
-      
+/*    dbgs() << "OR with CIS\n";
+dbgs() << "CISFCache[i].size()\n";
+dbgs() << CISFCache[i].size()<<"\n";
+dbgs() << "CLSFCache[i].size()\n";
+dbgs() << CLSFCache[i].size()<<"\n";
+dbgs() << "LastIssueCycleFinal\n";
+dbgs() << LastIssueCycleFinal << "\n";*/
+    //  CLSFCache[i] |= (CISFCache[i]>>1);
+  CLSFCache[i] |= (CISFCache[i]);
       if(ExecutionUnitsThroughput[i]>=1){
         
         for(unsigned j = 0; j < ExecutionUnitsLatency[i]-1; j++){
+
           CLSFCache[i] |= (CLSFCache[i] >> 1);
           
         }
@@ -8481,6 +8516,7 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
       }
       
     }
+
     return CLSFCache[i].count();
   }
   
@@ -8491,9 +8527,9 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
     dynamic_bitset <> BitMesh (LastIssueCycleFinal + 100);
     
     BitMesh ^= CISFCache[i];
-    
+
     BitMesh &= CLSFCache[i];
-    
+
     return BitMesh.count();
   }
   
@@ -8555,13 +8591,48 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
       if (CGSFCache[ResourcesVector[j]].size () != 0 && CGSFCache[ResourcesVector[j]].count () != 0)
         BitMesh |= CGSFCache[ResourcesVector[j]];
     }
-    //We assume the first resoruce is the stall.
+    //We assume the first resoruce is the target resource, that is, the resource we 
+    // want to calculate the overlap with all others
     BitMesh &= CGSFCache[ResourcesVector[0]];
     
     return BitMesh.count ();
   }
   
   
+  // Calculate the total span of resources, and then do an AND with the
+  // span of the corresponding resource.
+  unsigned
+  DynamicAnalysis::GetOneToAllOverlapCyclesFinal (vector < int >&ResourcesVector, bool Issue)
+  {
+    dynamic_bitset <> BitMesh (LastIssueCycleFinal + 100);
+    
+    for (size_t j = 1; j < ResourcesVector.size (); j++) {
+      if (CGSFCache[ResourcesVector[j]].size () != 0 && CGSFCache[ResourcesVector[j]].count () != 0)
+        BitMesh |= CGSFCache[ResourcesVector[j]];
+    }
+    
+    if (Issue == true){
+ 		BitMesh &= CISFCache[ResourcesVector[0]];
+    }else{
+/*
+		dbgs() << "Bitmesh for latency cache\n";
+		dbgs() << "Count\n";
+		dbgs() << CLSFCache[ResourcesVector[0]].count() << "\n";
+		dbgs() << "Size of bit mesh\n";
+dbgs() << CLSFCache.size() << "\n";
+		dbgs() << "ResourcesVector[0] " << ResourcesVector[0] << "\n";
+		dbgs() << "Size of of size";
+		dbgs() << CLSFCache[ResourcesVector[0]].size() << "\n";
+*/		
+		BitMesh &= CLSFCache[ResourcesVector[0]];
+//		dbgs() << "Done\n";
+	}	
+    
+    
+    return BitMesh.count ();
+  }
+
+
   
   
   
@@ -8887,7 +8958,7 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
       }
     }
     
-    assert (CISFCache[ResourcesVector[0]].count () == Span);
+ assert (CISFCache[ResourcesVector[0]].count () == Span);
     
     return Span;
   }
@@ -9121,6 +9192,8 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
       for (unsigned j = 0; j < nExecutionUnits; j++) {
         tv[0] = j;
         IssueSpan[j] = CalculateIssueSpanFinal (tv);
+        LatencySpan[j] = CalculateLatencySpanFinal(j);
+
         
         DEBUG (dbgs () << "Calculating group span for resource " << j << "\n");
         Span = CalculateGroupSpanFinal (tv);
@@ -10098,7 +10171,7 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
         
         ResourcesSpan[i] = CalculateGroupSpanFinal (tv);
         IssueSpan[i] = CalculateIssueSpanFinal (tv);
-        
+      //  LatencySpan[i] = CalculateLatencySpanFinal(i);
 #ifdef ASSERT
         if (i >= RS_STALL && i <= LFB_STALL) {
           Span = InstructionsCountExtended[i];
@@ -10114,6 +10187,12 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
 #endif
       }
     }
+    for (unsigned i = 0; i < MAX_RESOURCE_VALUE; i++) {
+      if (InstructionsCountExtended[i] != 0) {
+        LatencySpan[i] = CalculateLatencySpanFinal(i);
+}
+}
+
     
     /*
      for (unsigned i = 0; i < MAX_RESOURCE_VALUE; i++) {
@@ -10890,6 +10969,50 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
       
     }
     
+
+// ===================== ALL OVERLAPS - ISSUE/LATENCY APPROACH ===========================//
+    {
+      
+      printHeaderStat ("Overlaps - Issue/Latency with all the others");
+      
+      vector < int >nonEmptyExecutionUnits;
+      
+	// In this case only execution units
+      for (unsigned i = 0; i < nExecutionUnits; i++) {
+        OverlapCycles = 0;
+        OverlapPercetage = 0;
+        nonEmptyExecutionUnits.clear();
+        
+        if (InstructionsCountExtended[i]!= 0) {
+          nonEmptyExecutionUnits.push_back(i);
+          for (unsigned j = 0; j < nExecutionUnits+nBuffers ; j++) {
+            if (j!= i) {
+              if (InstructionsCountExtended[j]!= 0) {
+                nonEmptyExecutionUnits.push_back(j);
+              }
+            }
+          }
+          
+          OverlapCycles = GetOneToAllOverlapCyclesFinal (nonEmptyExecutionUnits, true);
+          OverlapPercetage = (float) OverlapCycles / (float (IssueSpan[i]));
+          dbgs () << GetResourceName(i) << " " << OverlapCycles;
+          fprintf (stderr, " %1.3f\n", OverlapPercetage);
+
+		OverlapCycles = GetOneToAllOverlapCyclesFinal (nonEmptyExecutionUnits, false); // Latency
+          OverlapPercetage = (float) OverlapCycles / (float (LatencySpan[i]));
+          dbgs () << GetResourceName(i) << " " << OverlapCycles;
+          fprintf (stderr, " %1.3f\n", OverlapPercetage);
+
+          
+        }
+        
+      }
+      
+      
+      
+    }
+
+
     
     //======================= Bottlenecks ===============================//
     
@@ -11151,15 +11274,16 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
     
     printHeaderStat ("Issue-Latency Overlaps");
     
-    uint64_t LatencySpan = 0;
+    uint64_t LatSpan = 0;
     for(uint i = 0; i< nExecutionUnits; i++){
       if(InstructionsCountExtended[i]>0){
-        LatencySpan = CalculateLatencySpanFinal(i);
-        dbgs() << GetResourceName(i) << " " <<  IssueSpan[i] << " " << LatencySpan << " ";
-        if(LatencySpan == 0)
+       // LatSpan = CalculateLatencySpanFinal(i);
+	 //  LatSpan = LatencySpan[i];
+        dbgs() << GetResourceName(i) << " " <<  IssueSpan[i] << " " << LatencySpan[i] << " ";
+        if(LatencySpan[i] == 0)
           dbgs() << "0\n";
         else
-          fprintf (stderr, " %1.3f\n", GetLatencyIssueOverlap(i)/((double)min(IssueSpan[i], LatencySpan)));
+          fprintf (stderr, " %1.3f\n", GetLatencyIssueOverlap(i)/((double)min(IssueSpan[i], LatencySpan[i])));
         //dbgs() << GetResourceName(i) << " " <<  IssueSpan[i] << " " <<  CalculateLatencySpanFinal(i) << " " << GetLatencyIssueOverlap(i) << "\n";
       }
     }
