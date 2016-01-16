@@ -628,6 +628,7 @@ bool VectorCode;
   vector<uint64_t> OverlapsCount;
   vector<double> AverageOverlaps;
   vector<double> OverlapsDerivatives;
+  vector<double> OverlapsMetrics;
 
   float BuffersOccupancyThreshold;
   uint64_t LastIssueCycleFinal;

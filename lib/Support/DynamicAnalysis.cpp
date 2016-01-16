@@ -625,6 +625,7 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
     AverageOverlapsCycles.push_back(0);
     OverlapsCount.push_back(0);
     OverlapsDerivatives.push_back(1);
+    OverlapsMetrics.push_back(0);
   }
   
   
@@ -1773,8 +1774,8 @@ DynamicAnalysis::FindNextAvailableIssueCycle (unsigned OriginalCycle, unsigned E
     report_fatal_error("Throughput value not valid for resource issuing instructions");
   }
   
-  uint64_t NextAvailableCycle = OriginalCycle;
-  
+//  uint64_t NextAvailableCycle = OriginalCycle;
+ uint64_t NextAvailableCycle = roundNextMultiple (OriginalCycle, IssueCycleGranularities[ExecutionResource]); 
   
   bool FoundInFullOccupancyCyclesTree = true;
   bool EnoughBandwidth = false;
@@ -5292,7 +5293,7 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
   DynamicAnalysis::analyzeInstruction (Instruction & I, unsigned OpCode, uint64_t addr, unsigned Line, bool forceAnalyze)
   {
 #endif
-    
+
     
     
     int k = 0;
@@ -5361,7 +5362,7 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
     //====================== WARM CACHE ANALYSIS - RECORD ONLY MEMORY ACCESSES =========//
     if (WarmCache && rep == 0) {
       
-      
+
       if (InstructionType >= 0 || forceAnalyze == true) {
         
         switch (OpCode) {
@@ -5476,8 +5477,7 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
     }
     else {
       
-      
-      
+         
       if (InstructionType >= 0 || forceAnalyze == true) {
 
         DEBUG (dbgs () << I << " (" << &I << ")\n");
@@ -10822,7 +10822,9 @@ dbgs() << CLSFCache.size() << "\n";
             if (MinResourceSpan != 0) {
               OverlapCycles = GetGroupOverlapCyclesFinal (result);
               OverlapPercetage = (float) OverlapCycles / (float (MinResourceSpan));
-              
+               for (unsigned j = 0; j < result.size (); j++) {
+                  OverlapsMetrics[result[j]]+= OverlapCycles;
+               }
             }
             dbgs() << "| " << MinResource << " | ";
             dbgs () << OverlapCycles << " ";
@@ -10931,10 +10933,116 @@ dbgs() << CLSFCache.size() << "\n";
       }else{
         if(OverlapsDerivatives[i] != 1)
           report_fatal_error("Derivative not NULL for a resource without instructions");
+	  else
+        dbgs () << GetResourceName(i) << " " << 1 << "\n";
       }
     }
     
-    // ===================== ALL OVERLAPS - TRIRD APPROACH ===========================//
+
+	// =================== NEW METRIC/HEURISTIC ======================================//
+
+	{
+    printHeaderStat ("Overlaps metrics");
+    for (unsigned i = 0; i < nExecutionUnits+nBuffers; i++) {
+      if (InstructionsCountExtended[i]!= 0) {
+        dbgs () << GetResourceName(i) << " " << ((OverlapsMetrics[i]/ResourcesSpan[i])*(TotalSpan/ResourcesSpan[i])) << "\n";
+      }else
+        dbgs () << GetResourceName(i) << " 0\n";
+    }
+
+	}
+
+
+
+{
+
+    vector < vector < uint64_t > >ResourcesOverlapCycles (nExecutionUnits+nBuffers, vector < uint64_t > (nExecutionUnits+nBuffers));
+
+
+		
+    for (unsigned i = 0; i < TotalSpan; i++){
+		vector < unsigned > resourcesInCycle;
+		for (unsigned j = 0; j< nExecutionUnits+nBuffers; j++){
+
+		if (InstructionsCountExtended[j]!= 0 &&  CGSFCache[j][i]==1)
+resourcesInCycle.push_back(j);
+}
+for (unsigned j = 0; j< resourcesInCycle.size(); j++){
+ResourcesOverlapCycles[resourcesInCycle[j]][resourcesInCycle.size()]++;
+}
+
+	}
+      printHeaderStat ("Ranking ");
+
+
+	vector<unsigned> CandidateResources;
+	vector< uint64_t  > OverlapCyclesRanking;
+  vector<unsigned > TmpElementsToRemove;
+vector<unsigned>::iterator it;
+	for (unsigned j = 0; j< nExecutionUnits+nBuffers; j++){
+		CandidateResources.push_back(j);
+  	}
+		for (unsigned j = 0; j< nExecutionUnits+nBuffers; j++){
+
+  vector<unsigned > ElementsToRemove;
+	for (unsigned i = 0; i< nExecutionUnits+nBuffers; i++){
+		it = find(CandidateResources.begin(), CandidateResources.end(), i) ;
+		if(ResourcesOverlapCycles[i][j]!= 0 && it != CandidateResources.end()){
+			//	dbgs() << " "<< ResourcesOverlapCycles[j][i] ;
+
+			CandidateResources.erase(it);
+
+			if(ElementsToRemove.size() == 0){
+			TmpElementsToRemove.clear();
+			OverlapCyclesRanking.clear();
+			}
+			ElementsToRemove.push_back(i);
+			TmpElementsToRemove.push_back(i);
+			OverlapCyclesRanking.push_back(ResourcesOverlapCycles[i][j]);
+
+		}
+
+	}
+  	}
+for (unsigned j = 0; j< nExecutionUnits+nBuffers; j++){
+ dbgs () << GetResourceName(j) << " " ;
+uint64_t CyclesOverlapRanking = 0;
+for (unsigned i = 0; i < TmpElementsToRemove.size(); i++){
+  if(TmpElementsToRemove[i] == j){
+CyclesOverlapRanking= OverlapCyclesRanking[i];
+break;
+}else{
+CyclesOverlapRanking = 0;
+
+}
+}
+dbgs() << CyclesOverlapRanking<<  "\n";
+}
+/*
+for(unsigned i = 0; i<TmpElementsToRemove.size();i++ ){
+			dbgs() << TmpElementsToRemove[i] << " "<< OverlapCyclesRanking[i]*100/(double)ResourcesSpan[TmpElementsToRemove[i]] << "\n" ;
+}
+*/	      printHeaderStat ("Breakdown Overlap");
+
+		for (unsigned j = 0; j< nExecutionUnits+nBuffers; j++){
+ dbgs () << GetResourceName(j);
+		for (unsigned i = 1; i< nExecutionUnits+nBuffers; i++){
+			dbgs() << " "<< ResourcesOverlapCycles[j][i] ;
+		}
+			dbgs() << "\n";
+		}
+
+
+
+
+
+}
+
+
+
+
+
+    // ===================== ALL OVERLAPS - THIRD APPROACH ===========================//
     {
       
       printHeaderStat ("Overlaps - Each resource with all the others");
