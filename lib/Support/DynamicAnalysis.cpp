@@ -4886,7 +4886,6 @@ unsigned TreeChunk = 0;
   bool OOOBufferFull = false;
 
   uint64_t OriginalInstructionFetchCycle = InstructionFetchCycle;
-  
 #ifdef DEBUG_GENERIC 
   DEBUG (dbgs () << "_____________________ InstructionFetchCycle " << InstructionFetchCycle << "_____________________\n");
 #endif  
@@ -5147,23 +5146,24 @@ GetTreeChunk (i,RS_STALL );
   
   
   if (OriginalInstructionFetchCycle != InstructionFetchCycle) {
-    BuffersOccupancy[RS_STALL - RS_STALL] += ReservationStationIssueCycles.size ();
-    BuffersOccupancy[ROB_STALL - RS_STALL] += ReorderBufferCompletionCycles.size ();
+	uint64_t CyclesIncrease = (InstructionFetchCycle-OriginalInstructionFetchCycle); 
+    BuffersOccupancy[RS_STALL - RS_STALL] += (ReservationStationIssueCycles.size() * CyclesIncrease);
+    BuffersOccupancy[ROB_STALL - RS_STALL] += (ReorderBufferCompletionCycles.size()* CyclesIncrease);
     if(SmallBuffers){
-      BuffersOccupancy[LB_STALL-RS_STALL] += LoadBufferCompletionCycles.size();
+      BuffersOccupancy[LB_STALL-RS_STALL] += (LoadBufferCompletionCycles.size()*CyclesIncrease);
       if(LoadBufferCompletionCycles.size() > LoadBufferSize)
         report_fatal_error ("Buffer overflow");
       
     }else{
-      BuffersOccupancy[LB_STALL - RS_STALL] += node_size (LoadBufferCompletionCyclesTree);
+      BuffersOccupancy[LB_STALL - RS_STALL] += (node_size (LoadBufferCompletionCyclesTree)*CyclesIncrease);
       if( node_size(LoadBufferCompletionCyclesTree) > LoadBufferSize){
         dbgs() <<  "node_size (LoadBufferCompletionCyclesTree) " << node_size (LoadBufferCompletionCyclesTree) << "\n";
         dbgs() <<  "LoadBufferSize " <<LoadBufferSize << "\n";
         report_fatal_error ("Buffer overflow");
       }
     }
-    BuffersOccupancy[SB_STALL - RS_STALL] += StoreBufferCompletionCycles.size ();
-    BuffersOccupancy[LFB_STALL - RS_STALL] += LineFillBufferCompletionCycles.size ();
+    BuffersOccupancy[SB_STALL - RS_STALL] += (StoreBufferCompletionCycles.size()*CyclesIncrease);
+    BuffersOccupancy[LFB_STALL - RS_STALL] += (LineFillBufferCompletionCycles.size()*CyclesIncrease);
     
     uint64_t PrevInstructionFetchCycle = InstructionFetchCycle - 1;
     if (DispatchToLineFillBufferQueue.empty () == false) {
@@ -10052,6 +10052,10 @@ dbgs() << CLSFCache.size() << "\n";
     vector < vector < uint64_t > >StallStallSpanVector (nBuffers, vector < uint64_t > (nBuffers));
     vector < vector < uint64_t > >ResourcesIssueStallSpanVector (nExecutionUnits, vector < uint64_t > (nBuffers));
     
+
+    
+    dbgs() << "Final InstructionFetchCycle " << InstructionFetchCycle << "\n";
+
 #ifdef DEBUG_OOO_BUFFERS
     DEBUG (dbgs () << "Starting while loop\n");
     DEBUG (dbgs () << "Sise of RS " << ReservationStationIssueCycles.size () << "\n");
@@ -10136,7 +10140,7 @@ dbgs() << CLSFCache.size() << "\n";
     DEBUG (dbgs () << "Size of LFB " << LineFillBufferCompletionCycles.size () << "\n");
 #endif
     
-    
+    dbgs() << "Final InstructionFetchCycle " << InstructionFetchCycle << "\n";
     
     for (unsigned i = 0; i < nArithmeticNodes; i++)
       compResources.push_back (i);
@@ -10287,15 +10291,41 @@ dbgs() << CLSFCache.size() << "\n";
     
     
     
-    dbgs () << "RESOURCE\tN_STALL_CYCLES\t\tAVERAGE_OCCUPANCY\n";
+    dbgs () << "RESOURCE\tN_STALL_CYCLES\t\tAVERAGE_OCCUPANCY\t\tFRACTION_OCCUPANCY\n";
     
     for (int j = RS_STALL; j <= LFB_STALL; j++) {
       if (TotalSpan == 0) {
         dbgs () << GetResourceName (j) << "\t\t" << ResourcesSpan[j] << "\t\t" << INF << "\n";
       }
       else {
+
+	   double AverageOccupancy = BuffersOccupancy[j -RS_STALL] /(double)TotalSpan;
         dbgs () << GetResourceName (j) << "\t\t" << ResourcesSpan[j] << "\t\t";
-        fprintf (stderr, " %1.3f\n", BuffersOccupancy[j -RS_STALL] /(double)TotalSpan);
+        fprintf (stderr, " %1.3f\t\t", AverageOccupancy);
+	    switch(j){
+		case RS_STALL:
+			fprintf (stderr, " %1.3f\n", AverageOccupancy*100/ReservationStationSize);
+			break;
+		case ROB_STALL:
+			fprintf (stderr, " %1.3f\n", AverageOccupancy*100/ReorderBufferSize);
+			break;
+	case LB_STALL:
+			fprintf (stderr, " %1.3f\n", AverageOccupancy*100/LoadBufferSize);
+			break;
+		case SB_STALL:
+			fprintf (stderr, " %1.3f\n", AverageOccupancy*100/StoreBufferSize);
+			break;
+case LFB_STALL:
+			fprintf (stderr, " %1.3f\n", AverageOccupancy*100/LineFillBufferSize);
+			break;
+	default:
+ 			report_fatal_error ("Buffer not recognized");
+		
+		}
+
+
+
+
         
       }
     }
