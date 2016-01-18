@@ -517,6 +517,8 @@ public:
   // Port-Node type that can be executed on that port.
   vector<vector<unsigned> > PortsBindings;
   
+  vector<bool> ShareThroughputAmongPorts;
+  
   
   // vector<float> FlopThroughputs;
   // vector<float> MemThroughputs;
@@ -780,6 +782,9 @@ unsigned GetOneToAllOverlapCyclesFinal(vector < int >&ResourcesVector, bool Issu
 #else
   uint64_t GetTreeChunk(uint64_t i);
 #endif
+  
+  
+  unsigned GetIssueCycleGranularity(unsigned ExecutionResource, unsigned AccessWidth, unsigned NElementsVector);
   
   vector<unsigned> IssuePorts;
 
