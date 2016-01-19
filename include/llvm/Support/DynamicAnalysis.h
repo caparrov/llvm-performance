@@ -785,6 +785,8 @@ unsigned GetOneToAllOverlapCyclesFinal(vector < int >&ResourcesVector, bool Issu
   
   
   unsigned GetIssueCycleGranularity(unsigned ExecutionResource, unsigned AccessWidth, unsigned NElementsVector);
+  unsigned GetNodeWidthOccupancy(unsigned ExecutionResource, unsigned AccessWidth, unsigned NElementsVector);
+  bool GetLevelFull(unsigned ExecutionResource, unsigned NodeIssueOccupancy, unsigned NodeWidthOccupancy);
   
   vector<unsigned> IssuePorts;
 

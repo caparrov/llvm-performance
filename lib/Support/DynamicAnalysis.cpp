@@ -530,7 +530,7 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
   }
   
   for (unsigned i = 0; i < nExecutionUnits; i++) {
-    if (this->ExecutionUnitParallelIssue[i] == INF && ConstraintPorts) {
+    if (this->ExecutionUnitsParallelIssue[i] == INF && ConstraintPorts) {
       report_fatal_error ("Parallel Issue cannot be infinity if ConstraintPorts");
     }
   }
@@ -1436,6 +1436,79 @@ DynamicAnalysis::GetIssueCycleGranularity(unsigned ExecutionResource, unsigned A
   return IssueCycleGranularity;
 }
 
+
+unsigned 
+DynamicAnalysis::GetNodeWidthOccupancy(unsigned ExecutionResource, unsigned AccessWidth, unsigned NElementsVector){
+  
+  unsigned NodeWidthOccupancy =0;
+  
+  if(ExecutionUnitsThroughput[ExecutionResource] == INF && ExecutionUnitsParallelIssue[ExecutionResource] == INF)
+   NodeWidthOccupancy = AccessWidth;
+   
+  if (ExecutionUnitsThroughput[ExecutionResource] != INF && ExecutionUnitsParallelIssue[ExecutionResource] == INF) {
+    if(AccessWidth*NElementsVector <= ExecutionUnitsThroughput[ExecutionResource])
+	NodeWidthOccupancy = AccessWidth;
+	else
+	NodeWidthOccupancy = ExecutionUnitsThroughput[ExecutionResource]; // AccessWidth before
+  }
+  
+  if (ExecutionUnitsThroughput[ExecutionResource] == INF && ExecutionUnitsParallelIssue[ExecutionResource] != INF) {
+    NodeWidthOccupancy = AccessWidth;
+  }
+  
+  if (ExecutionUnitsThroughput[ExecutionResource] != INF && ExecutionUnitsParallelIssue[ExecutionResource] != INF) {
+    if (ShareThroughputAmongPorts[ExecutionResource]) {
+      if(AccessWidth*NElementsVector <= ExecutionUnitsThroughput[ExecutionResource]* ExecutionUnitsParallelIssue[ExecutionResource])
+	NodeWidthOccupancy = AccessWidth;
+	else
+	NodeWidthOccupancy = ExecutionUnitsThroughput[ExecutionResource]* ExecutionUnitsParallelIssue[ExecutionResource]; // AccessWidth before
+    }else{
+       if(AccessWidth*NElementsVector <= ExecutionUnitsThroughput[ExecutionResource])
+	NodeWidthOccupancy = AccessWidth;
+	else
+	NodeWidthOccupancy = ExecutionUnitsThroughput[ExecutionResource]; // AccessWidth before
+  }
+	} 
+  
+  return NodeWidthOccupancy;
+}
+
+
+
+bool 
+DynamicAnalysis::GetLevelFull(unsigned ExecutionResource, unsigned NodeIssueOccupancy, unsigned NodeWidthOccupancy){
+  
+  bool LevelFull  = false;
+  /*
+  if(ExecutionUnitsThroughput[ExecutionResource] == INF && ExecutionUnitsParallelIssue[ExecutionResource] == INF)
+   LeveFull = false;
+   */
+  if (ExecutionUnitsThroughput[ExecutionResource] != INF && ExecutionUnitsParallelIssue[ExecutionResource] == INF) {
+    if(NodeWidthOccupancy >= ExecutionUnitsThroughput[ExecutionResource])
+	LevelFull = true;
+  }
+  
+  if (ExecutionUnitsThroughput[ExecutionResource] == INF && ExecutionUnitsParallelIssue[ExecutionResource] != INF) {
+    if(NodeIssueOccupancy == (unsigned)ExecutionUnitsParallelIssue[ExecutionResource])
+	LevelFull = true;
+  }
+  
+  if (ExecutionUnitsThroughput[ExecutionResource] != INF && ExecutionUnitsParallelIssue[ExecutionResource] != INF) {
+    if (ShareThroughputAmongPorts[ExecutionResource]) {
+      if(NodeWidthOccupancy >= ExecutionUnitsThroughput[ExecutionResource]* ExecutionUnitsParallelIssue[ExecutionResource])
+		LevelFull = true;
+    }else{
+      if(NodeIssueOccupancy == (unsigned)ExecutionUnitsParallelIssue[ExecutionResource])
+	LevelFull = true;
+     }
+	} 
+  
+  return LevelFull;
+}
+
+
+
+
 bool
 DynamicAnalysis::ThereIsAvailableBandwidth (unsigned NextAvailableCycle, unsigned ExecutionResource,
                                             unsigned NElementsVector, bool & FoundInFullOccupancyCyclesTree,
@@ -1758,9 +1831,9 @@ DynamicAnalysis::FindNextAvailableIssueCycle (unsigned OriginalCycle, unsigned E
     report_fatal_error("Throughput value not valid for resource issuing instructions");
   }
   
-  //  uint64_t NextAvailableCycle = OriginalCycle;
-  unsigned IssueCycleGranularity = GetIssueCycleGranularity(ExecutionResource, AccessWidths[ExecutionResource], NElementsVector);
-  uint64_t NextAvailableCycle = roundNextMultiple (OriginalCycle, IssueCycleGranularity);
+    uint64_t NextAvailableCycle = OriginalCycle;
+  //unsigned IssueCycleGranularity = GetIssueCycleGranularity(ExecutionResource, AccessWidths[ExecutionResource], NElementsVector);
+ // uint64_t NextAvailableCycle = roundNextMultiple (OriginalCycle, IssueCycleGranularity);
   
   bool FoundInFullOccupancyCyclesTree = true;
   bool EnoughBandwidth = false;
@@ -2000,6 +2073,8 @@ DynamicAnalysis::InsertNextAvailableIssueCycle (uint64_t NextAvailableCycle, uns
   DEBUG (dbgs () <<
          "Updating InstructionsLastIssueCycle of execution resource " << GetResourceName (ExecutionResource) << " to " <<
          InstructionsLastIssueCycle[ExecutionResource] << "\n");
+  DEBUG (dbgs () << "Inserting next available issue cycle " << NextAvailableCycle << " in execution unit " <<
+         GetResourceName (ExecutionResource) << "\n");
 #endif
   // Insert
   // If it exists already in Available... Inserting it has any effect? No, it simply returns a pointer to the node.
@@ -2008,11 +2083,6 @@ DynamicAnalysis::InsertNextAvailableIssueCycle (uint64_t NextAvailableCycle, uns
   // TODO: IF we know in advanced that the available level gets full directly, we can avoid inserting it and removing it
   // from AvailableCyclesTree.
   
-  // if (ExecutionResource <= nExecutionUnits) {
-#ifdef DEBUG_GENERIC
-  DEBUG (dbgs () << "Inserting next available issue cycle " << NextAvailableCycle << " in execution unit " <<
-         GetResourceName (ExecutionResource) << "\n");
-#endif
   
   AvailableCyclesTree[ExecutionResource] = insert_node (NextAvailableCycle, AvailableCyclesTree[ExecutionResource]);
 #ifdef SOURCE_CODE_ANALYSIS
@@ -2062,7 +2132,7 @@ DynamicAnalysis::InsertNextAvailableIssueCycle (uint64_t NextAvailableCycle, uns
    }
    */
   
-  
+  /*
   if (ExecutionUnitsParallelIssue[ExecutionResource] != INF) {
     
     if (ExecutionResource < L1_LOAD_CHANNEL) {
@@ -2099,6 +2169,11 @@ DynamicAnalysis::InsertNextAvailableIssueCycle (uint64_t NextAvailableCycle, uns
     }
   }
   
+*/
+
+
+  // New, with all the clean cases
+	Node->widthOccupancy += GetNodeWidthOccupancy(ExecutionResource, AccessWidth, NElementsVector);
   
   /* Copy these values becasue later on the Node is not the same anymore */
   NodeIssueOccupancy = Node->issueOccupancy;
@@ -2110,25 +2185,20 @@ DynamicAnalysis::InsertNextAvailableIssueCycle (uint64_t NextAvailableCycle, uns
   DEBUG (dbgs () << "NodeWidthOccupancy " << NodeWidthOccupancy << "\n");
   DEBUG (dbgs () << "NodeIssueOccupancy " << NodeIssueOccupancy << "\n");
 #endif
-  // If ExecutionUnitsThroughput is INF, the level never gets full/
+  // If ExecutionUnitsThroughput and ExecutionUnitsParallelIssue are INF, the level never gets full.
   // Otherwise, a level gets full then:
   // 1. The number of parallel operations issued is equal to ExecutionUnitParallelIssue, although the full
   //    bw is not utilized
   // 2. When width occupacy equals to Throughput*ParallelIssue
   
-  if (ExecutionUnitsThroughput[ExecutionResource] == INF) {
+/*
+  if (ExecutionUnitsThroughput[ExecutionResource] == INF && ExecutionUnitsThroughput[ExecutionResource]==INF) {
     LevelGotFull = false;
   }
   else {
     if (ExecutionUnitsParallelIssue[ExecutionResource] != INF) {
-#ifdef DEBUG_GENERIC
-      
-      DEBUG (dbgs () << "NodeWidthOccupancy " << NodeWidthOccupancy << "\n");
-      DEBUG (dbgs () <<
-             "(unsigned)ExecutionUnitsParallelIssue[ExecutionResource]*ExecutionUnitsThroughput[ExecutionResource] " <<
-             (unsigned) ExecutionUnitsParallelIssue[ExecutionResource]
-             * ExecutionUnitsThroughput[ExecutionResource] << "\n");
-#endif
+
+
       if (ExecutionResource < L1_LOAD_CHANNEL) {
         if (NodeIssueOccupancy == (unsigned) ExecutionUnitsParallelIssue[ExecutionResource]) {
           LevelGotFull = true;
@@ -2163,15 +2233,14 @@ DynamicAnalysis::InsertNextAvailableIssueCycle (uint64_t NextAvailableCycle, uns
     else {			// If ParallelIssue is INF, but ExecutionUnitsThroughput is not INF
       if (NodeWidthOccupancy >= ExecutionUnitsThroughput[ExecutionResource]) {
         LevelGotFull = true;
-#ifdef DEBUG_GENERIC
-        
-        DEBUG (dbgs () << "If ParallelIssue is INF  \n");
-#endif
       }
     }
     
   }
-  
+
+*/
+  LevelGotFull = GetLevelFull(ExecutionResource, NodeIssueOccupancy, NodeWidthOccupancy);
+
   if (LevelGotFull) {
     
     LevelGotFull = true;
@@ -8978,7 +9047,6 @@ DynamicAnalysis::finishAnalysisContechSimplified ()
   
   printHeaderStat ("Issue-Latency Overlaps");
   
-  uint64_t LatSpan = 0;
   for(uint i = 0; i< nExecutionUnits; i++){
     if(InstructionsCountExtended[i]>0){
       // LatSpan = CalculateLatencySpanFinal(i);
@@ -9019,11 +9087,7 @@ DynamicAnalysis::finishAnalysisContechSimplified ()
   fprintf (stderr, "PERFORMANCE %1.3f\n", Performance);
   
   
-  
-  
-  
-  
-  
+
 #ifdef SOURCE_CODE_ANALYSIS
   
   printHeaderStat ("SOURCE CODE LINE INFO");
