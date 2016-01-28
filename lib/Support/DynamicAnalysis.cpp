@@ -353,13 +353,17 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
       BnkVec.push_back (INF);
     }
     this->BnkMat.push_back (BnkVec);
-    
+       
+
   }
   
   
+  MaxLatencyResources = 0;
   if (!ExecutionUnitsLatency.empty ()) {
-    for (unsigned i = 0; i < nExecutionUnits; i++)
+    for (unsigned i = 0; i < nExecutionUnits; i++){
       this->ExecutionUnitsLatency[i] = ceil (ExecutionUnitsLatency[i]);
+      MaxLatencyResources = max(MaxLatencyResources,this->ExecutionUnitsLatency[i] );
+   }
     RARDependences = true;
   }
   else
@@ -385,6 +389,8 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
     this->ExecutionUnitsParallelIssue.push_back (1);
     AccessGranularities.push_back (1);
   }
+
+
   
   
   
@@ -586,7 +592,7 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
     InstructionsSpan.push_back (0);
     InstructionsLastIssueCycle.push_back (0);
     IssueSpan.push_back (0);
-    LatencySpan.push_back (0);
+    LatencyOnlySpan.push_back (0);
     SpanGaps.push_back (0);
     FirstNonEmptyLevel.push_back (0);
     DAGLevelsOccupancy.push_back (emptyVector);
@@ -5788,7 +5794,8 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
             
             LoadCacheLine = CacheLine;
             Info = getCacheLineInfo (LoadCacheLine);
-            
+          
+
             //Code for reuse calculation
             Distance = ReuseDistance (Info.LastAccess, TotalInstructions, CacheLine);
             updateReuseDistanceDistribution (Distance, InstructionIssueCycle);
@@ -5826,6 +5833,8 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
             ExecutionResource = ExecutionUnit[ExtendedInstructionType];
             Latency = ExecutionUnitsLatency[ExecutionResource];
             
+ 
+
             // UpdateInstructionCount(InstructionType,ExtendedInstructionType, NElementsVector, IsVectorInstruction);
             if (IsVectorInstruction) {
               InstructionsCount[InstructionType] = InstructionsCount[InstructionType] + NElementsVector;
@@ -6465,6 +6474,7 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
           // if (Distance < 0) {
           Info = getCacheLineInfo (LoadCacheLine);
           Info.IssueCycle = NewInstructionIssueCycle + Latency;
+		
           insertCacheLineInfo (LoadCacheLine, Info);
           // }else
           insertMemoryAddressIssueCycle (MemoryAddress, NewInstructionIssueCycle + Latency);
@@ -7086,37 +7096,14 @@ DynamicAnalysis::IsEmptyLevelFinal (unsigned ExecutionResource, uint64_t Level)
 
 
 unsigned
-DynamicAnalysis::CalculateLatencySpanFinal(unsigned i){
+DynamicAnalysis::CalculateLatencyOnlySpanFinal(unsigned i){
   
   
-  CLSFCache[i].resize(LastIssueCycleFinal + 100);
-  //CLSFCache[i].resize(2783370);
+    CLSFCache[i].resize(LastIssueCycleFinal + MaxLatencyResources);
   
+  	CLSFCache[i] |= CGSFCache[i];
   
-  if(ExecutionUnitsLatency[i] > 1){
-    /*    dbgs() << "OR with CIS\n";
-     dbgs() << "CISFCache[i].size()\n";
-     dbgs() << CISFCache[i].size()<<"\n";
-     dbgs() << "CLSFCache[i].size()\n";
-     dbgs() << CLSFCache[i].size()<<"\n";
-     dbgs() << "LastIssueCycleFinal\n";
-     dbgs() << LastIssueCycleFinal << "\n";*/
-    //  CLSFCache[i] |= (CISFCache[i]>>1);
-    CLSFCache[i] |= (CISFCache[i]);
-    if(ExecutionUnitsThroughput[i]>=1){
-      
-      for(unsigned j = 0; j < ExecutionUnitsLatency[i]-1; j++){
-        
-        CLSFCache[i] |= (CLSFCache[i] >> 1);
-        
-      }
-      
-      
-    }else{
-      //TODO: What if execution unit throughput is < 1
-    }
-    
-  }
+ 	CLSFCache[i] ^= CISFCache[i];
   
   return CLSFCache[i].count();
 }
@@ -7125,7 +7112,7 @@ DynamicAnalysis::CalculateLatencySpanFinal(unsigned i){
 
 unsigned DynamicAnalysis::GetLatencyIssueOverlap(unsigned i){
   
-  dynamic_bitset <> BitMesh (LastIssueCycleFinal + 100);
+  dynamic_bitset <> BitMesh (LastIssueCycleFinal + MaxLatencyResources);
   
   BitMesh ^= CISFCache[i];
   
@@ -7142,20 +7129,23 @@ unsigned DynamicAnalysis::GetLatencyIssueOverlap(unsigned i){
 unsigned
 DynamicAnalysis::GetGroupSpanFinal (vector < int >&ResourcesVector)
 {
-  dynamic_bitset <> BitMesh (LastIssueCycleFinal + 100);
+
+  dynamic_bitset <> BitMesh (LastIssueCycleFinal + MaxLatencyResources);
   for (size_t j = 0; j < ResourcesVector.size (); j++) {
+
     // Should probably recurse and calculate this value just in case
     if (CGSFCache[ResourcesVector[j]].size () != 0) {
       BitMesh |= CGSFCache[ResourcesVector[j]];
     }
   }
+
   return BitMesh.count ();
 }
 
 unsigned
 DynamicAnalysis::GetGroupOverlapCyclesFinal (vector < int >&ResourcesVector)
 {
-  dynamic_bitset <> BitMesh (LastIssueCycleFinal + 100);
+  dynamic_bitset <> BitMesh (LastIssueCycleFinal + MaxLatencyResources);
   for (size_t j = 0; j < ResourcesVector.size (); j++) {
     // Should probably recurse and calculate this value just in case
     if (CGSFCache[ResourcesVector[j]].size () != 0 && CGSFCache[ResourcesVector[j]].count () != 0) {
@@ -7186,7 +7176,7 @@ DynamicAnalysis::GetGroupOverlapCyclesFinal (vector < int >&ResourcesVector)
 unsigned
 DynamicAnalysis::GetOneToAllOverlapCyclesFinal (vector < int >&ResourcesVector)
 {
-  dynamic_bitset <> BitMesh (LastIssueCycleFinal + 100);
+  dynamic_bitset <> BitMesh (LastIssueCycleFinal + MaxLatencyResources);
   
   for (size_t j = 1; j < ResourcesVector.size (); j++) {
     if (CGSFCache[ResourcesVector[j]].size () != 0 && CGSFCache[ResourcesVector[j]].count () != 0)
@@ -7205,7 +7195,7 @@ DynamicAnalysis::GetOneToAllOverlapCyclesFinal (vector < int >&ResourcesVector)
 unsigned
 DynamicAnalysis::GetOneToAllOverlapCyclesFinal (vector < int >&ResourcesVector, bool Issue)
 {
-  dynamic_bitset <> BitMesh (LastIssueCycleFinal + 100);
+  dynamic_bitset <> BitMesh (LastIssueCycleFinal + MaxLatencyResources);
   
   for (size_t j = 1; j < ResourcesVector.size (); j++) {
     if (CGSFCache[ResourcesVector[j]].size () != 0 && CGSFCache[ResourcesVector[j]].count () != 0)
@@ -7257,7 +7247,7 @@ DynamicAnalysis::CalculateGroupSpanFinal (vector < int >&ResourcesVector)
     if (LastIssueCycleVector[i] > LastCycle)
       LastCycle = LastIssueCycleVector[i];
   }
-  LastCycle += 100;		// to be safe
+  LastCycle += MaxLatencyResources;		// to be safe
   
   // Prepare a cache of values
   if (NResources == 1) {
@@ -7419,7 +7409,7 @@ DynamicAnalysis::CalculateGroupSpanFinal (vector < int >&ResourcesVector)
     
   }
   if (delta != 0 && NResources == 1) {
-    LastCycle = CGSFCache[ResourcesVector[0]].size () - 100;
+    LastCycle = CGSFCache[ResourcesVector[0]].size () - MaxLatencyResources;
     for (; delta != 0; delta--) {
       CGSFCache[ResourcesVector[0]][LastCycle + delta] = 1;
     }
@@ -7447,7 +7437,7 @@ DynamicAnalysis::CalculateIssueSpanFinal (vector < int >&ResourcesVector)
     if (LastIssueCycleVector[i] > LastCycle)
       LastCycle = LastIssueCycleVector[i];
   }
-  LastCycle += 100;		// to be safe
+  LastCycle += MaxLatencyResources;		// to be safe
   
   // Prepare a cache of values
   if (NResources == 1) {
@@ -7843,7 +7833,7 @@ DynamicAnalysis::finishAnalysisContechSimplified ()
   }
   for (unsigned i = 0; i < MAX_RESOURCE_VALUE; i++) {
     if (InstructionsCountExtended[i] != 0) {
-      LatencySpan[i] = CalculateLatencySpanFinal(i);
+      LatencyOnlySpan[i] = CalculateLatencyOnlySpanFinal(i);
     }
   }
   
@@ -7901,12 +7891,13 @@ DynamicAnalysis::finishAnalysisContechSimplified ()
     
     for (unsigned i = 0; i < nExecutionUnits; i++) {
       vector < int >tv;
-      
+
       if (InstructionsCountExtended[i] != 0) {
         tv.push_back (i);
         
         for (uint j = RS_STALL; j <= LFB_STALL; j++) {
           if (InstructionsCountExtended[j] != 0) {
+
             tv.push_back (j);
             
           }
@@ -8104,7 +8095,7 @@ DynamicAnalysis::finishAnalysisContechSimplified ()
     for (unsigned i = 0; i < nExecutionUnits; i++) {
       dbgs () << GetResourceName (i) << "\t\t";
       for (uint j = RS_STALL; j <= LFB_STALL; j++) {
-        dynamic_bitset <> BitMesh (LastIssueCycleFinal + 100);
+        dynamic_bitset <> BitMesh (LastIssueCycleFinal + MaxLatencyResources);
         
         if (InstructionsCountExtended[i] != 0 && InstructionsCountExtended[j] != 0) {
           BitMesh |= CISFCache[i];
@@ -8637,19 +8628,53 @@ DynamicAnalysis::finishAnalysisContechSimplified ()
   {
     
     vector < vector < uint64_t > >ResourcesOverlapCycles (nExecutionUnits+nBuffers, vector < uint64_t > (nExecutionUnits+nBuffers));
-    
-    
+    vector < vector < uint64_t > >ResourcesOnlyLatencyOverlapCycles (nExecutionUnits, vector < uint64_t > (nExecutionUnits+nBuffers));
+     vector < vector < uint64_t > >ResourcesOnlyIssueOverlapCycles (nExecutionUnits, vector < uint64_t > (nExecutionUnits+nBuffers));
     
     for (unsigned i = 0; i < TotalSpan; i++){
       vector < unsigned > resourcesInCycle;
-      for (unsigned j = 0; j< nExecutionUnits+nBuffers; j++){
-        
+
+      for (unsigned j = 0; j< nExecutionUnits+nBuffers; j++){        
         if (InstructionsCountExtended[j]!= 0 &&  CGSFCache[j][i]==1)
           resourcesInCycle.push_back(j);
       }
+
       for (unsigned j = 0; j< resourcesInCycle.size(); j++){
         ResourcesOverlapCycles[resourcesInCycle[j]][resourcesInCycle.size()]++;
       }
+
+	for (unsigned j = 0; j< nExecutionUnits; j++){
+	   resourcesInCycle.clear();		        
+        if (InstructionsCountExtended[j]!= 0 &&  CISFCache[j][i]==1){
+		resourcesInCycle.push_back(j);
+		for (unsigned k = 0; k< nExecutionUnits; k++){       
+          	if ( k != j && InstructionsCountExtended[k]!= 0 &&  CGSFCache[k][i]==1){
+			resourcesInCycle.push_back(k);
+		  }
+		}
+	   }
+		ResourcesOnlyIssueOverlapCycles[j][resourcesInCycle.size()]++;
+		
+      }
+
+
+
+     for (unsigned j = 0; j< nExecutionUnits; j++){
+	   resourcesInCycle.clear();		        
+        if (InstructionsCountExtended[j]!= 0 &&  CLSFCache[j][i]==1){
+		resourcesInCycle.push_back(j);
+		for (unsigned k = 0; k< nExecutionUnits; k++){       
+          	if ( k != j && InstructionsCountExtended[k]!= 0 &&  CGSFCache[k][i]==1){
+			resourcesInCycle.push_back(k);
+		  }
+		}
+	   }
+		ResourcesOnlyLatencyOverlapCycles[j][resourcesInCycle.size()]++;
+		
+      }
+
+	
+ 	
       
     }
     printHeaderStat ("Ranking ");
@@ -8702,7 +8727,8 @@ DynamicAnalysis::finishAnalysisContechSimplified ()
      for(unsigned i = 0; i<TmpElementsToRemove.size();i++ ){
      dbgs() << TmpElementsToRemove[i] << " "<< OverlapCyclesRanking[i]*100/(double)ResourcesSpan[TmpElementsToRemove[i]] << "\n" ;
      }
-     */	      printHeaderStat ("Breakdown Overlap");
+     */	      
+printHeaderStat ("Breakdown Overlap");
     
     for (unsigned j = 0; j< nExecutionUnits+nBuffers; j++){
       dbgs () << GetResourceName(j);
@@ -8712,7 +8738,36 @@ DynamicAnalysis::finishAnalysisContechSimplified ()
       dbgs() << "\n";
     }
 
+
+printHeaderStat ("Breakdown Overlap - Issue and only latency separated");
+ 
+
+   for (unsigned j = 0; j< nExecutionUnits; j++){
+      dbgs () << GetResourceName(j) << " ISSUE";
+      for (unsigned i = 1; i< nExecutionUnits+nBuffers; i++){
+        dbgs() << " "<< ResourcesOnlyIssueOverlapCycles[j][i] ;
+      }
+      dbgs() << "\n";
+	dbgs () << GetResourceName(j) << " ONLY_LAT";
+      for (unsigned i = 1; i< nExecutionUnits+nBuffers; i++){
+        dbgs() << " "<< ResourcesOnlyLatencyOverlapCycles[j][i] ;
+      }
+      dbgs() << "\n";
+    }
+
+   
+    for (unsigned j = nExecutionUnits; j< nExecutionUnits+nBuffers; j++){
+      dbgs () << GetResourceName(j);
+      for (unsigned i = 1; i< nExecutionUnits+nBuffers; i++){
+        dbgs() << " "<< ResourcesOverlapCycles[j][i] ;
+      }
+      dbgs() << "\n";
+    }
+
+
+
   }
+ 
   
   // ===================== ALL OVERLAPS - THIRD APPROACH ===========================//
   {
@@ -8744,12 +8799,10 @@ DynamicAnalysis::finishAnalysisContechSimplified ()
       }
       
     }
-    
-    
-    
+
   }
-  
-  
+
+
   // ===================== ALL OVERLAPS - ISSUE/LATENCY APPROACH ===========================//
   {
     
@@ -8775,21 +8828,27 @@ DynamicAnalysis::finishAnalysisContechSimplified ()
         
         OverlapCycles = GetOneToAllOverlapCyclesFinal (nonEmptyExecutionUnits, true);
         OverlapPercetage = (float) OverlapCycles / (float (IssueSpan[i]));
-        dbgs () << GetResourceName(i) << " " << OverlapCycles;
+        dbgs () << GetResourceName(i) << " ISSUE " << OverlapCycles;
         fprintf (stderr, " %1.3f\n", OverlapPercetage);
         
         OverlapCycles = GetOneToAllOverlapCyclesFinal (nonEmptyExecutionUnits, false); // Latency
-        OverlapPercetage = (float) OverlapCycles / (float (LatencySpan[i]));
-        dbgs () << GetResourceName(i) << " " << OverlapCycles;
+	   if (LatencyOnlySpan[i]==0){
+		        OverlapPercetage = 0.0;
+	   }else{
+        OverlapPercetage = (float) OverlapCycles / (float (LatencyOnlySpan[i]));
+        }
+	   dbgs () << GetResourceName(i) << " ONLY LAT " << OverlapCycles;
         fprintf (stderr, " %1.3f\n", OverlapPercetage);
-        
         
       }
       
     }
+
   }
+
+
   
-  
+
   
   //======================= Bottlenecks ===============================//
   
@@ -8874,6 +8933,66 @@ DynamicAnalysis::finishAnalysisContechSimplified ()
     
   }
   
+ //=============== Botttlenecks without buffers and latency separate =========//
+
+
+{
+  printHeaderStat ("Bottlenecks II");
+  dbgs () << "Bottleneck\tISSUE\tLAT_ONLY\n";
+ 
+  uint64_t Work;
+  
+  for (unsigned i = 0; i < nExecutionUnits; i++) {
+    if(InstructionsCountExtended[i] > 0){
+      // Work is always the total number of floating point operations... Otherwise it makes
+      // no sense to compare with the performance for memory nodes which is calcualted
+      // with total work
+      Work = InstructionsCount[0];
+      dbgs () << GetResourceName (i) << "\t\t";
+      
+      if (IssueSpan[i] > 0) {
+        Performance = (float) Work / ((float) IssueSpan[i]);
+        fprintf (stderr, " %1.3f ", Performance);
+        
+      }
+      else {
+        dbgs () << INF << "\t";
+      }
+      
+      if (LatencyOnlySpan[i] > 0) {
+        Performance = (float) Work / ((float) LatencyOnlySpan[i]);
+        fprintf (stderr, " %1.3f ", Performance);
+      }
+      else {
+        dbgs () << INF << "\t";
+		
+      }
+     
+      dbgs () << "\n";
+    }else{
+      dbgs () << GetResourceName (i) << "\t\t";
+      for (unsigned j = 0; j < 2; j++) {
+        dbgs () << INF << "\t";
+      }
+      dbgs () << "\n";
+    }
+  }
+}
+
+
+ //===================== Issue latency overlap  ==============================//
+
+  printHeaderStat ("Issue/Only Latency Cycles");
+  
+  for(uint i = 0; i< nExecutionUnits; i++){
+    if(InstructionsCountExtended[i]>0){
+      // LatSpan = CalculateLatencySpanFinal(i);
+      //  LatSpan = LatencySpan[i];
+      dbgs() << GetResourceName(i) << " " <<  IssueSpan[i] << " " << LatencyOnlySpan[i] << "\n";
+    
+    }
+  }
+
   
   //======================= Execution Times Breakdown =========================//
   printHeaderStat ("Execution Times Breakdowns");
@@ -9045,20 +9164,7 @@ DynamicAnalysis::finishAnalysisContechSimplified ()
     }
   }
   
-  printHeaderStat ("Issue-Latency Overlaps");
-  
-  for(uint i = 0; i< nExecutionUnits; i++){
-    if(InstructionsCountExtended[i]>0){
-      // LatSpan = CalculateLatencySpanFinal(i);
-      //  LatSpan = LatencySpan[i];
-      dbgs() << GetResourceName(i) << " " <<  IssueSpan[i] << " " << LatencySpan[i] << " ";
-      if(LatencySpan[i] == 0)
-        dbgs() << "0\n";
-      else
-        fprintf (stderr, " %1.3f\n", GetLatencyIssueOverlap(i)/((double)min(IssueSpan[i], LatencySpan[i])));
-      //dbgs() << GetResourceName(i) << " " <<  IssueSpan[i] << " " <<  CalculateLatencySpanFinal(i) << " " << GetLatencyIssueOverlap(i) << "\n";
-    }
-  }
+
   
   
   
