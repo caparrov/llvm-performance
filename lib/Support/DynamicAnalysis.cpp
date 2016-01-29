@@ -1732,14 +1732,14 @@ DynamicAnalysis::FindNextAvailableIssueCycleUntilNotInFullOrEnoughBandwidth (uns
   }
   
   
-  
+
   unsigned NextAvailableCycle = NextCycle;
   unsigned OriginalCycle;
   Tree < uint64_t > *Node = AvailableCyclesTree[ExecutionResource];
   Tree < uint64_t > *LastNodeVisited = NULL;
   
   NextAvailableCycle++;
-  
+
 #ifdef DEBUG_GENERIC
   DEBUG (dbgs () << "Searching NextAvailableCycle for " << NextAvailableCycle << "\n");
 #endif
@@ -1748,6 +1748,8 @@ DynamicAnalysis::FindNextAvailableIssueCycleUntilNotInFullOrEnoughBandwidth (uns
   // If we loop over the first while because there is not enough bandwidth,
   // Node might be NULL because this loop has already been executed.
   Node = AvailableCyclesTree[ExecutionResource];
+
+
 #ifdef DEBUG_GENERIC
   DEBUG (dbgs () << "Node->key  " << Node->key << "\n");
   DEBUG (dbgs () << "NextAvailableCycle " << NextAvailableCycle << "\n");
@@ -1813,6 +1815,8 @@ DynamicAnalysis::FindNextAvailableIssueCycleUntilNotInFullOrEnoughBandwidth (uns
   
   //  TreeChunk = GetTreeChunk(NextAvailableCycle);
   
+
+
 #ifdef DEBUG_GENERIC
   DEBUG (dbgs () << "NextAvailableCycle " << NextAvailableCycle << "\n");
 #endif
@@ -1836,11 +1840,12 @@ DynamicAnalysis::FindNextAvailableIssueCycle (unsigned OriginalCycle, unsigned E
     dbgs() << "Throughput zero for resource " << GetResourceName(ExecutionResource) << "\n";
     report_fatal_error("Throughput value not valid for resource issuing instructions");
   }
-  
+
+
     uint64_t NextAvailableCycle = OriginalCycle;
-  //unsigned IssueCycleGranularity = GetIssueCycleGranularity(ExecutionResource, AccessWidths[ExecutionResource], NElementsVector);
- // uint64_t NextAvailableCycle = roundNextMultiple (OriginalCycle, IssueCycleGranularity);
-  
+  unsigned IssueCycleGranularity = GetIssueCycleGranularity(ExecutionResource, AccessWidths[ExecutionResource], NElementsVector);
+  uint64_t NextAvailableCycleRounded = roundNextMultiple (OriginalCycle, IssueCycleGranularity);
+
   bool FoundInFullOccupancyCyclesTree = true;
   bool EnoughBandwidth = false;
   unsigned TreeChunk = 0;
@@ -1895,16 +1900,17 @@ DynamicAnalysis::FindNextAvailableIssueCycle (unsigned OriginalCycle, unsigned E
       if (ExecutionResource < nExecutionUnits) {
         
         if (FoundInFullOccupancyCyclesTree == true) {
+
           NextAvailableCycle =
           FindNextAvailableIssueCycleUntilNotInFullOrEnoughBandwidth (NextAvailableCycle, ExecutionResource,
                                                                       FoundInFullOccupancyCyclesTree, EnoughBandwidth);
           // Just as a sanity check
-          //  if (ThereIsAvailableBandwidth(NextAvailableCycle, ExecutionResource, NElementsVector, FoundInFullOccupancyCyclesTree, TargetLevel)==false) {
+        //    if (ThereIsAvailableBandwidth(NextAvailableCycle, ExecutionResource, NElementsVector, FoundInFullOccupancyCyclesTree, TargetLevel)==false) {
           //   report_fatal_error("Next cycle found in available, but there is not enough bandwidth");
-          // }
+       //    }
           
         }
-        else {
+      //  else {
 #ifdef DEBUG_GENERIC
           
           DEBUG (dbgs () << "Searching available BW \n");
@@ -1938,7 +1944,7 @@ DynamicAnalysis::FindNextAvailableIssueCycle (unsigned OriginalCycle, unsigned E
             }
             
           }
-        }
+       // }
         
         
       }
@@ -5431,13 +5437,13 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
             //Code for reuse calculation
             Distance = ReuseDistance (Info.LastAccess, TotalInstructions, CacheLine);
             
-            /*
+            
              #ifdef DEBUG_MEMORY_TRACES
              DEBUG (dbgs () << "MemoryAddress " << MemoryAddress << "\n");
              DEBUG (dbgs () << "CacheLine " << CacheLine << "\n");
              DEBUG (dbgs () << "Distance " << Distance << "\n");
              #endif
-             */
+             
             
             Info.LastAccess = TotalInstructions;
             insertCacheLineLastAccess (CacheLine, Info.LastAccess);
@@ -6061,7 +6067,9 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
             
             
             InstructionIssueCycle = max (InstructionIssueCycle, InstructionIssueThroughputAvailable);
-            
+
+
+
 #ifdef DEBUG_ISSUE_CYCLE
             DEBUG (dbgs () << "======== Instruction Issue Cycle (fetch cycle)" << InstructionIssueFetchCycle << "========\n");
             DEBUG (dbgs () << "======== Instruction Issue Cycle (LB availability)" << InstructionIssueLoadBufferAvailable <<
@@ -6345,6 +6353,9 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
                 
               }
             }
+
+
+
             InstructionIssueCycle = max (InstructionIssueCycle, InstructionIssueThroughputAvailable);
 #ifdef DEBUG_ISSUE_CYCLE
             DEBUG (dbgs () << "======== Instruction Issue Cycle (fetch cycle) " << InstructionIssueFetchCycle << " ========\n");
