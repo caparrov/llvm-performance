@@ -566,6 +566,7 @@ vector<pair<uint64_t,uint64_t> > DispatchToLoadBufferQueueTreeCyclesToRemove;
   bool x86MemoryModel;
   bool SpatialPrefetcher;
   bool ConstraintPorts;
+  bool ConstraintPortsx86;
   bool BlockPorts;
   bool ConstraintAGUs;
   unsigned PrefetchLevel;
@@ -742,7 +743,8 @@ unsigned GetOneToAllOverlapCyclesFinal(vector < int >&ResourcesVector, bool Issu
                   bool x86MemoryModel,
                   bool SpatialPrefetcher,
                   bool ConstraintPorts,
-                  bool BlockPorts,
+			   bool ConstraintPortsx86,
+
                   bool ConstraintAGUs,
                   int rep,
                   bool InOrderExecution,
