@@ -5,7 +5,7 @@
 //  Victoria Caparros Cabezas <caparrov@inf.ethz.ch>
 //===----------------------------------------------------------------------===//
 
-//#define INTERPRETER
+#define INTERPRETER
 
 #ifdef INTERPRETER
 #include "llvm/Support/DynamicAnalysis.h"
@@ -266,18 +266,7 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
     }
   }
   
-  for (unsigned i = 0; i < nArithmeticNodes + nMovNodes + nMemNodes; i++) {	// Dispatch ports are associated to nodes
-    if (ConstraintPorts && ExecutionUnitsParallelIssue[ExecutionUnit[i]] > 0
-        && DispatchPort[i].size () < (unsigned) ExecutionUnitsParallelIssue[ExecutionUnit[i]]) {
-      DEBUG (dbgs () << "ExecutionUnit " << i << "\n");
-      DEBUG (dbgs () << "DispatchPort[i].size() " << DispatchPort[i].size () << "\n");
-      DEBUG (dbgs () << "ExecutionUnitsParallelIssue[i] " << ExecutionUnitsParallelIssue[i] << "\n");
-      report_fatal_error ("There are more execution units than ports that can dispatch them\n");
-    }
-    if ((ExecutionUnitsParallelIssue[ExecutionUnit[i]]==INF && ConstraintPorts) ||
-        (ExecutionUnitsParallelIssue[ExecutionUnit[i]]==INF && ConstraintPortsx86))
-    report_fatal_error ("Parallel Issue cannot infinite while constraining ports\n");
-  }
+
   
   if (!MemAccessGranularity.empty ()
       && MemAccessGranularity.size () != nMemExecutionUnits)
@@ -487,6 +476,21 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
     
   }
   
+
+  for (unsigned i = 0; i < nArithmeticNodes + nMovNodes + nMemNodes; i++) {	// Dispatch ports are associated to nodes
+    if (ConstraintPorts && ExecutionUnitsParallelIssue[ExecutionUnit[i]] > 0
+        && DispatchPort[i].size () < (unsigned) ExecutionUnitsParallelIssue[ExecutionUnit[i]]) {
+      DEBUG (dbgs () << "ExecutionUnit " << i << "\n");
+      DEBUG (dbgs () << "DispatchPort[i].size() " << DispatchPort[i].size () << "\n");
+      DEBUG (dbgs () << "ExecutionUnitsParallelIssue[i] " << ExecutionUnitsParallelIssue[i] << "\n");
+      report_fatal_error ("There are more execution units than ports that can dispatch them\n");
+    }
+    if ((ExecutionUnitsParallelIssue[ExecutionUnit[i]]==INF && ConstraintPorts) ||
+        (ExecutionUnitsParallelIssue[ExecutionUnit[i]]==INF && ConstraintPortsx86))
+    report_fatal_error ("Parallel Issue cannot infinite while constraining ports\n");
+  }
+
+
   
   
   
@@ -2294,7 +2298,7 @@ DynamicAnalysis::InsertNextAvailableIssueCycle (uint64_t NextAvailableCycle, uns
   //TODO!
   FullOccupancyCyclesTree[TreeChunk].insert_source_code_line (NextAvailableCycle, SourceCodeLine, ExecutionResource);
 #endif
-  if (IssuePort > PORT_0)
+  if (IssuePort >= PORT_0)
   AvailableCyclesTree[ExecutionResource]->issuePorts.push_back (IssuePort);
   Node = AvailableCyclesTree[ExecutionResource];
   
@@ -8842,14 +8846,14 @@ DynamicAnalysis::finishAnalysisContechSimplified ()
   
   {
     
-    // + 1 to include L1load toghether with L1store, as if they were one resource for L1 cache, and L1 cache and L2 cache
-    vector < vector < uint64_t > >ResourcesOverlapCycles (nExecutionUnits+nBuffers+3, vector < uint64_t > (nExecutionUnits+nBuffers));
+    // + 4 to include L1load toghether with L1store, as if they were one resource for L1 cache, L2, L3, and the accesses to mem
+    vector < vector < uint64_t > >ResourcesOverlapCycles (nExecutionUnits+nBuffers+1, vector < uint64_t > (nExecutionUnits+nBuffers));
     vector < vector < uint64_t > >ResourcesOnlyLatencyOverlapCycles (nExecutionUnits, vector < uint64_t > (nExecutionUnits+nBuffers));
     vector < vector < uint64_t > >ResourcesOnlyIssueOverlapCycles (nExecutionUnits, vector < uint64_t > (nExecutionUnits+nBuffers));
-    //    bool L1ResourceFound = false;
+     bool L1ResourceFound = false;
     for (unsigned i = 0; i < TotalSpan; i++){
       vector < unsigned > resourcesInCycle;
-      //	 L1ResourceFound = false;
+      L1ResourceFound = false;
       for (unsigned j = 0; j< nExecutionUnits+nBuffers; j++){
         if (InstructionsCountExtended[j]!= 0 &&  CGSFCache[j][i]==1)
         resourcesInCycle.push_back(j);
@@ -8857,7 +8861,7 @@ DynamicAnalysis::finishAnalysisContechSimplified ()
       
       for (unsigned j = 0; j< resourcesInCycle.size(); j++){
         ResourcesOverlapCycles[resourcesInCycle[j]][resourcesInCycle.size()]++;
-        /*
+        // l1 calculation
          if ((resourcesInCycle[j]==L1_LOAD_CHANNEL || resourcesInCycle[j] == L1_STORE_CHANNEL)){
          if(L1ResourceFound==false){
          L1ResourceFound = true;
@@ -8867,7 +8871,7 @@ DynamicAnalysis::finishAnalysisContechSimplified ()
          ResourcesOverlapCycles.back()[resourcesInCycle.size()-1]++;
          }
          }
-         */
+         // End of l1 calculation
       }
       
       for (unsigned j = 0; j< nExecutionUnits; j++){
@@ -8904,13 +8908,19 @@ DynamicAnalysis::finishAnalysisContechSimplified ()
     }
     
     // Add data for caches
-    
+      ResourcesOverlapCycles.push_back(ResourcesOverlapCycles[L2_LOAD_CHANNEL]);
+      ResourcesOverlapCycles.push_back(ResourcesOverlapCycles[L3_LOAD_CHANNEL]);
+      ResourcesOverlapCycles.push_back(ResourcesOverlapCycles[MEM_LOAD_CHANNEL]);
+
+/*
     for (unsigned i = 0; i < ResourcesOverlapCycles[L2_LOAD_CHANNEL].size(); i++){
+	
       ResourcesOverlapCycles[nExecutionUnits+nBuffers][i] = ResourcesOverlapCycles[L2_LOAD_CHANNEL][i];
       ResourcesOverlapCycles[nExecutionUnits+nBuffers+1][i] = ResourcesOverlapCycles[L3_LOAD_CHANNEL][i];
       ResourcesOverlapCycles[nExecutionUnits+nBuffers+2][i] = ResourcesOverlapCycles[MEM_LOAD_CHANNEL][i];
-    }
-    printHeaderStat ("Ranking ");
+    
+}
+*/    printHeaderStat ("Ranking ");
     
     
     vector<unsigned> CandidateResources;
@@ -8963,17 +8973,19 @@ DynamicAnalysis::finishAnalysisContechSimplified ()
      */
     printHeaderStat ("Breakdown Overlap");
     
-    for (unsigned j = 0; j< nExecutionUnits+nBuffers+3; j++){
+    for (unsigned j = 0; j< nExecutionUnits+nBuffers+4; j++){
       if (j < nExecutionUnits+nBuffers)
       dbgs () << GetResourceName(j);
       else{
         if (j == nExecutionUnits+nBuffers)
-        dbgs () << "L1_CACHE";
+        dbgs () << "ALL_L1";
         
         if (j == nExecutionUnits+nBuffers+1)
-        dbgs () << "L2_CACHE";
+        dbgs () << "L2";
         if (j == nExecutionUnits+nBuffers+2)
-        dbgs () << "LLC_CACHE";
+        dbgs () << "LLC";
+if (j == nExecutionUnits+nBuffers+3)
+        dbgs () << "MEM";
       }
       
       for (unsigned i = 1; i< nExecutionUnits+nBuffers; i++){
@@ -9000,17 +9012,19 @@ DynamicAnalysis::finishAnalysisContechSimplified ()
     }
     
     
-    for (unsigned j = nExecutionUnits; j< nExecutionUnits+nBuffers+3; j++){
+    for (unsigned j = nExecutionUnits; j< nExecutionUnits+nBuffers+4; j++){
       if (j < nExecutionUnits+nBuffers)
       dbgs () << GetResourceName(j);
       else{
-        if (j == nExecutionUnits+nBuffers)
-        dbgs () << "L1_CACHE";
+          if (j == nExecutionUnits+nBuffers)
+        dbgs () << "ALL_L1";
         
         if (j == nExecutionUnits+nBuffers+1)
-        dbgs () << "L2_CACHE";
+        dbgs () << "L2";
         if (j == nExecutionUnits+nBuffers+2)
-        dbgs () << "LLC_CACHE";
+        dbgs () << "LLC";
+if (j == nExecutionUnits+nBuffers+3)
+        dbgs () << "MEM";
       }
       for (unsigned i = 1; i< nExecutionUnits+nBuffers; i++){
         dbgs() << " "<< ResourcesOverlapCycles[j][i] ;

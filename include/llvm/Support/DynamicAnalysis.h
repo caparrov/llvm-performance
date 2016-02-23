@@ -9,7 +9,7 @@
 #ifndef LLVM_SUPPORT_DYNAMIC_ANALYSIS_H
 #define LLVM_SUPPORT_DYNAMIC_ANALYSIS_H
 
-//#define INTERPRETER
+#define INTERPRETER
 //#define EFF_TBV
 
 #include "../../../lib/ExecutionEngine/Interpreter/Interpreter.h"

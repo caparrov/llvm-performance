@@ -95,7 +95,12 @@ static cl::opt < bool > x86MemoryModel("x86-memory-model", cl::Hidden, cl::desc(
 
 static cl::opt < bool > ConstraintPorts("constraint-ports", cl::Hidden, cl::desc("Constraint ports dispatch according to specified architecture. Default value is FALSE"),cl::init(false));
 
-static cl::opt < bool > BlockPorts("block-ports", cl::Hidden, cl::desc("Block the ports while the instruction is being issued according to the corresponding throughput. Default value is FALSE"),cl::init(false));
+static cl::opt < bool > ConstraintPortsx86 ("constraint-ports-x86", cl::Hidden,
+                   cl::desc
+                   ("Constraint ports dispatch according to x86 architecture. Default value is FALSE"),
+                   cl::init (false));
+
+
 
 
 static cl::opt < bool > ConstraintAGUs("constraint-agus", cl::Hidden, cl::desc("Constraint agus according to specified architecture. Default value is FALSE"),cl::init(false));
@@ -2349,7 +2354,38 @@ void Interpreter::run() {
   float Cycles, ExecutionTime, CyclesPostProcessing, ExecutionTimePostProcessing, ExecutionTimeActualSimulation;
   
 
-  Analyzer = new DynamicAnalysis(TargetFunction, Microarchitecture, MemoryWordSize, CacheLineSize, L1CacheSize, L2CacheSize, LLCCacheSize, ExecutionUnitsLatency, ExecutionUnitsThroughput, ExecutionUnitsParallelIssue, MemAccessGranularity, AddressGenerationUnits, IFB, ReservationStation, ReorderBuffer, LoadBuffer, StoreBuffer, LineFillBuffer, WarmCache, x86MemoryModel, SpatialPrefetcher, ConstraintPorts, BlockPorts, ConstraintAGUs, 0, InOrderExecution,ReportOnlyPerformance,PrefetchLevel, PrefetchDispatch, PrefetchTarget);
+  Analyzer = new DynamicAnalysis (TargetFunction,
+                                  Microarchitecture,
+                                  MemoryWordSize,
+                                  CacheLineSize,
+                                  L1CacheSize,
+                                  L2CacheSize,
+                                  LLCCacheSize,
+                                  ExecutionUnitsLatency,
+                                  ExecutionUnitsThroughput,
+                                  ExecutionUnitsParallelIssue,
+                                  MemAccessGranularity,
+                                  AddressGenerationUnits,
+                                  IFB,
+                                  ReservationStation,
+                                  ReorderBuffer,
+                                  LoadBuffer,
+                                  StoreBuffer,
+                                  LineFillBuffer,
+                                  WarmCache,
+                                  x86MemoryModel,
+                                  SpatialPrefetcher,
+                                  ConstraintPorts,
+                                  ConstraintPortsx86,
+                                  ConstraintAGUs,
+                                  0,
+                                  InOrderExecution,
+                                  ReportOnlyPerformance,
+                                  PrefetchLevel,
+                                  PrefetchDispatch, PrefetchTarget);
+
+
+
    tStart = clock();
   bool startAnalysis = false;
   
@@ -2442,7 +2478,7 @@ tEndCacheWarmed = clock();
  // ExecutionTimeActualSimulation = CyclesActualSimulation / ((float)CLOCKS_PER_SEC);
 ExecutionTimeActualSimulation = ((double) (tEndCacheWarmed - tStartCacheWarmed)) / CLOCKS_PER_SEC;
             dbgs() << "Execution time actual simulation " << ExecutionTimeActualSimulation << " s\n";
-
+/*
 
              tStartPostProcessing = clock();
             Analyzer->finishAnalysis();
@@ -2457,7 +2493,7 @@ ExecutionTimeActualSimulation = ((double) (tEndCacheWarmed - tStartCacheWarmed))
             CyclesPostProcessing = ((float)tEndPostProcessing - (float)tStartPostProcessing);
             ExecutionTimePostProcessing = CyclesPostProcessing / CLOCKS_PER_SEC;
             dbgs() << "Execution time Post processing " << ExecutionTimePostProcessing << " s\n";
-            
+  */          
             tStartPostProcessing = clock();
 
             Analyzer->finishAnalysisContechSimplified();
