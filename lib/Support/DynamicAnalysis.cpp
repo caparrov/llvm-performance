@@ -5,7 +5,7 @@
 //  Victoria Caparros Cabezas <caparrov@inf.ethz.ch>
 //===----------------------------------------------------------------------===//
 
-#define INTERPRETER
+//#define INTERPRETER
 
 #ifdef INTERPRETER
 #include "llvm/Support/DynamicAnalysis.h"
@@ -559,7 +559,8 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
     for (unsigned i = 0; i < nExecutionUnits; i++){
       if (i >= nArithmeticExecutionUnits + nMovExecutionUnits
           && i < nArithmeticExecutionUnits + nMovExecutionUnits + nMemExecutionUnits) {
-        ShareThroughputAmongPorts[i] = true;
+      //  ShareThroughputAmongPorts[i] = true;
+	 ShareThroughputAmongPorts[i] = false;
         
       }
       
@@ -1627,7 +1628,7 @@ DynamicAnalysis::GetNodeWidthOccupancy(unsigned ExecutionResource, unsigned Acce
   if (ExecutionUnitsThroughput[ExecutionResource] != INF && ExecutionUnitsParallelIssue[ExecutionResource] != INF) {
     if (ShareThroughputAmongPorts[ExecutionResource]) {
       if(AccessWidth*NElementsVector <= ExecutionUnitsThroughput[ExecutionResource]* ExecutionUnitsParallelIssue[ExecutionResource])
-      NodeWidthOccupancy = AccessWidth;
+      NodeWidthOccupancy = AccessWidth*NElementsVector;
       else
       NodeWidthOccupancy = ExecutionUnitsThroughput[ExecutionResource]* ExecutionUnitsParallelIssue[ExecutionResource]; // AccessWidth before
     }else{
@@ -1722,13 +1723,17 @@ DynamicAnalysis::ThereIsAvailableBandwidth (unsigned NextAvailableCycle, unsigne
     if (AvailableCyclesTree[ExecutionResource] != NULL) {
       Node = AvailableCyclesTree[ExecutionResource];
       if (Node != NULL && Node->key >= NextAvailableCycle) {
+
+	EnoughBandwidth = !GetLevelFull(ExecutionResource,  Node->issueOccupancy, Node->widthOccupancy);
+/*	   
         LevelOccupancy = Node->widthOccupancy;
         
         if (LevelOccupancy > 0 && ExecutionUnitsThroughput[ExecutionResource] >= 1) {
-          if (ExecutionUnitsThroughput[ExecutionResource] * max(1,ExecutionUnitsParallelIssue[ExecutionResource]) -
+		if(ShareThroughputAmongPorts[ExecutionResource]){
+          	if (ExecutionUnitsThroughput[ExecutionResource] * max(1,ExecutionUnitsParallelIssue[ExecutionResource]) -
               Node->widthOccupancy < AccessWidth * NElementsVector)
-          EnoughBandwidth = false;
-          
+          	EnoughBandwidth = false;
+          }
 #ifdef DEBUG_GENERIC
           DEBUG (dbgs () << "Level Occupacy " << LevelOccupancy << "\n");
           DEBUG (dbgs () << "AccessWidth " << AccessWidth * NElementsVector << "\n");
@@ -1738,6 +1743,7 @@ DynamicAnalysis::ThereIsAvailableBandwidth (unsigned NextAvailableCycle, unsigne
           
 #endif
         }
+*/
       }
     }
     // Else, if ExecutionUnitsThroughput[ExecutionResource] >= 1, the level is either
