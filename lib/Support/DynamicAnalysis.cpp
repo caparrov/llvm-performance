@@ -5771,7 +5771,8 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
         
         if (IsVectorInstruction) {
           DEBUG (dbgs () << "Vector instruction of width " << NElementsVector << "\n");
-          
+           if (ShareThroughputAmongPorts[ExecutionUnit[GetExtendedInstructionType(OpCode)]]==false)
+			report_fatal_error("Executing vector instruction without sharing ports. It may be correct, but double check that this is the desired behaviour");
         }
         
         //      }
