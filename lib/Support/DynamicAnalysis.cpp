@@ -1811,11 +1811,13 @@ DynamicAnalysis::ThereIsAvailableBandwidth (unsigned NextAvailableCycle, unsigne
           Node = AvailableCyclesTree[ExecutionResource];
           if (Node != NULL && Node->key == i) {
             
-            if (Node->issuePorts.size () > 0) {
+            if (Node->issuePorts.size() > 0) {
+              for (unsigned port = 0; port < Node->issuePorts.size(); port++) {
+               
 #ifdef DEBUG_GENERIC
-              DEBUG (dbgs () << "There was an instruction issued in previous cycle " << i << " in port " << GetResourceName(Node->issuePorts.back()) << "\n");
+              DEBUG (dbgs () << "There was an instruction issued in previous cycle " << i << " in port " << GetResourceName(Node->issuePorts[port]) << "\n");
 #endif
-              IssuePorts.push_back (Node->issuePorts.back());
+              IssuePorts.push_back (Node->issuePorts[port]);
               if (ExecutionUnitsParallelIssue[ExecutionResource] != INF &&  IssuePorts.size() == (unsigned)ExecutionUnitsParallelIssue[ExecutionResource]){
                 EnoughBandwidth = false;
                 
@@ -1825,6 +1827,8 @@ DynamicAnalysis::ThereIsAvailableBandwidth (unsigned NextAvailableCycle, unsigne
                 
                 
               }
+              
+            }//End of for
             }
             
           }
@@ -1880,12 +1884,13 @@ DynamicAnalysis::ThereIsAvailableBandwidth (unsigned NextAvailableCycle, unsigne
           Node = AvailableCyclesTree[ExecutionResource];
           if (Node != NULL && Node->key == i) {
             if (Node->issuePorts.size () > 0) {
+              for (unsigned port = 0; port < Node->issuePorts.size(); port++) {
+
 #ifdef DEBUG_GENERIC
               
-              DEBUG (dbgs () << "There was an instruction issued in kater cycle " << i << " in port " << GetResourceName(Node->issuePorts.
-                                                                                                                         back ()) << "\n");
+              DEBUG (dbgs () << "There was an instruction issued in kater cycle " << i << " in port " << GetResourceName(Node->issuePorts[port]) << "\n");
 #endif
-              IssuePorts.push_back (Node->issuePorts.back ());
+              IssuePorts.push_back (Node->issuePorts[port]);
               
               if (ExecutionUnitsParallelIssue[ExecutionResource] != INF && IssuePorts.size() == (unsigned)ExecutionUnitsParallelIssue[ExecutionResource]){
                 EnoughBandwidth = false;
@@ -1896,7 +1901,7 @@ DynamicAnalysis::ThereIsAvailableBandwidth (unsigned NextAvailableCycle, unsigne
                 
                 
               }
-              
+            }
               
             }
           }
