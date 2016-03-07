@@ -6183,8 +6183,8 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
           
           
           Port = 0;
-          
-          if (LoadBufferSize > 0) {
+          // TODO: if finally is 0, remove
+          if (0) {
             
             if (ConstraintPorts) {
               bool FirstPortAvailableFound = false;
@@ -6486,7 +6486,7 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
           
           // If there is a store buffer, the dipatch cycle might be different from
           // the issue (execution) cycle.
-          if (StoreBufferSize > 0) {
+          if (0) {
             if (ConstraintPorts) {
               bool FirstPortAvailableFound = false;
               DEBUG (dbgs () << "*********** Checking availability in Ports *******************\n");
