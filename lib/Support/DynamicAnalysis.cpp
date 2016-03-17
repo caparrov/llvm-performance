@@ -266,7 +266,7 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
     }
   }
   
-
+  
   
   if (!MemAccessGranularity.empty ()
       && MemAccessGranularity.size () != nMemExecutionUnits)
@@ -390,13 +390,13 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
     DispatchPort[MEM_LOAD_NODE] = emptyVector;
     
     
-    // ConstraintPortsx86 forces some conditions like divisions and multitplications are
+    // ConstraintPortsx86 forces some conditions like divisions and multiplications are
     // issued in the same port. If parallel issue of a given node is larger than the
     // default ports in x86, then we add ports to the corresponding pool of ports in
     // DispathPort.
     
     
-    for (unsigned i = 0; i < nArithmeticNodes + nMovNodes + nMemNodes; i++){
+    for (unsigned i = 0; i < nArithmeticNodes + nMovNodes; i++){
       if((unsigned)ExecutionUnitsParallelIssue[ExecutionUnit[i]] > DispatchPort[i].size()){
         unsigned initialPortsSize = DispatchPort[i].size();
         for (unsigned j = initialPortsSize; j < (unsigned)ExecutionUnitsParallelIssue[ExecutionUnit[i]]; j++){
@@ -407,9 +407,42 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
       
     }
     
-    
+    // Memory nodes - All load memory nodes (L1, ... ,mem) and all stores memory nodes
+    // should have the same number of ports
+    for (unsigned i = nArithmeticNodes + nMovNodes; i < nArithmeticNodes + nMovNodes + nMemNodes; i++){
+      if((unsigned)ExecutionUnitsParallelIssue[ExecutionUnit[i]] > DispatchPort[i].size()){
+        unsigned initialPortsSize = DispatchPort[i].size();
+        for (unsigned j = initialPortsSize; j < (unsigned)ExecutionUnitsParallelIssue[ExecutionUnit[i]]; j++){
+          nPorts++;
+          if (i == L1_LOAD_NODE || i == L2_LOAD_NODE || i == L3_LOAD_NODE || i == MEM_LOAD_NODE ){
+            // The extra port is associated to all load nodes, because all loads should be issued
+            // by the same port. Parallel issue determines how many can be done i parallel.
+            //DispatchPort[i].push_back(PORT_0+nPorts-1);
+            DispatchPort[L1_LOAD_NODE].push_back(PORT_0+nPorts-1);
+            DispatchPort[L2_LOAD_NODE].push_back(PORT_0+nPorts-1);
+            DispatchPort[L3_LOAD_NODE].push_back(PORT_0+nPorts-1);
+            DispatchPort[MEM_LOAD_NODE].push_back(PORT_0+nPorts-1);
+            
+          }else{
+            if (i == L1_STORE_NODE || i == L2_STORE_NODE || i == L3_STORE_NODE || i == MEM_STORE_NODE ){
+              
+              DispatchPort[L1_STORE_NODE].push_back(PORT_0+nPorts-1);
+              DispatchPort[L2_STORE_NODE].push_back(PORT_0+nPorts-1);
+              DispatchPort[L3_STORE_NODE].push_back(PORT_0+nPorts-1);
+              DispatchPort[MEM_STORE_NODE].push_back(PORT_0+nPorts-1);
+              
+            }else{
+              report_fatal_error ("Memory node not recognized\n");
+            }
+          }
+        }
+      }
+    }
   }else{
+    // If constraint ports but no x86 ports
     if (ConstraintPorts){
+      
+      nPorts = 7;
       
       emptyVector.push_back (PORT_0);
       DispatchPort[FP_ADD_NODE] = emptyVector;
@@ -443,6 +476,7 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
       DispatchPort[L3_STORE_NODE] = emptyVector;
       DispatchPort[MEM_STORE_NODE] = emptyVector;
       
+      
       emptyVector.clear ();
       emptyVector.push_back (PORT_5+2);
       DispatchPort[L1_LOAD_NODE] = emptyVector;
@@ -451,7 +485,7 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
       DispatchPort[MEM_LOAD_NODE] = emptyVector;
       
       
-      for (unsigned i = 0; i < nArithmeticNodes + nMovNodes + nMemNodes; i++){
+      for (unsigned i = 0; i < nArithmeticNodes + nMovNodes; i++){
         if((unsigned)ExecutionUnitsParallelIssue[ExecutionUnit[i]] > DispatchPort[i].size()){
           unsigned initialPortsSize = DispatchPort[i].size();
           for (unsigned j = initialPortsSize; j < (unsigned)ExecutionUnitsParallelIssue[ExecutionUnit[i]]; j++){
@@ -462,7 +496,39 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
         
       }
       
-      
+      // Memory nodes - All load memory nodes (L1, ... ,mem) and all stores memory nodes
+      // should have the same number of ports
+      for (unsigned i = nArithmeticNodes + nMovNodes; i < nArithmeticNodes + nMovNodes + nMemNodes; i++){
+        if((unsigned)ExecutionUnitsParallelIssue[ExecutionUnit[i]] > DispatchPort[i].size()){
+          unsigned initialPortsSize = DispatchPort[i].size();
+          for (unsigned j = initialPortsSize; j < (unsigned)ExecutionUnitsParallelIssue[ExecutionUnit[i]]; j++){
+            nPorts++;
+            if (i == L1_LOAD_NODE || i == L2_LOAD_NODE || i == L3_LOAD_NODE || i == MEM_LOAD_NODE ){
+              // The extra port is associated to all load nodes, because all loads should be issued
+              // by the same port. Parallel issue determines how many can be done i parallel.
+              //DispatchPort[i].push_back(PORT_0+nPorts-1);
+              DispatchPort[L1_LOAD_NODE].push_back(PORT_0+nPorts-1);
+              DispatchPort[L2_LOAD_NODE].push_back(PORT_0+nPorts-1);
+              DispatchPort[L3_LOAD_NODE].push_back(PORT_0+nPorts-1);
+              DispatchPort[MEM_LOAD_NODE].push_back(PORT_0+nPorts-1);
+              
+            }else{
+              if (i == L1_STORE_NODE || i == L2_STORE_NODE || i == L3_STORE_NODE || i == MEM_STORE_NODE ){
+                
+                DispatchPort[L1_STORE_NODE].push_back(PORT_0+nPorts-1);
+                DispatchPort[L2_STORE_NODE].push_back(PORT_0+nPorts-1);
+                DispatchPort[L3_STORE_NODE].push_back(PORT_0+nPorts-1);
+                DispatchPort[MEM_STORE_NODE].push_back(PORT_0+nPorts-1);
+                
+              }else{
+                report_fatal_error ("Memory node not recognized\n");
+              }
+              
+            }
+          }
+        }
+        
+      }
       
     }else{
       vector < int >emptyVectorInt;
@@ -471,12 +537,11 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
         DispatchPort[i] = emptyVector;
       }
       
-      
     }
     
   }
   
-
+  
   for (unsigned i = 0; i < nArithmeticNodes + nMovNodes + nMemNodes; i++) {	// Dispatch ports are associated to nodes
     if (ConstraintPorts && ExecutionUnitsParallelIssue[ExecutionUnit[i]] > 0
         && DispatchPort[i].size () < (unsigned) ExecutionUnitsParallelIssue[ExecutionUnit[i]]) {
@@ -489,8 +554,8 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
         (ExecutionUnitsParallelIssue[ExecutionUnit[i]]==INF && ConstraintPortsx86))
     report_fatal_error ("Parallel Issue cannot infinite while constraining ports\n");
   }
-
-
+  
+  
   
   
   
@@ -559,11 +624,46 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
     for (unsigned i = 0; i < nExecutionUnits; i++){
       if (i >= nArithmeticExecutionUnits + nMovExecutionUnits
           && i < nArithmeticExecutionUnits + nMovExecutionUnits + nMemExecutionUnits) {
-      //  ShareThroughputAmongPorts[i] = true;
-	 ShareThroughputAmongPorts[i] = false;
+        //  ShareThroughputAmongPorts[i] = true;
+        ShareThroughputAmongPorts[i] = false;
+        if(ConstraintPortsx86)
+          ShareThroughputAmongPorts[i] = true;
+        
         
       }
       
+    }
+    bool ShareMemoryThroughput = false;
+    for (unsigned i = nArithmeticExecutionUnits + nMovExecutionUnits ; i< nArithmeticExecutionUnits + nMovExecutionUnits + nMemExecutionUnits; i++){
+      if(ShareThroughputAmongPorts[i] == true){
+        ShareMemoryThroughput = true;
+        break;
+        
+      }
+    }
+    if(ShareMemoryThroughput== false){
+      size_t MaxParallelIssueLoads = 0;
+      size_t MaxParallelIssueStores = 0;
+      for (unsigned i = nArithmeticNodes + nMovNodes; i < nArithmeticNodes + nMovNodes + nMemNodes; i++){
+        
+        
+        if (i == L1_LOAD_NODE || i == L2_LOAD_NODE || i == L3_LOAD_NODE || i == MEM_LOAD_NODE ){
+        		MaxParallelIssueLoads = max(MaxParallelIssueLoads, DispatchPort[i].size());
+          
+        }else{
+          if (i == L1_STORE_NODE || i == L2_STORE_NODE || i == L3_STORE_NODE || i == MEM_STORE_NODE ){
+            MaxParallelIssueStores = max(MaxParallelIssueStores, DispatchPort[i].size());
+            
+          }
+        }
+      }
+      
+      if (MaxParallelIssueLoads+MaxParallelIssueStores > nAGUs){
+        dbgs() << "MaxParallelIssueLoads " << MaxParallelIssueLoads   << "\n";
+        dbgs() << "MaxParallelIssueStores " << MaxParallelIssueStores   << "\n";
+        dbgs() << "nAGUs " << nAGUs   << "\n";
+        report_fatal_error ("Throughput is not shared among memory ports, and maximum parallel issue of loads plus\n maximum paralell issue of stores is larger than the number of available AGUs.\n Therefore, parallel issue is overprovisioned and will never be reached");
+      }
     }
   }
   
@@ -1465,6 +1565,7 @@ DynamicAnalysis::FindNextAvailableIssueCyclePortAndThroughtput (unsigned Instruc
   uint64_t InstructionIssueCyclePortAvailable = InstructionIssueCycle;
   uint64_t Port = 0;
   
+  
   if(ExecutionUnitsThroughput[ExecutionResource]==0){
     dbgs() << "Throughput zero for resource " << GetResourceName(ExecutionResource) << "\n";
     report_fatal_error("Throughput value not valid for resource issuing instructions");
@@ -1723,27 +1824,27 @@ DynamicAnalysis::ThereIsAvailableBandwidth (unsigned NextAvailableCycle, unsigne
     if (AvailableCyclesTree[ExecutionResource] != NULL) {
       Node = AvailableCyclesTree[ExecutionResource];
       if (Node != NULL && Node->key >= NextAvailableCycle) {
-
-	EnoughBandwidth = !GetLevelFull(ExecutionResource,  Node->issueOccupancy, Node->widthOccupancy);
-/*	   
-        LevelOccupancy = Node->widthOccupancy;
         
-        if (LevelOccupancy > 0 && ExecutionUnitsThroughput[ExecutionResource] >= 1) {
-		if(ShareThroughputAmongPorts[ExecutionResource]){
-          	if (ExecutionUnitsThroughput[ExecutionResource] * max(1,ExecutionUnitsParallelIssue[ExecutionResource]) -
-              Node->widthOccupancy < AccessWidth * NElementsVector)
-          	EnoughBandwidth = false;
-          }
-#ifdef DEBUG_GENERIC
-          DEBUG (dbgs () << "Level Occupacy " << LevelOccupancy << "\n");
-          DEBUG (dbgs () << "AccessWidth " << AccessWidth * NElementsVector << "\n");
-          DEBUG (dbgs () << "Total Available width " << ExecutionUnitsThroughput[ExecutionResource] *
-                 max(1,ExecutionUnitsParallelIssue[ExecutionResource]) - Node->widthOccupancy << "\n");
-          DEBUG (dbgs () << "EnoughBW = false\n");
-          
-#endif
-        }
-*/
+        EnoughBandwidth = !GetLevelFull(ExecutionResource,  Node->issueOccupancy, Node->widthOccupancy);
+        /*
+         LevelOccupancy = Node->widthOccupancy;
+         
+         if (LevelOccupancy > 0 && ExecutionUnitsThroughput[ExecutionResource] >= 1) {
+         if(ShareThroughputAmongPorts[ExecutionResource]){
+         if (ExecutionUnitsThroughput[ExecutionResource] * max(1,ExecutionUnitsParallelIssue[ExecutionResource]) -
+         Node->widthOccupancy < AccessWidth * NElementsVector)
+         EnoughBandwidth = false;
+         }
+         #ifdef DEBUG_GENERIC
+         DEBUG (dbgs () << "Level Occupacy " << LevelOccupancy << "\n");
+         DEBUG (dbgs () << "AccessWidth " << AccessWidth * NElementsVector << "\n");
+         DEBUG (dbgs () << "Total Available width " << ExecutionUnitsThroughput[ExecutionResource] *
+         max(1,ExecutionUnitsParallelIssue[ExecutionResource]) - Node->widthOccupancy << "\n");
+         DEBUG (dbgs () << "EnoughBW = false\n");
+         
+         #endif
+         }
+         */
       }
     }
     // Else, if ExecutionUnitsThroughput[ExecutionResource] >= 1, the level is either
@@ -1813,22 +1914,22 @@ DynamicAnalysis::ThereIsAvailableBandwidth (unsigned NextAvailableCycle, unsigne
             
             if (Node->issuePorts.size() > 0) {
               for (unsigned port = 0; port < Node->issuePorts.size(); port++) {
-               
-#ifdef DEBUG_GENERIC
-              DEBUG (dbgs () << "There was an instruction issued in previous cycle " << i << " in port " << GetResourceName(Node->issuePorts[port]) << "\n");
-#endif
-              IssuePorts.push_back (Node->issuePorts[port]);
-              if (ExecutionUnitsParallelIssue[ExecutionResource] != INF &&  IssuePorts.size() == (unsigned)ExecutionUnitsParallelIssue[ExecutionResource]){
-                EnoughBandwidth = false;
                 
 #ifdef DEBUG_GENERIC
-                DEBUG (dbgs () << "There is not enough bandwidth because "<< ExecutionUnitsParallelIssue[ExecutionResource] <<" instructions have been issued in previous cycles (corresponding to issue cycle granularity)\n");
+                DEBUG (dbgs () << "There was an instruction issued in previous cycle " << i << " in port " << GetResourceName(Node->issuePorts[port]) << "\n");
 #endif
+                IssuePorts.push_back (Node->issuePorts[port]);
+                if (ExecutionUnitsParallelIssue[ExecutionResource] != INF &&  IssuePorts.size() == (unsigned)ExecutionUnitsParallelIssue[ExecutionResource]){
+                  EnoughBandwidth = false;
+                  
+#ifdef DEBUG_GENERIC
+                  DEBUG (dbgs () << "There is not enough bandwidth because "<< ExecutionUnitsParallelIssue[ExecutionResource] <<" instructions have been issued in previous cycles (corresponding to issue cycle granularity)\n");
+#endif
+                  
+                  
+                }
                 
-                
-              }
-              
-            }//End of for
+              }//End of for
             }
             
           }
@@ -1885,23 +1986,23 @@ DynamicAnalysis::ThereIsAvailableBandwidth (unsigned NextAvailableCycle, unsigne
           if (Node != NULL && Node->key == i) {
             if (Node->issuePorts.size () > 0) {
               for (unsigned port = 0; port < Node->issuePorts.size(); port++) {
-
-#ifdef DEBUG_GENERIC
-              
-              DEBUG (dbgs () << "There was an instruction issued in kater cycle " << i << " in port " << GetResourceName(Node->issuePorts[port]) << "\n");
-#endif
-              IssuePorts.push_back (Node->issuePorts[port]);
-              
-              if (ExecutionUnitsParallelIssue[ExecutionResource] != INF && IssuePorts.size() == (unsigned)ExecutionUnitsParallelIssue[ExecutionResource]){
-                EnoughBandwidth = false;
                 
 #ifdef DEBUG_GENERIC
-                DEBUG (dbgs () << "There is not enough bandwidth because "<< ExecutionUnitsParallelIssue[ExecutionResource] <<" instructions have been issued in later cycles (corresponding to issue cycle granularity)\n");
+                
+                DEBUG (dbgs () << "There was an instruction issued in kater cycle " << i << " in port " << GetResourceName(Node->issuePorts[port]) << "\n");
 #endif
+                IssuePorts.push_back (Node->issuePorts[port]);
                 
-                
+                if (ExecutionUnitsParallelIssue[ExecutionResource] != INF && IssuePorts.size() == (unsigned)ExecutionUnitsParallelIssue[ExecutionResource]){
+                  EnoughBandwidth = false;
+                  
+#ifdef DEBUG_GENERIC
+                  DEBUG (dbgs () << "There is not enough bandwidth because "<< ExecutionUnitsParallelIssue[ExecutionResource] <<" instructions have been issued in later cycles (corresponding to issue cycle granularity)\n");
+#endif
+                  
+                  
+                }
               }
-            }
               
             }
           }
@@ -5776,8 +5877,8 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
         
         if (IsVectorInstruction) {
           DEBUG (dbgs () << "Vector instruction of width " << NElementsVector << "\n");
-           if (ShareThroughputAmongPorts[ExecutionUnit[GetExtendedInstructionType(OpCode)]]==false)
-			report_fatal_error("Executing vector instruction without sharing ports. It may be correct, but double check that this is the desired behaviour");
+          if (ShareThroughputAmongPorts[ExecutionUnit[GetExtendedInstructionType(OpCode)]]==false)
+          report_fatal_error("Executing vector instruction without sharing ports. It may be correct, but double check that this is the desired behaviour");
         }
         
         //      }
@@ -6259,8 +6360,9 @@ DynamicAnalysis::analyzeInstruction (Instruction & I, ExecutionContext & SF, Gen
 #ifdef DEBUG_GENERIC
               DEBUG (dbgs () << "*********** Checking availability in Ports *******************\n");
 #endif
-              //If there is no load buffer, there must be available cycle in both, the dispatch port
+              //T here must be available cycle in both, the dispatch port
               // and the resource
+              
               InstructionIssueThroughputAvailable =
               FindNextAvailableIssueCyclePortAndThroughtput (InstructionIssueCycle, ExtendedInstructionType,
                                                              NElementsVector);
@@ -8862,7 +8964,7 @@ DynamicAnalysis::finishAnalysisContechSimplified ()
     vector < vector < uint64_t > >ResourcesOverlapCycles (nExecutionUnits+nBuffers+1, vector < uint64_t > (nExecutionUnits+nBuffers));
     vector < vector < uint64_t > >ResourcesOnlyLatencyOverlapCycles (nExecutionUnits, vector < uint64_t > (nExecutionUnits+nBuffers));
     vector < vector < uint64_t > >ResourcesOnlyIssueOverlapCycles (nExecutionUnits, vector < uint64_t > (nExecutionUnits+nBuffers));
-     bool L1ResourceFound = false;
+    bool L1ResourceFound = false;
     for (unsigned i = 0; i < TotalSpan; i++){
       vector < unsigned > resourcesInCycle;
       L1ResourceFound = false;
@@ -8874,16 +8976,16 @@ DynamicAnalysis::finishAnalysisContechSimplified ()
       for (unsigned j = 0; j< resourcesInCycle.size(); j++){
         ResourcesOverlapCycles[resourcesInCycle[j]][resourcesInCycle.size()]++;
         // l1 calculation
-         if ((resourcesInCycle[j]==L1_LOAD_CHANNEL || resourcesInCycle[j] == L1_STORE_CHANNEL)){
-         if(L1ResourceFound==false){
-         L1ResourceFound = true;
-         ResourcesOverlapCycles.back()[resourcesInCycle.size()]++;
-         }else{
-         ResourcesOverlapCycles.back()[resourcesInCycle.size()]--;
-         ResourcesOverlapCycles.back()[resourcesInCycle.size()-1]++;
-         }
-         }
-         // End of l1 calculation
+        if ((resourcesInCycle[j]==L1_LOAD_CHANNEL || resourcesInCycle[j] == L1_STORE_CHANNEL)){
+          if(L1ResourceFound==false){
+            L1ResourceFound = true;
+            ResourcesOverlapCycles.back()[resourcesInCycle.size()]++;
+          }else{
+            ResourcesOverlapCycles.back()[resourcesInCycle.size()]--;
+            ResourcesOverlapCycles.back()[resourcesInCycle.size()-1]++;
+          }
+        }
+        // End of l1 calculation
       }
       
       for (unsigned j = 0; j< nExecutionUnits; j++){
@@ -8920,19 +9022,19 @@ DynamicAnalysis::finishAnalysisContechSimplified ()
     }
     
     // Add data for caches
-      ResourcesOverlapCycles.push_back(ResourcesOverlapCycles[L2_LOAD_CHANNEL]);
-      ResourcesOverlapCycles.push_back(ResourcesOverlapCycles[L3_LOAD_CHANNEL]);
-      ResourcesOverlapCycles.push_back(ResourcesOverlapCycles[MEM_LOAD_CHANNEL]);
-
-/*
-    for (unsigned i = 0; i < ResourcesOverlapCycles[L2_LOAD_CHANNEL].size(); i++){
-	
-      ResourcesOverlapCycles[nExecutionUnits+nBuffers][i] = ResourcesOverlapCycles[L2_LOAD_CHANNEL][i];
-      ResourcesOverlapCycles[nExecutionUnits+nBuffers+1][i] = ResourcesOverlapCycles[L3_LOAD_CHANNEL][i];
-      ResourcesOverlapCycles[nExecutionUnits+nBuffers+2][i] = ResourcesOverlapCycles[MEM_LOAD_CHANNEL][i];
+    ResourcesOverlapCycles.push_back(ResourcesOverlapCycles[L2_LOAD_CHANNEL]);
+    ResourcesOverlapCycles.push_back(ResourcesOverlapCycles[L3_LOAD_CHANNEL]);
+    ResourcesOverlapCycles.push_back(ResourcesOverlapCycles[MEM_LOAD_CHANNEL]);
     
-}
-*/    printHeaderStat ("Ranking ");
+    /*
+     for (unsigned i = 0; i < ResourcesOverlapCycles[L2_LOAD_CHANNEL].size(); i++){
+     
+     ResourcesOverlapCycles[nExecutionUnits+nBuffers][i] = ResourcesOverlapCycles[L2_LOAD_CHANNEL][i];
+     ResourcesOverlapCycles[nExecutionUnits+nBuffers+1][i] = ResourcesOverlapCycles[L3_LOAD_CHANNEL][i];
+     ResourcesOverlapCycles[nExecutionUnits+nBuffers+2][i] = ResourcesOverlapCycles[MEM_LOAD_CHANNEL][i];
+     
+     }
+     */    printHeaderStat ("Ranking ");
     
     
     vector<unsigned> CandidateResources;
@@ -8996,7 +9098,7 @@ DynamicAnalysis::finishAnalysisContechSimplified ()
         dbgs () << "L2";
         if (j == nExecutionUnits+nBuffers+2)
         dbgs () << "LLC";
-if (j == nExecutionUnits+nBuffers+3)
+        if (j == nExecutionUnits+nBuffers+3)
         dbgs () << "MEM";
       }
       
@@ -9028,14 +9130,14 @@ if (j == nExecutionUnits+nBuffers+3)
       if (j < nExecutionUnits+nBuffers)
       dbgs () << GetResourceName(j);
       else{
-          if (j == nExecutionUnits+nBuffers)
+        if (j == nExecutionUnits+nBuffers)
         dbgs () << "ALL_L1";
         
         if (j == nExecutionUnits+nBuffers+1)
         dbgs () << "L2";
         if (j == nExecutionUnits+nBuffers+2)
         dbgs () << "LLC";
-if (j == nExecutionUnits+nBuffers+3)
+        if (j == nExecutionUnits+nBuffers+3)
         dbgs () << "MEM";
       }
       for (unsigned i = 1; i< nExecutionUnits+nBuffers; i++){
