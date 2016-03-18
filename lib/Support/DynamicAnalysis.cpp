@@ -46,7 +46,6 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
 {
   
   
-  
   vector < unsigned >emptyVector;
   
   // =================== Sandy Bridge config ================================//
@@ -63,7 +62,7 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
     nMemNodes = SANDY_BRIDGE_MEM_NODES;
     nPorts = SANDY_BRIDGE_DISPATCH_PORTS;
     nBuffers = SANDY_BRIDGE_BUFFERS;
-    nAGUs = SANDY_BRIDGE_AGU;
+    nAGUs = SANDY_BRIDGE_AGUS;
     nLoadAGUs = SANDY_BRIDGE_LOAD_AGUS;
     nStoreAGUs = SANDY_BRIDGE_STORE_AGUS;
     nPrefetchNodes = SANDY_BRIDGE_PREFETCH_NODES;
@@ -569,10 +568,14 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
     AccessGranularities.push_back (1);
   }
   
+  /*
   
-  
-  
-  
+  if (ConstraintAGUs== false){
+	nAGUs = 0;
+	nLoadAGUs = 0;
+	nStoreAGUs = 0;
+  }
+  */
   // Latency and throughput of AGUs
   if (nAGUs > 0) {
     this->ExecutionUnitsLatency.push_back (1);
@@ -658,7 +661,7 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
         }
       }
       
-      if (MaxParallelIssueLoads+MaxParallelIssueStores > nAGUs){
+      if (ConstraintAGUs && MaxParallelIssueLoads+MaxParallelIssueStores > nAGUs){
         dbgs() << "MaxParallelIssueLoads " << MaxParallelIssueLoads   << "\n";
         dbgs() << "MaxParallelIssueStores " << MaxParallelIssueStores   << "\n";
         dbgs() << "nAGUs " << nAGUs   << "\n";
