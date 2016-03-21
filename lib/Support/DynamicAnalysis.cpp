@@ -412,8 +412,10 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
       if((unsigned)ExecutionUnitsParallelIssue[ExecutionUnit[i]] > DispatchPort[i].size()){
         unsigned initialPortsSize = DispatchPort[i].size();
         for (unsigned j = initialPortsSize; j < (unsigned)ExecutionUnitsParallelIssue[ExecutionUnit[i]]; j++){
+
           nPorts++;
           if (i == L1_LOAD_NODE || i == L2_LOAD_NODE || i == L3_LOAD_NODE || i == MEM_LOAD_NODE ){
+
             // The extra port is associated to all load nodes, because all loads should be issued
             // by the same port. Parallel issue determines how many can be done i parallel.
             //DispatchPort[i].push_back(PORT_0+nPorts-1);
@@ -437,10 +439,11 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
         }
       }
     }
+
   }else{
     // If constraint ports but no x86 ports
     if (ConstraintPorts){
-      
+      // Initial number of ports
       nPorts = 7;
       
       emptyVector.push_back (PORT_0);
@@ -568,14 +571,18 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
     AccessGranularities.push_back (1);
   }
   
-  /*
   
+   // Does not matter whether we constraint AGUs or not, ExecutionUnitsLatency, 
+   // ExecutionUnitsParallelIssue and  ExecutionUnitsThroughput have an entry
+   // for them. If constraint is false, then thorughput is set to infinity.
+  /*
   if (ConstraintAGUs== false){
 	nAGUs = 0;
 	nLoadAGUs = 0;
 	nStoreAGUs = 0;
   }
-  */
+*/
+  
   // Latency and throughput of AGUs
   if (nAGUs > 0) {
     this->ExecutionUnitsLatency.push_back (1);
@@ -672,7 +679,11 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
   
   // We need AccessWidth and Throughput for every resource for which we calculte
   // span, including ports
-  for (unsigned i = 0; i < nExecutionUnits + nAGUs + nPorts + nBuffers; i++) {
+
+  // Before the 1 below was nAGUs, but in reality for AGUs there is only one resource
+  // with throughput equal to the number of AGUs
+
+  for (unsigned i = 0; i < nExecutionUnits + 1 + nPorts + nBuffers; i++) {
     
     unsigned IssueCycleGranularity = 0;
     unsigned AccessWidth = 0;
@@ -706,8 +717,8 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
         // (before it was MemoryWordSize)
         if (this->ExecutionUnitsThroughput[i] != INF) {
           if (this->ExecutionUnitsThroughput[i] < AccessWidth) {
-            // if (this->ExecutionUnitsThroughput[i] < this->MemoryWordSize){
-            //HERE  if (this->ExecutionUnitsThroughput[i] < 1) {
+            // if (this->ExecutionUnitsThroughput[i] < this->MemoryWordSize)
+            //HERE  if (this->ExecutionUnitsThroughput[i] < 1) 
             if (this->ExecutionUnitsThroughput[i] > 0 && this->ExecutionUnitsThroughput[i] < 1 ) {
               float Inverse = ceil (1 / this->ExecutionUnitsThroughput[i]);
               float Rounded = roundNextPowerOfTwo (Inverse);
@@ -7804,8 +7815,8 @@ DynamicAnalysis::CalculateIssueSpanFinal (vector < int >&ResourcesVector)
       if (ExecutionUnitsThroughput[ResourceType] == INF)
       TmpLatency = 1;
       else
-      TmpLatency = ceil (AccessWidth / ExecutionUnitsThroughput[ResourceType]);
-      
+//      TmpLatency = ceil (AccessWidth / ExecutionUnitsThroughput[ResourceType]);
+  	   TmpLatency = GetIssueCycleGranularity(ResourceType, AccessWidth, 1);    
       if (EmptyLevel == true) {	// This will be only executed the first time of a non-empty level
         EmptyLevel = false;
         First = FirstNonEmptyLevel[ResourceType];
@@ -7826,18 +7837,21 @@ DynamicAnalysis::CalculateIssueSpanFinal (vector < int >&ResourcesVector)
       LastCycle = max (LastCycle, ResourceLastCycle);
     }
   }
+
+ 
   
   unsigned DominantLevel = First;
   if (NResources == 1 && MaxLatency > 0) {
     //unsigned nBits = 0;
     for (unsigned q = 0; q < MaxLatency; q++) {
+
       CISFCache[ResourcesVector[0]][First + q] = 1;
     }
   }
   
   if (EmptyLevel == false) {
     Span += MaxLatency;
-    
+
     //Start from next level to first non-empty level
     for (unsigned i = First + 1; i <= LastCycle; i++) {
       //Determine MaxLatency of Level
@@ -7847,15 +7861,18 @@ DynamicAnalysis::CalculateIssueSpanFinal (vector < int >&ResourcesVector)
         
         if (i <= LastIssueCycleVector[ResourceType]) {
           if (IsEmptyLevelFinal (ResourceType, i) == false) {
+
             AccessWidth = AccessWidths[ResourceType];
             if (ExecutionUnitsThroughput[ResourceType] == INF)
             TmpLatency = 1;
             else
-            TmpLatency = ceil (AccessWidth / ExecutionUnitsThroughput[ResourceType]);
+            //TmpLatency = ceil (AccessWidth / ExecutionUnitsThroughput[ResourceType]);
+			TmpLatency = GetIssueCycleGranularity(ResourceType, AccessWidth, 1);   
             MaxLatencyLevel = max (MaxLatencyLevel, TmpLatency);
           }
         }
       }
+
       
       //That is, only if there are instructions scheduled in this cycle
       if (MaxLatencyLevel != 0) {
@@ -7875,6 +7892,7 @@ DynamicAnalysis::CalculateIssueSpanFinal (vector < int >&ResourcesVector)
       
       if (NResources == 1 && MaxLatencyLevel > 0) {
         for (unsigned q = 0; q < MaxLatencyLevel; q++) {
+
           CISFCache[ResourcesVector[0]][i + q] = 1;
         }
       }
