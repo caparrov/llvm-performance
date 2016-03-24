@@ -308,6 +308,7 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
   
   if (!ExecutionUnitsThroughput.empty ())
   for (unsigned i = 0; i < nExecutionUnits; i++)
+
   this->ExecutionUnitsThroughput[i] = ExecutionUnitsThroughput[i];
   
   if (!ExecutionUnitsParallelIssue.empty ())
@@ -702,7 +703,7 @@ DynamicAnalysis::DynamicAnalysis (string TargetFunction,
       else {
         if (this->ExecutionUnitsThroughput[i] != INF) {
           if (this->ExecutionUnitsThroughput[i] >= 1) {
-            this->ExecutionUnitsThroughput[i] = this->ExecutionUnitsThroughput[i];
+            this->ExecutionUnitsThroughput[i] = this->ExecutionUnitsThroughput[i]; // TODO: ???
           }
         }
         
@@ -1770,6 +1771,7 @@ DynamicAnalysis::GetLevelFull(unsigned ExecutionResource, unsigned NodeIssueOccu
   if (ExecutionUnitsThroughput[ExecutionResource] != INF && ExecutionUnitsParallelIssue[ExecutionResource] == INF) {
     if(NodeWidthOccupancy >= ExecutionUnitsThroughput[ExecutionResource])
     LevelFull = true;
+
   }
   
   if (ExecutionUnitsThroughput[ExecutionResource] == INF && ExecutionUnitsParallelIssue[ExecutionResource] != INF) {
@@ -8969,7 +8971,7 @@ DynamicAnalysis::finishAnalysisContechSimplified ()
   {
     printHeaderStat ("Overlaps metrics");
     for (unsigned i = 0; i < nExecutionUnits+nBuffers; i++) {
-      if (InstructionsCountExtended[i]!= 0) {
+      if (InstructionsCountExtended[i]!= 0 && ResourcesSpan[i]!=0) {
         dbgs () << GetResourceName(i) << " " << ((OverlapsMetrics[i]/ResourcesSpan[i])*(TotalSpan/ResourcesSpan[i])) << "\n";
       }else
       dbgs () << GetResourceName(i) << " 0\n";
