@@ -46,8 +46,9 @@
 
 //#define DEBUG_SOURCE_CODE_LINE_ANALYSIS
 #define DEBUG_MEMORY_TRACES
-//#define DEBUG_REUSE_DISTANCE
+#define DEBUG_REUSE_DISTANCE
 #define DEBUG_GENERIC
+#define DEBUG_REGISTER_FILE
 //#define DEBUG_DEPS_FUNCTION_CALL
 //#define DEBUG_SPAN_CALCULATION
 //#define DEBUG_AGU
@@ -207,6 +208,8 @@ enum {
   FP_BLEND_NODE,
   FP_MOV_NODE,
   
+  REGISTER_LOAD_NODE,
+  REGISTER_STORE_NODE,
   L1_LOAD_NODE,
   L1_STORE_NODE,
   L2_LOAD_NODE,
@@ -258,6 +261,9 @@ enum {
   FP_SHUFFLE_UNIT,
   FP_BLEND_UNIT,
   FP_MOV_UNIT,
+  
+  REGISTER_LOAD_CHANNEL,
+  REGISTER_STORE_CHANNEL = REGISTER_LOAD_CHANNEL,
   L1_LOAD_CHANNEL,
   L1_STORE_CHANNEL,
   L2_LOAD_CHANNEL,
@@ -266,7 +272,8 @@ enum {
   L3_STORE_CHANNEL = L3_LOAD_CHANNEL,
   MEM_LOAD_CHANNEL,
   MEM_STORE_CHANNEL = MEM_LOAD_CHANNEL,
-RS_STALL,
+
+  RS_STALL,
   ROB_STALL,
   LB_STALL,
   SB_STALL,
@@ -305,15 +312,15 @@ RS_STALL,
 #define SANDY_BRIDGE_EXECUTION_UNITS MEM_STORE_CHANNEL+1
 #define SANDY_BRIDGE_NODES TOTAL_NODES+1
 
-#define SANDY_BRIDGE_ARITHMETIC_NODES 3
+#define SANDY_BRIDGE_ARITHMETIC_NODES 3 // ADD (SUB), MUL, DIV
 #define SANDY_BRIDGE_ARITHMETIC_EXECUTION_UNITS 3
 
-#define SANDY_BRIDGE_MOV_NODES 3
+#define SANDY_BRIDGE_MOV_NODES 3 
 #define SANDY_BRIDGE_MOV_EXECUTION_UNITS 3
 
 
-#define SANDY_BRIDGE_MEM_NODES 8
-#define SANDY_BRIDGE_MEM_EXECUTION_UNITS 5
+#define SANDY_BRIDGE_MEM_NODES 10 // Before 8, we add 1 for register file size
+#define SANDY_BRIDGE_MEM_EXECUTION_UNITS 6  // Before 5
 
 
 #define SANDY_BRIDGE_DISPATCH_PORTS 6
@@ -323,7 +330,6 @@ RS_STALL,
 #define SANDY_BRIDGE_STORE_AGUS 0
 #define SANDY_BRIDGE_PREFETCH_NODES 3
 
-#define SANDY_BRIDGE_AGU 1
 
 
 
@@ -486,6 +492,9 @@ public:
   unsigned MemoryWordSize;
   unsigned CacheLineSize;
   
+
+  // Register file size
+  unsigned RegisterFileSize;
   //Cache sizes are specified in number of cache lines of size CacheLineSize
   unsigned L1CacheSize;
   unsigned L2CacheSize;
@@ -534,6 +543,7 @@ public:
   vector<string> NodesNames;
   
   
+  unsigned NRegisterSpills;
   
   
   bool LimitILP;
@@ -703,6 +713,9 @@ unsigned GetOneToAllOverlapCyclesFinal(vector < int >&ResourcesVector, bool Issu
   map <Value*, uint64_t> InstructionValueUseCycleMap;
   map <uint64_t , CacheLineInfo> CacheLineIssueCycleMap;
   map <uint64_t , uint64_t> MemoryAddressIssueCycleMap;
+  
+
+  deque<uint64_t> ReuseStack;
   Tree<uint64_t> * ReuseTree;
   Tree<uint64_t> * PrefetchReuseTree;
   uint64_t PrefetchReuseTreeSize;
@@ -725,6 +738,7 @@ unsigned GetOneToAllOverlapCyclesFinal(vector < int >&ResourcesVector, bool Issu
                   string Microarchitecture,
                   unsigned MemoryWordSize,
                   unsigned CacheLineSize,
+			   unsigned RegisterFileSize,
                   unsigned L1CacheSize,
                   unsigned L2CacheSize,
                   unsigned LLCCacheSize,
@@ -787,6 +801,7 @@ unsigned GetOneToAllOverlapCyclesFinal(vector < int >&ResourcesVector, bool Issu
 #endif
   
   
+  float GetEffectiveThroughput(unsigned ExecutionResource, unsigned AccessWidth, unsigned NElementsVector);
   unsigned GetIssueCycleGranularity(unsigned ExecutionResource, unsigned AccessWidth, unsigned NElementsVector);
   unsigned GetNodeWidthOccupancy(unsigned ExecutionResource, unsigned AccessWidth, unsigned NElementsVector);
   bool GetLevelFull(unsigned ExecutionResource, unsigned NodeIssueOccupancy, unsigned NodeWidthOccupancy);
@@ -801,7 +816,7 @@ unsigned GetOneToAllOverlapCyclesFinal(vector < int >&ResourcesVector, bool Issu
   
   uint64_t FindNextAvailableIssueCycleUntilNotInFullOrEnoughBandwidth(unsigned NextCycle, unsigned ExecutionResource , bool& FoundInFullOccupancyCyclesTree, bool& EnoughBandwidth);
   
-  bool InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsigned ExecutionResource, unsigned NElementsVector = 1, unsigned IssuePort = 0, bool isPrefetch=0);
+  bool InsertNextAvailableIssueCycle(uint64_t NextAvailableCycle, unsigned ExecutionResource, unsigned NElementsVector = 1, int IssuePort = -1, bool isPrefetch=0);
   
   void IncreaseInstructionFetchCycle(bool EmptyBuffers = false);
   
@@ -832,7 +847,7 @@ unsigned GetOneToAllOverlapCyclesFinal(vector < int >&ResourcesVector, bool Issu
   
   
   unsigned GetMemoryInstructionType(int ReuseDistance, uint64_t MemoryAddress,bool isLoad=true);
-  unsigned GetExtendedInstructionType(int OpCode, int ReuseDistance=0);
+  unsigned GetExtendedInstructionType(int OpCode, int ReuseDistance=0, int RegisterStackReuseDistance = -1);
   unsigned GetPositionSourceCodeLineInfoVector(uint64_t Resource);
   
   uint64_t GetMinIssueCycleReservationStation();
@@ -888,6 +903,7 @@ unsigned GetOneToAllOverlapCyclesFinal(vector < int >&ResourcesVector, bool Issu
   void PrintDispatchToLoadBuffer();
   void PrintDispatchToLineFillBuffer();
   
+  int RegisterStackReuseDistance(uint64_t address);
   int ReuseDistance(uint64_t Last, uint64_t Current, uint64_t address, bool FromPrefetchReuseTree = false);
   int ReuseTreeSearchDelete(uint64_t Current, uint64_t address,  bool FromPrefetchReuseTree = false);
   //int ReuseTreeSearchDelete(uint64_t Last, bool FromPrefetchReuseTree = false);
